@@ -4,50 +4,50 @@
 
 ---
 
-OmniRoute ሲጀምር የSQLite ነጂውን ባለ 5-ደረጃ የአማራጭ ሰንሰለት በመጠቀም ይፈልጋል፦
+OmniRoute ሲጀምር የSQLite አንቀሳቃሹን በ5-ደረጃ ተተኪ ሰንሰለት ይወስናል፦
 
 1. **አብሮ የታሸገ `better-sqlite3`** (በ`package.json` ውስጥ ባለው `dependencies` በኩል)
-   — ፈጣኑ አማራጭ፣ ቤተኛ ባይነሪ ሲሆን፣ የግንባታ መሣሪያዎች ሲኖሩ `npm install` ይጭነዋል።
+   — ፈጣኑ፣ ቤተኛ binary፣ የግንባታ መሣሪያዎች ሲኖሩ `npm install` የሚጭነው።
 
-2. **በአሂድ ጊዜ የሚጫን `better-sqlite3`** (በ`~/.omniroute/runtime/` ውስጥ)
-   — ለመጀመሪያ ጊዜ ሲሠራ እንደ አስፈላጊነቱ **ወይም** በ`scripts/build/postinstall.mjs → scripts/postinstall.mjs` በኩል ይጫናል።
-   ከመጫኑ በፊት፣ የተበላሹ ወይም ለተሳሳተ መድረክ የተዘጋጁ ባይነሪዎችን
-   ለመከላከል የቤተኛ `.node` ማጂክ ባይቶችን (ELF / Mach-O / PE) ያረጋግጣል።
+2. **በአሂድ ጊዜ የተጫነ `better-sqlite3`** (በ`~/.omniroute/runtime/` ውስጥ)
+   — ለመጀመሪያ ጊዜ ሲሄድ እንደ አስፈላጊነቱ **ወይም** በ`scripts/build/postinstall.mjs → scripts/postinstall.mjs` ይጫናል።
+   ከመጫኑ በፊት ቤተኛ `.node` magic bytes (ELF / Mach-O / PE) በማረጋገጥ
+   የተበላሹ ወይም ለተሳሳተ መድረክ የተዘጋጁ binaries እንዳይጫኑ ይከላከላል።
 
-3. **`node:sqlite`** (Node ≥22.5 መደበኛ ቤተ-መጻሕፍት) — ቤተኛ ግንባታ አያስፈልገውም፤
-   ሁለቱም የbetter-sqlite3 መንገዶች ሲሳኩ ጥቅም ላይ ይውላል። የተወሰነ የባህሪያት ስብስብ አለው።
+3. **`node:sqlite`** (Node ≥22.5 stdlib) — ቤተኛ ግንባታ አያስፈልግም፤ ሁለቱም የbetter-sqlite3 መንገዶች
+   ሳይሳኩ ሲቀሩ ጥቅም ላይ ይውላል። የተገደበ የባህሪያት ስብስብ አለው።
 
-4. **`sql.js`** (WASM) — የመጨረሻው አማራጭ። በሁሉም ቦታ ይሠራል፣ ነገር ግን ቀርፋፋ ነው
-   እና ውሂብን በተመሳሳይ ጊዜ ከመጻፍ ይልቅ በጊዜ ክፍተት ይጽፋል።
+4. **`sql.js`** (WASM) — የመጨረሻው ተተኪ። በሁሉም ቦታ ይሠራል፣ ነገር ግን የቀዘቀዘ ነው
+   እና ውሂብን በተመሳሰለ መንገድ ሳይሆን በተወሰነ የጊዜ ክፍተት ይጽፋል።
 
 ## ይህ ውስብስብነት ለምን ያስፈልጋል?
 
-- **Windows EBUSY**፦ የቀዳሚው ስሪት `better_sqlite3.node` በሚሠራ ሂደት ተቆልፎ ከሆነ፣
-  `npm install -g omniroute@latest` ሊሳካ ይችላል። በ`~/.omniroute/runtime/`
-  ውስጥ የሚደረገው የአሂድ ጊዜ ጭነት ዓለም አቀፉን የnpm መሸጎጫ ያልፋል።
+- **Windows EBUSY**፦ የቀድሞው ስሪት `better_sqlite3.node` በሚሄድ ሂደት ከተቆለፈ
+  `npm install -g omniroute@latest` ሊሳካ አይችልም። በ`~/.omniroute/runtime/` ውስጥ የሚደረገው የአሂድ ጊዜ
+  ጭነት ዓለም አቀፉን npm cache ያልፋል።
 - **የግንባታ መሣሪያዎች አለመኖር**፦ አንዳንድ አካባቢዎች (VS Build
-  Tools የሌለባቸው የድርጅት Windows ስርዓቶች፣ አነስተኛ Docker ምስሎች) `better-sqlite3`ን
-  ማጠናቀር አይችሉም። የአሂድ ጊዜ ጫኚው ቀድሞ የተገነባ ባይነሪን ከnpm መዝገብ ያገኛል፤
-  ይህ ቢሳካም የአማራጭ ነጂዎቹ OmniRoute መነሳቱን እንዲቀጥል ያረጋግጣሉ።
-- **ከውጭ አውታረ መረብ የተለዩ ስርዓቶች**፦ የnpm መዝገብ የማይደረስ ከሆነ፣ `node:sqlite`
+  Tools የሌለባቸው የድርጅት Windows ሥርዓቶች፣ አነስተኛ Docker images) `better-sqlite3`ን ማጠናቀር አይችሉም። የአሂድ ጊዜ
+  ጫኚው ቀድሞ የተገነባ binary ከnpm registry ያገኛል፤ ይህም ቢሳካ እንኳን ተተኪ
+  አንቀሳቃሾቹ OmniRoute እንዲነሳ ያረጋግጣሉ።
+- **ከአውታረ መረብ የተነጠሉ ሥርዓቶች**፦ npm registry የማይደረስ ከሆነ `node:sqlite`
   ወይም `sql.js` መሠረታዊ ተግባራዊነትን ያረጋግጣሉ።
 
-## የማጂክ ባይት ማረጋገጫ
+## የMagic-byte ማረጋገጫ
 
-በአሂድ ጊዜ የተጫነ `.node` ፋይል ከመጫኑ በፊት፣ OmniRoute የመጀመሪያዎቹን 8
-ባይቶች ያነባል እና ከሚታወቁ የመድረክ ማጂክ እሴቶች ጋር ያዛምዳቸዋል፦
+OmniRoute በአሂድ ጊዜ የተጫነ `.node` file ከመጫኑ በፊት የመጀመሪያዎቹን 8
+bytes ያነባል እና ከሚታወቁት የመድረክ magics ጋር ያዛምዳል፦
 
-| መድረክ                  | ባይቶች (ሄክስ)    | መለያ         |
+| መድረክ                  | Bytes (hex)   | መለያ         |
 | --------------------- | ------------- | ----------- |
 | Linux                 | `7F 45 4C 46` | `elf`       |
-| macOS 64-ቢት BE        | `FE ED FA CF` | `macho`     |
-| macOS 64-ቢት LE        | `CF FA ED FE` | `macho-le`  |
+| macOS 64-bit BE       | `FE ED FA CF` | `macho`     |
+| macOS 64-bit LE       | `CF FA ED FE` | `macho-le`  |
 | macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
 | Windows               | `4D 5A` (MZ)  | `pe`        |
 
-የማይዛመድ ማጂክ → ፋይሉ ችላ ይባላል፣ የአማራጭ ሂደቱም ወደሚቀጥለው ደረጃ ይሄዳል።
+የማይዛመድ magic → file ችላ ይባላል፣ የተተኪው ሂደት ወደ ቀጣዩ ደረጃ ይቀጥላል።
 
-## ንቁውን ነጂ ማረጋገጥ
+## ንቁውን አንቀሳቃሽ መፈተሽ
 
 ```typescript
 import { getDriverInfo } from "@/lib/db/core";
@@ -65,31 +65,52 @@ OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
 # የአሂድ ጊዜ better-sqlite3ን በግድ እንደገና ጫን
 rm -rf ~/.omniroute/runtime
-omniroute  # በሚቀጥለው መነሻ ላይ እንደገና ይጫናል
+omniroute  # በሚቀጥለው ጅምር እንደገና ይጫናል
 
-# የትኛው ነጂ ንቁ እንደሆነ አረጋግጥ
-omniroute config db-info  # (የCLI ትእዛዙ ካለ)
+# የትኛው አንቀሳቃሽ ንቁ እንደሆነ ፈትሽ
+omniroute config db-info  # (የCLI ትዕዛዙ ካለ)
 ```
+
+## የተመሳሰሉ መቆሞችን መመርመር
+
+`better-sqlite3`ን ሲጠቀሙ፣ የተመሳሰለ adapter ጊዜ መለኪያን ለማንቃት ከጅምር በፊት `OMNIROUTE_SQLITE_SLOW_MS=200` ያዘጋጁ።
+በነባሪነት የተሰናከለ ነው። የተጠናቀቀ ክወና ቢያንስ ይህን ያህል milliseconds ከወሰደ
+የ`[SQLITE-SLOW]` ማስጠንቀቂያ ይወጣል፣ ለእያንዳንዱ adapter በየአሥር
+ሰከንዱ ቢበዛ አንድ ጊዜ። ማስጠንቀቂያው አንቀሳቃሹን፣ የክወናውን ምድብ
+(`prepare`፣ `get`፣ `all`፣ `run`፣ `exec`፣ `pragma`፣ transaction ወይም maintenance) እና
+ያለፉትን milliseconds ብቻ ይይዛል፦ SQL፣ bindings፣ rows፣ paths ወይም exception text አይካተቱም።
+
+ይህ የምርመራ እገዛ እንጂ timeout ወይም የquery ማመቻቸት አይደለም። ፈጽሞ የማይመለስን
+ክወና ሪፖርት ማድረግ፣ የCPU ሥራን ከdisk ጥበቃ መለየት፣
+ትክክለኛውን SQL መለየት ወይም በraw driver handle በኩል የተከናወኑ ክወናዎችን መከታተል አይችልም።
+የAsync backup ቆይታ ሆን ተብሎ አልተካተተም፤ ሌሎች የSQLite አንቀሳቃሾች በዚህ
+በፈቃድ በሚነቃው ባህሪ አይለኩም። ተለዋዋጩን ማሰናከል የጊዜ መለኪያ wrappers የሌሉበትን ዋናውን adapter
+ይመልሳል። በdatabase schema ወይም በተከማቸው ውቅር ላይ ምንም ለውጥ አይደረግም።
+
+የ`/healthz` lag ማስጠንቀቂያ ከቀዳሚው sample ጀምሮ ያለውን የevent-loop ከፍተኛ ደረጃ እንጂ
+የሙሉ ዕድሜ አማካዩን አይዘግብም። አንድ መቆም በSQLite ወይም በdisk ብልሽት እንደተፈጠረ ከመወሰንዎ በፊት
+timestampsን ከዘገዩ ክወናዎች ማስጠንቀቂያዎች
+እና ከhost/storage metrics ጋር ያዛምዱ።
 
 ## ማጣቀሻ
 
-አተገባበር፦
+ትግበራ፦
 
-- `bin/cli/runtime/magicBytes.mjs` — የባይነሪ ማጂክ ባይት ማረጋገጫ አጋዥ ተግባራት
-- `bin/cli/runtime/sqliteRuntime.mjs` — ባለ 5-ደረጃ የአሂድ ጊዜ ፈላጊ + እንደ አስፈላጊነቱ የሚሠራ ጫኚ
-- `bin/cli/runtime/index.mjs` — የመነሻ አቀናባሪ (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — ከnpm ጭነት በኋላ የሚሠራ መንጠቆ (ውድቀት የማያስከትል ቅድመ-ማሞቂያ)
-- `src/lib/db/core.ts` — የ`ensureDbInitialized()` / `getDriverInfo()` ወደ ውጭ ማቅረቦች
+- `bin/cli/runtime/magicBytes.mjs` — የbinary magic-byte ማረጋገጫ አጋዥ መሣሪያዎች
+- `bin/cli/runtime/sqliteRuntime.mjs` — ባለ5-ደረጃ የአሂድ ጊዜ መፍቻ + እንደ አስፈላጊነቱ ጫኚ
+- `bin/cli/runtime/index.mjs` — የጅምር አስተባባሪ (`warmUpRuntimes()`)
+- `scripts/postinstall.mjs` — ከnpm ጭነት በኋላ የሚሠራ hook (ሳይሳካ ቢቀርም ከባድ ያልሆነ ቅድመ-ማሞቂያ)
+- `src/lib/db/core.ts` — `ensureDbInitialized()` / `getDriverInfo()` exports
 
 ## ባለአንድ-ጸሐፊ ቶፖሎጂ (HA አይደገፍም)
 
-ከላይ ያለው የነጂ አማራጭ ሰንሰለት አሁንም በ**አንድ ሂደት** ውስጥ ይሠራል። በነባሪው SQLite
-OmniRoute **አንድ ጸሐፊ** ብቻ አለው፦
+ከላይ ያለው የአንቀሳቃሽ ተተኪ ሰንሰለት አሁንም በ**አንድ ሂደት** ውስጥ ይሠራል። ነባሪው SQLite
+OmniRoute **አንድ ጸሐፊ** ነው፦
 
-- ሁለት የOmniRoute ቅጂዎችን ከአንድ `storage.sqlite` ፋይል ጋር አታገናኙ።
-- የኮንቴይነር ዳግም መነሳት፣ Recreate ማሰማራት፣ OOM kill ወይም HEALTHCHECK ዳግም ማስጀመር
-  በሂደት ላይ ያሉ ሁሉንም የSSE ክፍለ-ጊዜዎች ያቋርጣል። በመደበኛው መንገድ የክፍለ-ጊዜ ቀስ በቀስ ማቋረጥ የለም።
-- ቀርፋፋ `/healthz`ን እንደ ሞተ የሚቆጥር የአቀናባሪ ሕያውነት ፍተሻ ብቸኛውን
-  ቅጂ ያቋርጣል። TCP ሕያውነት + HTTP `/healthz` ዝግጁነትን ይምረጡ።
+- ሁለት የOmniRoute replicasን ከተመሳሳዩ `storage.sqlite` file ጋር አያያይዙ።
+- የcontainer restart፣ Recreate deploy፣ OOM kill ወይም HEALTHCHECK restart በሂደት ላይ ያሉ
+  ሁሉንም SSE sessions ያቋርጣል። በመደበኛው መንገድ session drain የለም።
+- ዘገምተኛ `/healthz`ን እንደ ሞተ የሚቆጥር የorchestrator liveness ብቸኛውን
+  replica ያቋርጣል። TCP liveness + HTTP `/healthz` readinessን ይምረጡ።
   [Docker መመሪያ — ተገኝነት](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
-  እና [የKubernetes ፕሮብ ምክረ ሐሳቦች](./MONITORING_GUIDE.md#kubernetes-probe-recommendations)ን ይመልከቱ።
+  እና [የKubernetes probe ምክሮች](./MONITORING_GUIDE.md#kubernetes-probe-recommendations)ን ይመልከቱ።

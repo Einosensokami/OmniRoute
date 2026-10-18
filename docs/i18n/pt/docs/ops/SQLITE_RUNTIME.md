@@ -4,20 +4,20 @@
 
 ---
 
-O OmniRoute resolve o respetivo controlador SQLite no arranque através de uma cadeia de contingência de 5 passos:
+O OmniRoute resolve o respetivo controlador SQLite no arranque através de uma cadeia de recurso de 5 passos:
 
 1. **`better-sqlite3` incluído** (através de `dependencies` em `package.json`)
-   — o mais rápido, binário nativo, instalado por `npm install` quando estão disponíveis ferramentas de compilação.
+   — o mais rápido, binário nativo, instalado por `npm install` quando estão presentes ferramentas de compilação.
 
 2. **`better-sqlite3` instalado em tempo de execução** (em `~/.omniroute/runtime/`)
    — instalado de forma diferida na primeira execução **OU** por `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Valida os bytes mágicos nativos de `.node` (ELF / Mach-O / PE) antes do carregamento
+   Valida os bytes mágicos do ficheiro `.node` nativo (ELF / Mach-O / PE) antes do carregamento,
    para proteger contra binários corrompidos ou destinados à plataforma errada.
 
 3. **`node:sqlite`** (biblioteca padrão do Node ≥22.5) — não requer compilação nativa; utilizado quando
-   ambos os caminhos de better-sqlite3 falham. Conjunto de funcionalidades limitado.
+   ambos os caminhos do better-sqlite3 falham. Conjunto de funcionalidades limitado.
 
-4. **`sql.js`** (WASM) — contingência final. Funciona em todo o lado, mas é mais lento
+4. **`sql.js`** (WASM) — último recurso. Funciona em qualquer ambiente, mas é mais lento
    e escreve os dados periodicamente, em vez de o fazer de forma síncrona.
 
 ## Porquê esta complexidade?
@@ -25,27 +25,27 @@ O OmniRoute resolve o respetivo controlador SQLite no arranque através de uma c
 - **EBUSY no Windows**: `npm install -g omniroute@latest` pode falhar se o
   `better_sqlite3.node` da versão anterior estiver bloqueado por um processo em execução. A instalação
   em tempo de execução em `~/.omniroute/runtime/` contorna a cache global do npm.
-- **Ausência de ferramentas de compilação**: Alguns ambientes (Windows empresariais sem VS Build
-  Tools, imagens Docker mínimas) não conseguem compilar `better-sqlite3`. O instalador em tempo de
-  execução obtém um binário pré-compilado do registo npm; os controladores de contingência
-  garantem que o OmniRoute consegue arrancar mesmo que esse processo falhe.
-- **Sistemas isolados da rede**: Se o registo npm estiver inacessível, `node:sqlite`
-  ou `sql.js` garantem a funcionalidade básica.
+- **Ausência de ferramentas de compilação**: Alguns ambientes (Windows empresarial sem VS Build
+  Tools, imagens Docker mínimas) não conseguem compilar o `better-sqlite3`. O instalador
+  em tempo de execução obtém um binário pré-compilado do registo npm; os controladores
+  de recurso garantem que o OmniRoute consegue arrancar mesmo que esse processo falhe.
+- **Sistemas isolados da rede**: Se o registo npm estiver inacessível, o `node:sqlite`
+  ou o `sql.js` garantem a funcionalidade básica.
 
 ## Validação de bytes mágicos
 
 Antes de carregar um ficheiro `.node` instalado em tempo de execução, o OmniRoute lê os primeiros 8
-bytes e compara-os com os valores mágicos conhecidos das plataformas:
+bytes e compara-os com as assinaturas mágicas conhecidas das plataformas:
 
 | Plataforma            | Bytes (hex)   | Etiqueta    |
 | --------------------- | ------------- | ----------- |
 | Linux                 | `7F 45 4C 46` | `elf`       |
 | macOS 64 bits BE      | `FE ED FA CF` | `macho`     |
 | macOS 64 bits LE      | `CF FA ED FE` | `macho-le`  |
-| macOS universal (fat) | `CA FE BA BE` | `macho-fat` |
+| macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
 | Windows               | `4D 5A` (MZ)  | `pe`        |
 
-Um valor mágico incompatível → o ficheiro é ignorado e a contingência prossegue para o passo seguinte.
+Uma assinatura mágica incompatível → o ficheiro é ignorado e o processo de recurso avança para o passo seguinte.
 
 ## Verificar o controlador ativo
 
@@ -60,7 +60,7 @@ const info = getDriverInfo();
 ## Controlo manual
 
 ```bash
-# Ignorar a preparação após a instalação (para instalações rápidas em CI)
+# Ignorar a preparação pós-instalação (para instalações rápidas em CI)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
 # Forçar a reinstalação do better-sqlite3 em tempo de execução
@@ -71,25 +71,45 @@ omniroute  # será reinstalado no próximo arranque
 omniroute config db-info  # (se o comando da CLI existir)
 ```
 
+## Diagnosticar bloqueios síncronos
+
+Com o `better-sqlite3`, defina `OMNIROUTE_SQLITE_SLOW_MS=200` antes do arranque para ativar
+a medição de tempos do adaptador síncrono. Por predefinição, está desativada. Uma operação concluída que demore
+pelo menos esse número de milissegundos emite um aviso `[SQLITE-SLOW]`, no máximo uma vez a cada
+dez segundos por adaptador. O aviso contém apenas o controlador, a classe da operação
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, transação ou manutenção) e os
+milissegundos decorridos: não inclui SQL, associações, linhas, caminhos nem texto de exceções.
+
+Trata-se de uma ajuda de diagnóstico, não de um limite de tempo nem de uma otimização de consultas. Não consegue comunicar
+uma operação que nunca termina, distinguir trabalho de CPU de esperas pelo disco, identificar
+o SQL exato nem observar operações realizadas através do identificador do controlador subjacente.
+A duração das cópias de segurança assíncronas é deliberadamente excluída; os outros controladores SQLite não são
+instrumentados por esta funcionalidade opcional. Desativar a variável restaura o adaptador original
+sem wrappers de medição de tempo. Não são alterados o esquema da base de dados nem a configuração armazenada.
+
+O aviso de latência de `/healthz` comunica o pico do ciclo de eventos desde a amostra anterior,
+não a média de toda a duração. Correlacione os respetivos carimbos de data/hora com os avisos de operações lentas
+e as métricas do anfitrião/armazenamento antes de atribuir um bloqueio ao SQLite ou a uma falha do disco.
+
 ## Referência
 
 Implementação:
 
-- `bin/cli/runtime/magicBytes.mjs` — funções auxiliares de validação dos bytes mágicos do binário
+- `bin/cli/runtime/magicBytes.mjs` — funções auxiliares para validação de bytes mágicos de binários
 - `bin/cli/runtime/sqliteRuntime.mjs` — resolvedor de 5 passos em tempo de execução + instalador diferido
 - `bin/cli/runtime/index.mjs` — orquestrador de arranque (`warmUpRuntimes()`)
 - `scripts/postinstall.mjs` — hook de pós-instalação do npm (preparação não fatal)
-- `src/lib/db/core.ts` — exportações de `ensureDbInitialized()` / `getDriverInfo()`
+- `src/lib/db/core.ts` — exportações `ensureDbInitialized()` / `getDriverInfo()`
 
 ## Topologia de escritor único (HA não suportada)
 
-A cadeia de contingência de controladores acima continua a ser executada em **um processo**. Por
-predefinição, o SQLite do OmniRoute utiliza **um único escritor**:
+A cadeia de recurso de controladores acima continua a ser executada num **único processo**. Por predefinição, o SQLite
+do OmniRoute tem um **único escritor**:
 
 - Não associe duas réplicas do OmniRoute ao mesmo ficheiro `storage.sqlite`.
-- Um reinício do contentor, uma implementação Recreate, um encerramento por OOM ou um reinício por HEALTHCHECK termina
+- Um reinício de contentor, uma implementação Recreate, um encerramento por OOM ou um reinício por HEALTHCHECK interrompe
   todas as sessões SSE em curso. Não existe drenagem de sessões no fluxo padrão.
-- Uma verificação de atividade do orquestrador que considere um `/healthz` lento como inativo terminará a única
-  réplica. Prefira verificações de atividade TCP + verificações de prontidão HTTP em `/healthz`. Consulte o
+- Uma verificação de atividade do orquestrador que trate um `/healthz` lento como inativo terminará a única
+  réplica. Prefira uma verificação de atividade por TCP + uma verificação de prontidão HTTP em `/healthz`. Consulte o
   [Guia do Docker — disponibilidade](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   e as [recomendações de sondas do Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

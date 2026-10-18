@@ -4,33 +4,33 @@
 
 ---
 
-OmniRoute při spuštění vyhledává ovladač SQLite prostřednictvím 5krokového řetězce záložních možností:
+OmniRoute při spuštění vybere ovladač SQLite pomocí pětikrokového záložního řetězce:
 
 1. **Přibalený `better-sqlite3`** (prostřednictvím `dependencies` v `package.json`)
-   — nejrychlejší, nativní binární soubor, nainstalovaný příkazem `npm install`, pokud jsou k dispozici nástroje pro sestavení.
+   — nejrychlejší varianta, nativní binární soubor, nainstalovaný příkazem `npm install`, pokud jsou k dispozici nástroje pro sestavení.
 
 2. **Za běhu nainstalovaný `better-sqlite3`** (v `~/.omniroute/runtime/`)
-   — instaluje se odloženě při prvním spuštění **NEBO** prostřednictvím `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Před načtením ověřuje magické bajty nativního souboru `.node` (ELF / Mach-O / PE),
-   aby zabránil použití poškozených binárních souborů nebo souborů pro nesprávnou platformu.
+   — nainstaluje se odloženě při prvním spuštění **NEBO** prostřednictvím `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
+   Před načtením ověří magické bajty nativního souboru `.node` (ELF / Mach-O / PE),
+   aby zabránil načtení poškozených binárních souborů nebo souborů pro nesprávnou platformu.
 
-3. **`node:sqlite`** (standardní knihovna Node ≥22.5) — nevyžaduje nativní sestavení; použije se, když
-   selžou obě cesty k better-sqlite3. Omezená sada funkcí.
+3. **`node:sqlite`** (standardní knihovna Node ≥22.5) — nevyžaduje nativní sestavení; použije se,
+   pokud obě cesty k better-sqlite3 selžou. Omezená sada funkcí.
 
 4. **`sql.js`** (WASM) — poslední záložní možnost. Funguje všude, ale je pomalejší
-   a data zapisuje v pravidelných intervalech namísto synchronního zápisu.
+   a data zapisuje v pravidelných intervalech, nikoli synchronně.
 
 ## Proč je to tak složité?
 
-- **Windows EBUSY**: `npm install -g omniroute@latest` může selhat, pokud je
-  `better_sqlite3.node` z předchozí verze uzamčený běžícím procesem. Instalace za běhu
-  do `~/.omniroute/runtime/` obchází globální mezipaměť npm.
+- **Windows EBUSY**: `npm install -g omniroute@latest` může selhat, pokud je soubor
+  `better_sqlite3.node` z předchozí verze uzamčený běžícím procesem. Instalace
+  za běhu do `~/.omniroute/runtime/` obchází globální mezipaměť npm.
 - **Chybějící nástroje pro sestavení**: Některá prostředí (firemní Windows bez VS Build
   Tools, minimální obrazy Dockeru) nemohou zkompilovat `better-sqlite3`. Instalační program
-  za běhu získá předem sestavený binární soubor z registru npm; záložní
-  ovladače zajistí spuštění OmniRoute, i když tento postup selže.
-- **Izolované systémy**: Pokud registr npm není dostupný, `node:sqlite`
-  nebo `sql.js` zaručují základní funkčnost.
+  pro běhové prostředí získá předem sestavený binární soubor z registru npm; záložní
+  ovladače zajistí, že se OmniRoute spustí, i když se to nepodaří.
+- **Systémy bez přístupu k síti**: Pokud registr npm není dostupný, `node:sqlite`
+  nebo `sql.js` zaručí základní funkčnost.
 
 ## Ověření magických bajtů
 
@@ -40,12 +40,12 @@ bajtů a porovná je se známými magickými hodnotami platforem:
 | Platforma               | Bajty (hex)   | Označení    |
 | ----------------------- | ------------- | ----------- |
 | Linux                   | `7F 45 4C 46` | `elf`       |
-| macOS 64bitový BE       | `FE ED FA CF` | `macho`     |
-| macOS 64bitový LE       | `CF FA ED FE` | `macho-le`  |
+| macOS 64bitové BE       | `FE ED FA CF` | `macho`     |
+| macOS 64bitové LE       | `CF FA ED FE` | `macho-le`  |
 | macOS fat (univerzální) | `CA FE BA BE` | `macho-fat` |
 | Windows                 | `4D 5A` (MZ)  | `pe`        |
 
-Neshodující se magická hodnota → soubor je ignorován a pokračuje se dalším záložním krokem.
+Neshodující se magická hodnota → soubor je ignorován a záložní řetězec pokračuje dalším krokem.
 
 ## Kontrola aktivního ovladače
 
@@ -60,36 +60,61 @@ const info = getDriverInfo();
 ## Ruční ovládání
 
 ```bash
-# Přeskočit přípravný krok postinstall (pro rychlé instalace v CI)
+# Přeskočit zahřívání po instalaci (pro rychlé instalace v CI)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
-# Vynutit opětovnou instalaci better-sqlite3 za běhu
+# Vynutit přeinstalaci better-sqlite3 za běhu
 rm -rf ~/.omniroute/runtime
 omniroute  # při příštím spuštění se znovu nainstaluje
 
-# Zkontrolovat, který ovladač je aktivní
+# Zjistit, který ovladač je aktivní
 omniroute config db-info  # (pokud příkaz CLI existuje)
 ```
 
-## Referenční informace
+## Diagnostika synchronních prodlev
+
+Při použití `better-sqlite3` nastavte před spuštěním `OMNIROUTE_SQLITE_SLOW_MS=200`,
+chcete-li zapnout měření času synchronního adaptéru. Ve výchozím nastavení je vypnuté.
+Dokončená operace, která trvá alespoň uvedený počet milisekund, vyvolá varování
+`[SQLITE-SLOW]`, nejvýše jednou za deset sekund pro každý adaptér. Varování obsahuje
+pouze ovladač, třídu operace (`prepare`, `get`, `all`, `run`, `exec`, `pragma`,
+transakce nebo údržba) a uplynulý čas v milisekundách: žádné SQL, vazby, řádky,
+cesty ani text výjimky.
+
+Jde o diagnostickou pomůcku, nikoli o časový limit nebo optimalizaci dotazů. Nemůže
+hlásit operaci, která se nikdy nevrátí, rozlišovat výpočty procesoru od čekání na disk,
+určit přesný příkaz SQL ani sledovat operace prováděné prostřednictvím nezpracovaného
+přístupu k ovladači. Doba trvání asynchronního zálohování je záměrně vyloučena;
+ostatní ovladače SQLite nejsou touto volitelnou instrumentací sledovány. Vypnutím
+proměnné se obnoví původní adaptér bez obalových vrstev pro měření času. Nedojde
+k žádným změnám schématu databáze ani uložené konfigurace.
+
+Varování endpointu `/healthz` o prodlevě hlásí maximum prodlevy smyčky událostí
+od předchozího vzorku, nikoli celoživotní průměr. Než přisoudíte prodlevu systému
+SQLite nebo selhání disku, porovnejte jeho časová razítka s varováními o pomalých
+operacích a metrikami hostitele či úložiště.
+
+## Reference
 
 Implementace:
 
 - `bin/cli/runtime/magicBytes.mjs` — pomocné funkce pro ověřování magických bajtů binárních souborů
-- `bin/cli/runtime/sqliteRuntime.mjs` — 5krokový překladač za běhu + odložený instalační program
+- `bin/cli/runtime/sqliteRuntime.mjs` — pětikrokový výběr za běhu + odložený instalační program
 - `bin/cli/runtime/index.mjs` — koordinátor spuštění (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — háček npm po instalaci (nekritický přípravný krok)
+- `scripts/postinstall.mjs` — háček npm po instalaci (nekritické zahřívání)
 - `src/lib/db/core.ts` — exporty `ensureDbInitialized()` / `getDriverInfo()`
 
-## Topologie s jediným zapisujícím procesem (HA není podporována)
+## Topologie s jediným zapisujícím procesem (HA není podporováno)
 
-Výše uvedený řetězec záložních ovladačů stále běží v **jednom procesu**. Výchozí
-SQLite v OmniRoute podporuje **jediný zapisující proces**:
+Výše uvedený záložní řetězec ovladačů stále běží v **jednom procesu**. Výchozí
+SQLite v OmniRoute má **jediný zapisující proces**:
 
-- Nepřipojujte ke stejnému souboru `storage.sqlite` dvě repliky OmniRoute.
-- Restart kontejneru, nasazení typu Recreate, ukončení kvůli OOM nebo restart vyvolaný HEALTHCHECK
-  ukončí všechny právě probíhající relace SSE. Ve standardní konfiguraci se relace před ukončením nevyčkávají.
-- Kontrola živosti orchestrátoru, která považuje pomalou odpověď `/healthz` za selhání, ukončí jedinou
-  repliku. Pro kontrolu živosti upřednostněte TCP a pro kontrolu připravenosti HTTP `/healthz`. Viz
+- Nepřipojujte dvě repliky OmniRoute ke stejnému souboru `storage.sqlite`.
+- Restart kontejneru, nasazení Recreate, ukončení kvůli OOM nebo restart vyvolaný
+  HEALTHCHECK ukončí každou probíhající relaci SSE. Ve standardním režimu nedochází
+  k řízenému ukončení relací.
+- Kontrola životaschopnosti orchestrátoru, která pomalý endpoint `/healthz` považuje
+  za mrtvý, ukončí jedinou repliku. Upřednostněte kontrolu životaschopnosti přes TCP
+  a kontrolu připravenosti přes HTTP `/healthz`. Viz
   [Průvodce Dockerem — dostupnost](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
-  a [doporučení ke kontrolám Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).
+  a [doporučení pro sondy Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

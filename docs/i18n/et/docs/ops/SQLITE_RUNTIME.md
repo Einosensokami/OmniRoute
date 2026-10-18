@@ -4,48 +4,48 @@
 
 ---
 
-OmniRoute tuvastab käivitamisel oma SQLite’i draiveri 5-etapilise varuahela kaudu:
+OmniRoute lahendab SQLite'i draiveri käivitamisel 5-etapilise varuahela kaudu:
 
 1. **Komplektis olev `better-sqlite3`** (`package.json` faili `dependencies` kaudu)
-   — kiireim, kasutab omaplatvormi kahendfaili ja installitakse käsuga `npm install`, kui kompileerimistööriistad on saadaval.
+   — kiireim variant, omamaine kahendfail, mille `npm install` installib, kui kompileerimistööriistad on saadaval.
 
-2. **Käituse ajal installitud `better-sqlite3`** (kataloogis `~/.omniroute/runtime/`)
-   — installitakse laisalt esimesel käivitamisel **VÕI** ahela `scripts/build/postinstall.mjs → scripts/postinstall.mjs` kaudu.
-   Enne laadimist valideeritakse omaplatvormi `.node`-faili signatuurbaidid (ELF / Mach-O / PE),
+2. **Käituse ajal installitud `better-sqlite3`** (asukohas `~/.omniroute/runtime/`)
+   — installitakse laisalt esimesel käivitamisel **VÕI** käsuga `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
+   Enne laadimist kontrollitakse omamaise `.node` faili maagilisi baite (ELF / Mach-O / PE),
    et kaitsta rikutud või vale platvormi kahendfailide eest.
 
-3. **`node:sqlite`** (Node ≥22.5 standardteek) — omaplatvormi kompileerimine pole vajalik; kasutatakse siis, kui
-   mõlemad better-sqlite3 teed ebaõnnestuvad. Piiratud funktsioonivalik.
+3. **`node:sqlite`** (Node ≥22.5 standardteek) — omamaist kompileerimist pole vaja; kasutatakse siis, kui
+   mõlemad better-sqlite3 asukohad ebaõnnestuvad. Piiratud funktsioonide valik.
 
 4. **`sql.js`** (WASM) — viimane varuvariant. Töötab kõikjal, kuid on aeglasem
-   ja kirjutab andmeid intervallidega, mitte sünkroonselt.
+   ja kirjutab andmeid intervallide kaupa, mitte sünkroonselt.
 
 ## Miks see nii keeruline on?
 
-- **Windows EBUSY**: `npm install -g omniroute@latest` võib ebaõnnestuda, kui eelneva
+- **Windows EBUSY**: `npm install -g omniroute@latest` võib ebaõnnestuda, kui eelmise
   versiooni `better_sqlite3.node` on töötava protsessi poolt lukustatud. Käitusaegne
-  install kataloogi `~/.omniroute/runtime/` väldib globaalset npm-i vahemälu.
-- **Kompileerimistööriistad puuduvad**: Mõned keskkonnad (ettevõtte Windows ilma VS Build
-  Toolsita, minimaalsed Dockeri tõmmised) ei suuda `better-sqlite3` paketti kompileerida. Käitusaegne
+  installimine asukohta `~/.omniroute/runtime/` väldib globaalset npm-i vahemälu.
+- **Kompileerimistööriistad puuduvad**: mõned keskkonnad (ettevõtte Windows ilma VS Build
+  Toolsi tööriistadeta, minimaalsed Dockeri tõmmised) ei saa `better-sqlite3` kompileerida. Käitusaegne
   installer hangib npm-i registrist eelkompileeritud kahendfaili; varudraiverid
   tagavad, et OmniRoute käivitub ka siis, kui see ebaõnnestub.
-- **Võrgust eraldatud süsteemid**: Kui npm-i register pole kättesaadav, tagavad `node:sqlite`
+- **Võrgust eraldatud süsteemid**: kui npm-i register pole kättesaadav, tagavad `node:sqlite`
   või `sql.js` põhifunktsionaalsuse.
 
-## Signatuurbaitide valideerimine
+## Maagiliste baitide kontrollimine
 
-Enne käituse ajal installitud `.node`-faili laadimist loeb OmniRoute esimesed 8
-baiti ja võrdleb neid teadaolevate platvormisignatuuridega:
+Enne käituse ajal installitud `.node` faili laadimist loeb OmniRoute esimesed 8
+baiti ja võrdleb neid teadaolevate platvormide maagiliste baitidega:
 
-| Platvorm                 | Baidid (kuueteistkümnendkujul) | Silt        |
-| ------------------------ | ------------------------------ | ----------- |
-| Linux                    | `7F 45 4C 46`                  | `elf`       |
-| macOS 64-bitine BE       | `FE ED FA CF`                  | `macho`     |
-| macOS 64-bitine LE       | `CF FA ED FE`                  | `macho-le`  |
-| macOS fat (universaalne) | `CA FE BA BE`                  | `macho-fat` |
-| Windows                  | `4D 5A` (MZ)                   | `pe`        |
+| Platvorm                 | Baidid (hex)  | Silt        |
+| ------------------------ | ------------- | ----------- |
+| Linux                    | `7F 45 4C 46` | `elf`       |
+| macOS 64-bit BE          | `FE ED FA CF` | `macho`     |
+| macOS 64-bit LE          | `CF FA ED FE` | `macho-le`  |
+| macOS fat (universaalne) | `CA FE BA BE` | `macho-fat` |
+| Windows                  | `4D 5A` (MZ)  | `pe`        |
 
-Sobimatu signatuur → faili eiratakse ja varuahel jätkub järgmise etapiga.
+Sobimatu maagiline bait → faili eiratakse ja varuahel jätkub järgmise etapiga.
 
 ## Aktiivse draiveri kontrollimine
 
@@ -63,7 +63,7 @@ const info = getDriverInfo();
 # Jäta installijärgne eelsoojendus vahele (kiirete CI-installide jaoks)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
-# Sunni käitusaegse better-sqlite3 uuesti installimine
+# Installi käitusaegne better-sqlite3 sunniviisiliselt uuesti
 rm -rf ~/.omniroute/runtime
 omniroute  # installitakse järgmisel käivitamisel uuesti
 
@@ -71,25 +71,46 @@ omniroute  # installitakse järgmisel käivitamisel uuesti
 omniroute config db-info  # (kui CLI-käsk on olemas)
 ```
 
+## Sünkroonsete seiskumiste diagnoosimine
+
+`better-sqlite3` kasutamisel määrake enne käivitamist `OMNIROUTE_SQLITE_SLOW_MS=200`, et lubada
+sünkroonse adapteri ajastuse mõõtmine. Vaikimisi on see välja lülitatud. Lõpetatud toiming, milleks
+kulub vähemalt nii mitu millisekundit, väljastab hoiatuse `[SQLITE-SLOW]`, maksimaalselt kord
+kümne sekundi jooksul adapteri kohta. Hoiatus sisaldab ainult draiverit, toiminguklassi
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, transaktsioon või hooldus) ja
+kulunud millisekundeid: ei mingit SQL-i, sidumisi, ridu, teid ega eranditeksti.
+
+See on diagnostikaabivahend, mitte ajalõpp ega päringu optimeerimine. See ei saa teatada
+toimingust, mis kunagi ei naase, eristada protsessoritööd kettal ootamisest, tuvastada
+täpset SQL-i ega jälgida töötlemata draiveripide kaudu tehtud toiminguid.
+Asünkroonse varundamise kestus on teadlikult välistatud; teisi SQLite'i draivereid see
+valikuline instrumentimine ei hõlma. Muutuja keelamine taastab algse adapteri
+ilma ajastuse mõõtmise ümbristeta. Andmebaasi skeemi ega salvestatud konfiguratsiooni ei muudeta.
+
+`/healthz` viivituse hoiatus teatab sündmusetsükli tipust alates eelmisest mõõtmisest,
+mitte kogu eluea keskmisest. Enne seiskumise omistamist SQLite'ile või kettarikkeks
+võrrelge selle ajatempleid aeglaste toimingute hoiatuste ning hosti/salvestusruumi
+mõõdikutega.
+
 ## Viited
 
 Teostus:
 
-- `bin/cli/runtime/magicBytes.mjs` — kahendfailide signatuurbaitide valideerimise abifunktsioonid
-- `bin/cli/runtime/sqliteRuntime.mjs` — 5-etapiline käitusaegne tuvastaja + laisk installer
-- `bin/cli/runtime/index.mjs` — käivituse orkestreerija (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — npm-i installijärgne haak (mittekriitiline eelsoojendus)
-- `src/lib/db/core.ts` — funktsioonide `ensureDbInitialized()` / `getDriverInfo()` eksport
+- `bin/cli/runtime/magicBytes.mjs` — kahendfailide maagiliste baitide kontrollimise abifunktsioonid
+- `bin/cli/runtime/sqliteRuntime.mjs` — 5-etapiline käitusaja lahendaja + laisk installer
+- `bin/cli/runtime/index.mjs` — käivitamise orkestreerija (`warmUpRuntimes()`)
+- `scripts/postinstall.mjs` — npm-i installijärgne konks (mittesaatuslik eelsoojendus)
+- `src/lib/db/core.ts` — `ensureDbInitialized()` / `getDriverInfo()` ekspordid
 
 ## Ühe kirjutajaga topoloogia (HA pole toetatud)
 
-Ülaltoodud draiverite varuahel töötab endiselt **ühes protsessis**. Vaikimisi SQLite’i
-kasutav OmniRoute on **ühe kirjutajaga**:
+Ülaltoodud draiverite varuahel töötab endiselt **ühes protsessis**. Vaikimisi SQLite'iga
+OmniRoute on **ühe kirjutajaga**:
 
-- Ärge ühendage kahte OmniRoute’i replikaati sama `storage.sqlite`-failiga.
-- Konteineri taaskäivitamine, Recreate-juurutus, OOM-i tõttu lõpetamine või HEALTHCHECK-i taaskäivitus katkestab
-  kõik pooleliolevad SSE-seansid. Vaiketeel seansside sujuvat lõpetamist ei toimu.
-- Orkestraatori elusolekukontroll, mis peab aeglast `/healthz` vastust mittetöötavaks, lõpetab ainsa
-  replikaadi. Eelistage TCP-elusolekukontrolli ja HTTP `/healthz` valmisolekukontrolli. Vaadake
+- Ärge ühendage kahte OmniRoute'i koopiat sama `storage.sqlite` failiga.
+- Konteineri taaskäivitamine, Recreate-juurutus, OOM-i tõttu tapmine või HEALTHCHECK-i taaskäivitus katkestab
+  kõik pooleliolevad SSE-seansid. Vaikimisi kasutataval teel seansse sujuvalt ei lõpetata.
+- Orkestreerija elusolekukontroll, mis käsitleb aeglast `/healthz` vastust mittetöötamisena, lõpetab ainsa
+  koopia. Eelistage TCP elusolekukontrolli + HTTP `/healthz` valmisolekukontrolli. Vaadake
   [Dockeri juhendit — saadavus](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   ja [Kubernetese kontrollsondide soovitusi](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

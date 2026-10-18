@@ -4,39 +4,40 @@
 
 ---
 
-OmniRoute آغاز کے وقت 5 مراحل پر مشتمل فال بیک چین کے ذریعے اپنے SQLite ڈرائیور کا تعین کرتا ہے:
+OmniRoute آغاز کے وقت 5 مراحل پر مشتمل متبادل سلسلے کے ذریعے اپنے SQLite ڈرائیور کا تعین کرتا ہے:
 
 1. **بنڈل شدہ `better-sqlite3`** (`package.json` میں `dependencies` کے ذریعے)
-   — سب سے تیز، مقامی بائنری، اور بلڈ ٹولز موجود ہونے پر `npm install` کے ذریعے انسٹال ہوتا ہے۔
+   — سب سے تیز، مقامی بائنری، اور build tools موجود ہونے پر `npm install` کے ذریعے انسٹال ہوتا ہے۔
 
 2. **رن ٹائم پر انسٹال شدہ `better-sqlite3`** (`~/.omniroute/runtime/` میں)
    — پہلی بار چلانے پر ضرورت کے مطابق **یا** `scripts/build/postinstall.mjs → scripts/postinstall.mjs` کے ذریعے انسٹال ہوتا ہے۔
-   لوڈ کرنے سے پہلے مقامی `.node` میجک بائٹس (ELF / Mach-O / PE) کی توثیق کرتا ہے
+   لوڈ کرنے سے پہلے مقامی `.node` کے magic bytes (ELF / Mach-O / PE) کی توثیق کرتا ہے
    تاکہ خراب یا غلط پلیٹ فارم کی بائنریز سے تحفظ حاصل ہو۔
 
-3. **`node:sqlite`** (Node ≥22.5 معیاری لائبریری) — مقامی بلڈ درکار نہیں؛ اس وقت استعمال ہوتا ہے جب
-   better-sqlite3 کے دونوں راستے ناکام ہو جائیں۔ فیچرز کا مجموعہ محدود ہے۔
+3. **`node:sqlite`** (Node ≥22.5 stdlib) — مقامی build کی ضرورت نہیں؛ جب
+   `better-sqlite3` کے دونوں راستے ناکام ہو جائیں تو استعمال ہوتا ہے۔ فیچرز کا مجموعہ محدود ہے۔
 
-4. **`sql.js`** (WASM) — آخری فال بیک۔ ہر جگہ کام کرتا ہے، لیکن سست ہے
+4. **`sql.js`** (WASM) — آخری متبادل۔ ہر جگہ کام کرتا ہے لیکن نسبتاً سست ہے
    اور ڈیٹا کو ہم وقتی طور پر لکھنے کے بجائے وقفے وقفے سے لکھتا ہے۔
 
-## یہ پیچیدگی کیوں ہے؟
+## یہ پیچیدگی کیوں؟
 
-- **Windows EBUSY**: اگر پچھلے ورژن کی `better_sqlite3.node` فائل کسی چلتے ہوئے پراسیس کے ذریعے لاک ہو تو `npm install -g omniroute@latest` ناکام ہو سکتا ہے۔
-  `~/.omniroute/runtime/` میں رن ٹائم انسٹالیشن عالمی npm کیش کو نظرانداز کر دیتی ہے۔
-- **بلڈ ٹولز کی عدم موجودگی**: کچھ ماحول (VS Build Tools کے بغیر کارپوریٹ Windows،
-  کم سے کم Docker امیجز) `better-sqlite3` کو کمپائل نہیں کر سکتے۔ رن ٹائم
-  انسٹالر npm رجسٹری سے پہلے سے بلڈ شدہ بائنری حاصل کرتا ہے؛ فال بیک
-  ڈرائیور اس بات کو یقینی بناتے ہیں کہ اس عمل کے ناکام ہونے پر بھی OmniRoute شروع ہو جائے۔
-- **ایئر گیپڈ سسٹمز**: اگر npm رجسٹری ناقابل رسائی ہو تو `node:sqlite`
+- **Windows EBUSY**: اگر پچھلے ورژن کی `better_sqlite3.node` کسی چلتے ہوئے عمل کے ذریعے
+  مقفل ہو تو `npm install -g omniroute@latest` ناکام ہو سکتا ہے۔ `~/.omniroute/runtime/`
+  میں رن ٹائم انسٹال عالمی npm کیش کو نظرانداز کر دیتا ہے۔
+- **build tools کی عدم موجودگی**: بعض ماحول (VS Build Tools کے بغیر کارپوریٹ Windows،
+  کم سے کم Docker images) `better-sqlite3` کو compile نہیں کر سکتے۔ رن ٹائم
+  انسٹالر npm registry سے پہلے سے build شدہ بائنری حاصل کرتا ہے؛ متبادل
+  ڈرائیور یقینی بناتے ہیں کہ اس کی ناکامی کی صورت میں بھی OmniRoute شروع ہو جائے۔
+- **نیٹ ورک سے منقطع سسٹمز**: اگر npm registry تک رسائی نہ ہو تو `node:sqlite`
   یا `sql.js` بنیادی فعالیت کی ضمانت دیتے ہیں۔
 
-## میجک بائٹ کی توثیق
+## Magic-byte کی توثیق
 
 رن ٹائم پر انسٹال شدہ `.node` فائل لوڈ کرنے سے پہلے، OmniRoute ابتدائی 8
-بائٹس پڑھتا ہے اور انہیں معروف پلیٹ فارم میجکس سے ملاتا ہے:
+bytes پڑھتا ہے اور انہیں معروف پلیٹ فارم magics سے ملاتا ہے:
 
-| پلیٹ فارم             | بائٹس (hex)   | لیبل        |
+| پلیٹ فارم             | Bytes (hex)   | لیبل        |
 | --------------------- | ------------- | ----------- |
 | Linux                 | `7F 45 4C 46` | `elf`       |
 | macOS 64-bit BE       | `FE ED FA CF` | `macho`     |
@@ -44,7 +45,7 @@ OmniRoute آغاز کے وقت 5 مراحل پر مشتمل فال بیک چین
 | macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
 | Windows               | `4D 5A` (MZ)  | `pe`        |
 
-غیر مماثل میجک → فائل کو نظرانداز کر دیا جاتا ہے اور فال بیک اگلے مرحلے پر جاری رہتا ہے۔
+غیر مماثل magic → فائل نظرانداز کر دی جاتی ہے، اور متبادل سلسلہ اگلے مرحلے پر جاری رہتا ہے۔
 
 ## فعال ڈرائیور کی جانچ
 
@@ -52,43 +53,63 @@ OmniRoute آغاز کے وقت 5 مراحل پر مشتمل فال بیک چین
 import { getDriverInfo } from "@/lib/db/core";
 
 const info = getDriverInfo();
-// { ماخذ: "bundled" | "runtime" | "runtime-installed-now" | "node-sqlite" | "sql-js",
-//   قسم: "better-sqlite3" | "node-sqlite" | "sql-js" }
+// { source: "bundled" | "runtime" | "runtime-installed-now" | "node-sqlite" | "sql-js",
+//   kind: "better-sqlite3" | "node-sqlite" | "sql-js" }
 ```
 
 ## دستی کنٹرول
 
 ```bash
-# تیز CI انسٹالیشنز کے لیے postinstall وارم اپ چھوڑ دیں
+# تیز رفتار CI انسٹالز کے لیے postinstall warm-up چھوڑ دیں
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
 # رن ٹائم better-sqlite3 کو زبردستی دوبارہ انسٹال کریں
 rm -rf ~/.omniroute/runtime
-omniroute  # اگلی بار شروع ہونے پر دوبارہ انسٹال ہوگا
+omniroute  # اگلی بار شروع ہونے پر دوبارہ انسٹال ہو جائے گا
 
 # جانچیں کہ کون سا ڈرائیور فعال ہے
 omniroute config db-info  # اگر CLI کمانڈ موجود ہو
 ```
 
+## ہم وقتی تعطل کی تشخیص
+
+`better-sqlite3` کے ساتھ، ہم وقتی adapter timing کو فعال کرنے کے لیے آغاز سے پہلے
+`OMNIROUTE_SQLITE_SLOW_MS=200` مقرر کریں۔ بطور ڈیفالٹ یہ بند ہوتا ہے۔ کوئی مکمل شدہ
+عمل جو کم از کم اتنے milliseconds لے، `[SQLITE-SLOW]` انتباہ جاری کرتا ہے، اور ہر
+adapter کے لیے دس سیکنڈ میں زیادہ سے زیادہ ایک بار۔ انتباہ میں صرف ڈرائیور، عمل کی
+درجہ بندی (`prepare`، `get`، `all`، `run`، `exec`، `pragma`، transaction یا maintenance)،
+اور گزرے ہوئے milliseconds شامل ہوتے ہیں: کوئی SQL، bindings، rows، paths یا exception text نہیں۔
+
+یہ تشخیصی معاون ہے، timeout یا query optimization نہیں۔ یہ ایسے عمل کی اطلاع نہیں دے سکتا
+جو کبھی واپس نہ آئے، CPU کے کام کو disk waits سے الگ نہیں کر سکتا، عین SQL کی نشاندہی
+نہیں کر سکتا، یا raw driver handle کے ذریعے کیے گئے اعمال کا مشاہدہ نہیں کر سکتا۔
+Async backup کا دورانیہ دانستہ طور پر خارج کیا گیا ہے؛ دیگر SQLite ڈرائیور اس اختیاری
+instrumentation کے تحت نہیں آتے۔ متغیر کو غیر فعال کرنے سے timing wrappers کے بغیر
+اصل adapter بحال ہو جاتا ہے۔ database schema یا محفوظ شدہ configuration میں کوئی تبدیلی نہیں ہوتی۔
+
+`/healthz` کا lag انتباہ گزشتہ sample کے بعد سے event loop کی بلند ترین قدر رپورٹ کرتا ہے،
+نہ کہ پوری مدت کی اوسط۔ کسی تعطل کو SQLite یا disk failure سے منسوب کرنے سے پہلے اس کے
+timestamps کو سست کارروائیوں کے انتباہات اور host/storage metrics کے ساتھ ملا کر دیکھیں۔
+
 ## حوالہ
 
-عمل درآمد:
+نفاذ:
 
-- `bin/cli/runtime/magicBytes.mjs` — بائنری میجک بائٹ توثیق کے معاون فنکشنز
-- `bin/cli/runtime/sqliteRuntime.mjs` — 5 مراحل پر مشتمل رن ٹائم ریزالور + ضرورت کے مطابق انسٹالر
-- `bin/cli/runtime/index.mjs` — اسٹارٹ اپ آرکیسٹریٹر (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — npm پوسٹ انسٹال ہُک (غیر مہلک وارم اپ)
-- `src/lib/db/core.ts` — `ensureDbInitialized()` / `getDriverInfo()` ایکسپورٹس
+- `bin/cli/runtime/magicBytes.mjs` — binary magic-byte validation کے معاونین
+- `bin/cli/runtime/sqliteRuntime.mjs` — 5 مراحل کا runtime resolver + lazy installer
+- `bin/cli/runtime/index.mjs` — startup orchestrator (`warmUpRuntimes()`)
+- `scripts/postinstall.mjs` — npm post-install hook (غیر مہلک warm-up)
+- `src/lib/db/core.ts` — `ensureDbInitialized()` / `getDriverInfo()` exports
 
-## واحد رائٹر ٹوپولوجی (HA غیر معاون ہے)
+## واحد writer کی topology (HA غیر معاون)
 
-مذکورہ بالا ڈرائیور فال بیک چین اب بھی **ایک پراسیس** میں چلتی ہے۔ پہلے سے طے شدہ SQLite
-OmniRoute ایک **واحد رائٹر** ہے:
+مندرجہ بالا ڈرائیور کا متبادل سلسلہ پھر بھی **ایک process** میں چلتا ہے۔ ڈیفالٹ SQLite
+OmniRoute ایک **واحد writer** ہے:
 
-- دو OmniRoute ریپلیکاز کو ایک ہی `storage.sqlite` فائل سے منسلک نہ کریں۔
-- کنٹینر ری اسٹارٹ، Recreate ڈیپلائے، OOM kill، یا HEALTHCHECK ری اسٹارٹ
-  ہر زیرِ عمل SSE سیشن منقطع کر دیتا ہے۔ معیاری راستے میں سیشن ڈرین موجود نہیں۔
-- ایسا آرکیسٹریٹر لائیونیس چیک جو سست `/healthz` کو مردہ تصور کرے، واحد
-  ریپلیکا کو ختم کر دے گا۔ TCP لائیونیس + HTTP `/healthz` ریڈینیس کو ترجیح دیں۔ دیکھیے
+- دو OmniRoute replicas کو ایک ہی `storage.sqlite` فائل سے منسلک نہ کریں۔
+- container restart، Recreate deploy، OOM kill، یا HEALTHCHECK restart ہر
+  زیرِ عمل SSE session کو ختم کر دیتا ہے۔ معیاری راستے پر session drain موجود نہیں۔
+- وہ orchestrator liveness جو سست `/healthz` کو مردہ سمجھتی ہے، واحد replica کو ختم کر دے گی۔
+  TCP liveness + HTTP `/healthz` readiness کو ترجیح دیں۔ دیکھیے
   [Docker رہنما — دستیابی](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
-  اور [Kubernetes پروب کی سفارشات](./MONITORING_GUIDE.md#kubernetes-probe-recommendations)۔
+  اور [Kubernetes probe کی سفارشات](./MONITORING_GUIDE.md#kubernetes-probe-recommendations)۔

@@ -4,31 +4,31 @@
 
 ---
 
-OmniRoute startēšanas laikā nosaka savu SQLite draiveri, izmantojot 5 pakāpju atkāpšanās ķēdi:
+OmniRoute startēšanas laikā nosaka SQLite draiveri, izmantojot 5 pakāpju atkāpšanās ķēdi:
 
 1. **Komplektā iekļautais `better-sqlite3`** (izmantojot `dependencies` failā `package.json`)
-   — visātrākais variants ar vietējo bināro failu; to instalē `npm install`, ja ir pieejami būvēšanas rīki.
+   — visātrākais variants, natīvs binārais fails; to instalē `npm install`, ja ir pieejami būvēšanas rīki.
 
 2. **Izpildlaikā instalētais `better-sqlite3`** (direktorijā `~/.omniroute/runtime/`)
    — tiek atlikti instalēts pirmajā palaišanas reizē **VAI** ar `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Pirms ielādes pārbauda vietējā `.node` faila maģiskos baitus (ELF / Mach-O / PE),
+   Pirms ielādes pārbauda natīvā `.node` faila maģiskos baitus (ELF / Mach-O / PE),
    lai aizsargātu pret bojātiem vai nepareizai platformai paredzētiem binārajiem failiem.
 
-3. **`node:sqlite`** (Node ≥22.5 standarta bibliotēka) — nav nepieciešama vietējā būvēšana; tiek izmantots, ja
-   abi better-sqlite3 varianti neizdodas. Ierobežots funkciju kopums.
+3. **`node:sqlite`** (Node ≥22.5 standarta bibliotēka) — nav nepieciešama natīva būvēšana; tiek izmantots, ja
+   abi better-sqlite3 ceļi neizdodas. Ierobežots funkciju kopums.
 
 4. **`sql.js`** (WASM) — pēdējais atkāpšanās variants. Darbojas visur, taču ir lēnāks
-   un datus ieraksta periodiski, nevis sinhroni.
+   un datus ieraksta noteiktos intervālos, nevis sinhroni.
 
-## Kāpēc nepieciešama šāda sarežģītība?
+## Kāpēc šāda sarežģītība?
 
 - **Windows EBUSY**: `npm install -g omniroute@latest` var neizdoties, ja iepriekšējās
-  versijas `better_sqlite3.node` ir bloķējis aktīvs process. Izpildlaika
+  versijas fails `better_sqlite3.node` ir bloķēts, jo to izmanto kāds darbojošs process. Izpildlaika
   instalācija direktorijā `~/.omniroute/runtime/` apiet globālo npm kešatmiņu.
-- **Nav būvēšanas rīku**: Dažās vidēs (uzņēmumu Windows sistēmās bez VS Build
+- **Nav būvēšanas rīku**: Dažās vidēs (korporatīvā Windows vidē bez VS Build
   Tools, minimālos Docker attēlos) nevar kompilēt `better-sqlite3`. Izpildlaika
   instalētājs iegūst iepriekš būvētu bināro failu no npm reģistra; atkāpšanās
-  draiveri nodrošina, ka OmniRoute joprojām tiek palaists arī tad, ja tas neizdodas.
+  draiveri nodrošina, ka OmniRoute joprojām var startēt arī tad, ja tas neizdodas.
 - **No tīkla izolētas sistēmas**: Ja npm reģistrs nav sasniedzams, `node:sqlite`
   vai `sql.js` garantē pamatfunkcionalitāti.
 
@@ -45,7 +45,7 @@ baitus un salīdzina tos ar zināmajiem platformu maģiskajiem baitiem:
 | macOS fat (universāls) | `CA FE BA BE` | `macho-fat` |
 | Windows                | `4D 5A` (MZ)  | `pe`        |
 
-Neatbilstoši maģiskie baiti → fails tiek ignorēts, un atkāpšanās turpinās ar nākamo pakāpi.
+Neatbilstoši maģiskie baiti → fails tiek ignorēts, un atkāpšanās turpinās ar nākamo darbību.
 
 ## Aktīvā draivera pārbaude
 
@@ -53,32 +53,53 @@ Neatbilstoši maģiskie baiti → fails tiek ignorēts, un atkāpšanās turpin�
 import { getDriverInfo } from "@/lib/db/core";
 
 const info = getDriverInfo();
-// { avots: "bundled" | "runtime" | "runtime-installed-now" | "node-sqlite" | "sql-js",
-//   veids: "better-sqlite3" | "node-sqlite" | "sql-js" }
+// { source: "bundled" | "runtime" | "runtime-installed-now" | "node-sqlite" | "sql-js",
+//   kind: "better-sqlite3" | "node-sqlite" | "sql-js" }
 ```
 
 ## Manuāla vadība
 
 ```bash
-# Izlaist pēcinatalēšanas iesildīšanu (ātrai instalēšanai CI vidē)
+# Izlaist pēcin­stalēšanas iesildīšanu (ātrai instalēšanai CI vidē)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
 # Piespiedu kārtā atkārtoti instalēt izpildlaika better-sqlite3
 rm -rf ~/.omniroute/runtime
-omniroute  # tiks atkārtoti instalēts nākamajā palaišanas reizē
+omniroute  # tiks atkārtoti instalēts nākamajā startēšanas reizē
 
 # Pārbaudīt, kurš draiveris ir aktīvs
 omniroute config db-info  # (ja CLI komanda pastāv)
 ```
 
-## Atsauce
+## Sinhronu aizturu diagnosticēšana
+
+Izmantojot `better-sqlite3`, pirms startēšanas iestatiet `OMNIROUTE_SQLITE_SLOW_MS=200`, lai
+iespējotu sinhronā adaptera izpildes laika mērīšanu. Pēc noklusējuma tā ir izslēgta. Pabeigta darbība, kas ilgst
+vismaz tik daudz milisekunžu, ģenerē `[SQLITE-SLOW]` brīdinājumu ne biežāk kā vienu reizi
+desmit sekundēs katram adapterim. Brīdinājumā ir ietverts tikai draiveris, darbības klase
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, transakcija vai uzturēšana) un
+pagājušais laiks milisekundēs: bez SQL, piesaistēm, rindām, ceļiem vai izņēmumu teksta.
+
+Tas ir diagnostikas palīglīdzeklis, nevis taimauts vai vaicājumu optimizācija. Tas nevar ziņot
+par darbību, kas nekad neatgriežas, atšķirt CPU darbu no diska gaidīšanas, noteikt
+precīzu SQL vai novērot darbības, kas veiktas, izmantojot neapstrādātu draivera turi.
+Asinhronās dublēšanas ilgums ir apzināti izslēgts; citi SQLite draiveri netiek
+instrumentēti ar šo izvēles funkciju. Mainīgā atspējošana atjauno sākotnējo adapteri
+bez izpildes laika mērīšanas aptinumiem. Datubāzes shēma un saglabātā konfigurācija netiek mainīta.
+
+`/healthz` aiztures brīdinājums ziņo par notikumu cikla maksimālo vērtību kopš iepriekšējā mērījuma,
+nevis par visu darbības laiku vidējo vērtību. Pirms aiztures attiecināšanas uz SQLite vai diska kļūmi
+salīdziniet tā laikspiedolus ar lēno darbību brīdinājumiem
+un resursdatora/krātuves metriku.
+
+## Atsauces
 
 Implementācija:
 
 - `bin/cli/runtime/magicBytes.mjs` — bināro failu maģisko baitu validācijas palīgfunkcijas
-- `bin/cli/runtime/sqliteRuntime.mjs` — 5 pakāpju izpildlaika atrisinātājs un atliktais instalētājs
+- `bin/cli/runtime/sqliteRuntime.mjs` — 5 pakāpju izpildlaika noteicējs un atliktais instalētājs
 - `bin/cli/runtime/index.mjs` — startēšanas koordinators (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — npm pēcinstalēšanas āķis (nekritiska iesildīšana)
+- `scripts/postinstall.mjs` — npm pēcin­stalēšanas āķis (nekritiska iesildīšana)
 - `src/lib/db/core.ts` — `ensureDbInitialized()` / `getDriverInfo()` eksporti
 
 ## Viena rakstītāja topoloģija (HA netiek atbalstīta)
@@ -88,8 +109,8 @@ OmniRoute ir **viens rakstītājs**:
 
 - Nepievienojiet divas OmniRoute replikas vienam un tam pašam `storage.sqlite` failam.
 - Konteinera restartēšana, Recreate izvietošana, procesa apturēšana OOM dēļ vai HEALTHCHECK restartēšana pārtrauc
-  visas aktīvās SSE sesijas. Standarta ceļā sesiju pakāpeniska pabeigšana nav paredzēta.
-- Orķestratora darbspējas pārbaude, kas lēnu `/healthz` uzskata par nedarbojošos, apturēs vienīgo
-  repliku. Dodiet priekšroku TCP darbspējas pārbaudei un HTTP `/healthz` gatavības pārbaudei. Skatiet
+  katru aktīvo SSE sesiju. Standarta ceļā nav sesiju korektas pabeigšanas mehānisma.
+- Orķestratora dzīvīguma pārbaude, kas lēnu `/healthz` uzskata par nereaģējošu, apturēs vienīgo
+  repliku. Dodiet priekšroku TCP dzīvīguma pārbaudei un HTTP `/healthz` gatavības pārbaudei. Skatiet
   [Docker rokasgrāmatu — pieejamība](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   un [Kubernetes pārbaužu ieteikumus](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

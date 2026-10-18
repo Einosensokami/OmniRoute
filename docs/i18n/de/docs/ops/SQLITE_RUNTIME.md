@@ -7,12 +7,12 @@
 OmniRoute ermittelt seinen SQLite-Treiber beim Start über eine 5-stufige Fallback-Kette:
 
 1. **Mitgeliefertes `better-sqlite3`** (über `dependencies` in `package.json`)
-   — am schnellsten, native Binärdatei, wird durch `npm install` installiert, wenn Build-Werkzeuge vorhanden sind.
+   — am schnellsten, natives Binärmodul, wird durch `npm install` installiert, wenn Build-Werkzeuge verfügbar sind.
 
 2. **Zur Laufzeit installiertes `better-sqlite3`** (in `~/.omniroute/runtime/`)
-   — wird beim ersten Start **ODER** durch `scripts/build/postinstall.mjs → scripts/postinstall.mjs` verzögert installiert.
-   Validiert vor dem Laden die Magic Bytes der nativen `.node`-Datei (ELF / Mach-O / PE),
-   um vor beschädigten oder für die falsche Plattform bestimmten Binärdateien zu schützen.
+   — wird beim ersten Start **ODER** durch `scripts/build/postinstall.mjs → scripts/postinstall.mjs` bedarfsgesteuert installiert.
+   Vor dem Laden werden die Magic Bytes der nativen `.node`-Datei (ELF / Mach-O / PE) validiert,
+   um vor beschädigten oder für die falsche Plattform erstellten Binärdateien zu schützen.
 
 3. **`node:sqlite`** (Node ≥22.5-Standardbibliothek) — kein nativer Build erforderlich; wird verwendet, wenn
    beide better-sqlite3-Pfade fehlschlagen. Eingeschränkter Funktionsumfang.
@@ -23,21 +23,21 @@ OmniRoute ermittelt seinen SQLite-Treiber beim Start über eine 5-stufige Fallba
 ## Warum diese Komplexität?
 
 - **Windows EBUSY**: `npm install -g omniroute@latest` kann fehlschlagen, wenn die
-  `better_sqlite3.node`-Datei der vorherigen Version durch einen laufenden Prozess gesperrt ist. Die Laufzeitinstallation
-  in `~/.omniroute/runtime/` umgeht den globalen npm-Cache.
+  `better_sqlite3.node`-Datei der vorherigen Version durch einen laufenden Prozess gesperrt ist. Die
+  Laufzeitinstallation in `~/.omniroute/runtime/` umgeht den globalen npm-Cache.
 - **Keine Build-Werkzeuge**: Einige Umgebungen (Unternehmens-Windows ohne VS Build
-  Tools, minimale Docker-Images) können `better-sqlite3` nicht kompilieren. Das Laufzeit-Installationsprogramm
-  bezieht eine vorkompilierte Binärdatei aus der npm-Registry; die Fallback-
-  Treiber stellen sicher, dass OmniRoute selbst dann noch startet, wenn dies fehlschlägt.
-- **Vom Netz getrennte Systeme**: Wenn die npm-Registry nicht erreichbar ist, gewährleisten `node:sqlite`
-  oder `sql.js` eine grundlegende Funktionalität.
+  Tools, minimale Docker-Images) können `better-sqlite3` nicht kompilieren. Das Laufzeit-
+  Installationsprogramm bezieht eine vorkompilierte Binärdatei aus der npm-Registry; die Fallback-
+  Treiber stellen sicher, dass OmniRoute auch dann startet, wenn dies fehlschlägt.
+- **Vom Netzwerk isolierte Systeme**: Wenn die npm-Registry nicht erreichbar ist, gewährleisten
+  `node:sqlite` oder `sql.js` eine grundlegende Funktionalität.
 
 ## Magic-Byte-Validierung
 
 Vor dem Laden einer zur Laufzeit installierten `.node`-Datei liest OmniRoute die ersten 8
-Bytes und gleicht sie mit bekannten plattformspezifischen Magic Bytes ab:
+Bytes und vergleicht sie mit bekannten plattformspezifischen Magic Bytes:
 
-| Plattform              | Bytes (hex)   | Bezeichnung |
+| Plattform              | Bytes (Hex)   | Bezeichnung |
 | ---------------------- | ------------- | ----------- |
 | Linux                  | `7F 45 4C 46` | `elf`       |
 | macOS 64-Bit BE        | `FE ED FA CF` | `macho`     |
@@ -63,7 +63,7 @@ const info = getDriverInfo();
 # Postinstall-Aufwärmphase überspringen (für schnelle CI-Installationen)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
-# better-sqlite3 für die Laufzeit zwangsweise neu installieren
+# Zur Laufzeit verwendetes better-sqlite3 zwangsweise neu installieren
 rm -rf ~/.omniroute/runtime
 omniroute  # wird beim nächsten Start neu installiert
 
@@ -71,25 +71,45 @@ omniroute  # wird beim nächsten Start neu installiert
 omniroute config db-info  # (falls der CLI-Befehl vorhanden ist)
 ```
 
+## Synchrone Blockierungen diagnostizieren
+
+Bei `better-sqlite3` kann vor dem Start `OMNIROUTE_SQLITE_SLOW_MS=200` gesetzt werden, um
+die Zeitmessung des synchronen Adapters zu aktivieren. Standardmäßig ist sie deaktiviert. Für einen abgeschlossenen Vorgang,
+der mindestens so viele Millisekunden dauert, wird höchstens einmal pro
+zehn Sekunden und Adapter eine `[SQLITE-SLOW]`-Warnung ausgegeben. Die Warnung enthält ausschließlich den Treiber, die Vorgangsklasse
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, Transaktion oder Wartung) und
+die verstrichenen Millisekunden: keine SQL-Anweisungen, Bindungen, Zeilen, Pfade oder Ausnahmetexte.
+
+Dies ist eine Diagnosehilfe, kein Timeout und keine Abfrageoptimierung. Sie kann weder einen
+Vorgang melden, der nie zurückkehrt, noch CPU-Arbeit von Wartezeiten auf den Datenträger unterscheiden, die
+genaue SQL-Anweisung identifizieren oder Vorgänge beobachten, die über das unverarbeitete Treiber-Handle ausgeführt werden.
+Die Dauer asynchroner Sicherungen ist bewusst ausgenommen; andere SQLite-Treiber werden durch
+diese optionale Instrumentierung nicht erfasst. Durch Deaktivieren der Variable wird der ursprüngliche Adapter
+ohne Zeitmessungs-Wrapper wiederhergestellt. Das Datenbankschema und die gespeicherte Konfiguration bleiben unverändert.
+
+Die Verzögerungswarnung von `/healthz` meldet den Spitzenwert der Ereignisschleife seit der vorherigen Messung,
+nicht den Durchschnitt über die gesamte Laufzeit. Gleichen Sie ihre Zeitstempel mit Warnungen zu langsamen Vorgängen
+und Host-/Speichermetriken ab, bevor Sie eine Blockierung SQLite oder einem Datenträgerausfall zuschreiben.
+
 ## Referenz
 
 Implementierung:
 
 - `bin/cli/runtime/magicBytes.mjs` — Hilfsfunktionen zur Validierung binärer Magic Bytes
-- `bin/cli/runtime/sqliteRuntime.mjs` — 5-stufiger Laufzeit-Resolver + verzögertes Installationsprogramm
+- `bin/cli/runtime/sqliteRuntime.mjs` — 5-stufige Laufzeitauflösung + bedarfsgesteuertes Installationsprogramm
 - `bin/cli/runtime/index.mjs` — Start-Orchestrator (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — npm-Postinstall-Hook (nicht fatale Aufwärmphase)
+- `scripts/postinstall.mjs` — npm-Postinstall-Hook (nicht schwerwiegende Aufwärmphase)
 - `src/lib/db/core.ts` — Exporte von `ensureDbInitialized()` / `getDriverInfo()`
 
 ## Single-Writer-Topologie (HA nicht unterstützt)
 
-Die oben beschriebene Treiber-Fallback-Kette läuft weiterhin in **einem Prozess**. Mit dem standardmäßigen SQLite
-ist OmniRoute ein **Single Writer**:
+Die obige Treiber-Fallback-Kette läuft weiterhin in **einem Prozess**. OmniRoute mit
+Standard-SQLite hat **einen einzelnen Writer**:
 
 - Verbinden Sie nicht zwei OmniRoute-Replikate mit derselben `storage.sqlite`-Datei.
-- Ein Container-Neustart, ein Recreate-Deployment, ein OOM-Kill oder ein HEALTHCHECK-Neustart beendet
+- Ein Container-Neustart, Recreate-Deployment, OOM-Kill oder HEALTHCHECK-Neustart beendet
   jede laufende SSE-Sitzung. Im Standardpfad gibt es kein geordnetes Beenden von Sitzungen.
-- Eine Orchestrator-Liveness-Prüfung, die ein langsames `/healthz` als Ausfall wertet, beendet das einzige
-  Replikat. Bevorzugen Sie TCP-Liveness + HTTP-Readiness über `/healthz`. Siehe
+- Eine Liveness-Prüfung des Orchestrators, die einen langsamen `/healthz`-Endpunkt als Ausfall behandelt, beendet das einzige
+  Replikat. Bevorzugen Sie TCP-Liveness + HTTP-`/healthz`-Readiness. Siehe
   [Docker-Leitfaden — Verfügbarkeit](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   und [Empfehlungen für Kubernetes-Probes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

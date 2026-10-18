@@ -4,40 +4,40 @@
 
 ---
 
-OmniRoute yana gano direban SQLite ɗinsa yayin farawa ta hanyar jerin madadin mai matakai 5:
+OmniRoute yana tantance direban SQLite ɗinsa a lokacin farawa ta hanyar jerin madadin matakai 5:
 
 1. **`better-sqlite3` da aka haɗa** (ta hanyar `dependencies` a cikin `package.json`)
-   — shi ne mafi sauri, yana amfani da binary na asali, kuma `npm install` ne ke girka shi idan akwai kayan aikin ginawa.
+   — shi ne mafi sauri, yana amfani da binary na asali, kuma `npm install` ne ke girka shi idan akwai kayan aikin build.
 
-2. **`better-sqlite3` da aka girka lokacin aiki** (a cikin `~/.omniroute/runtime/`)
-   — ana girka shi ne kawai lokacin da ake buƙata a fara amfani **KO** ta `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Yana tantance magic bytes na asalin `.node` (ELF / Mach-O / PE) kafin lodawa
-   domin kariya daga binary mai lalacewa ko na dandamali mara dacewa.
+2. **`better-sqlite3` da aka girka a lokacin aiki** (a cikin `~/.omniroute/runtime/`)
+   — ana girka shi ne idan an buƙata a farkon aiki **KO** ta `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
+   Yana tabbatar da magic bytes na `.node` na asali (ELF / Mach-O / PE) kafin lodawa
+   domin kariya daga binary da ya lalace ko wanda ba na wannan dandali ba.
 
-3. **`node:sqlite`** (Node ≥22.5 stdlib) — ba ya buƙatar gina binary na asali; ana amfani da shi idan
-   dukkan hanyoyin better-sqlite3 sun gaza. Yana da iyakantattun fasaloli.
+3. **`node:sqlite`** (Node ≥22.5 stdlib) — ba ya buƙatar build na asali; ana amfani da shi idan
+   duk hanyoyin better-sqlite3 biyu suka gaza. Yana da iyakantattun fasaloli.
 
 4. **`sql.js`** (WASM) — madadin ƙarshe. Yana aiki a ko'ina amma ya fi jinkiri
-   kuma yana rubuta bayanai bisa tazarar lokaci maimakon a lokaci guda.
+   kuma yana rubuta bayanai bisa tazara maimakon yin hakan nan take.
 
-## Me ya sa wannan rikitarwa?
+## Me ya sa ake buƙatar wannan sarƙaƙƙiya?
 
 - **Windows EBUSY**: `npm install -g omniroute@latest` na iya gazawa idan
-  `better_sqlite3.node` na sigar da ta gabata yana kulle saboda wani tsari mai aiki. Girkin lokacin
-  aiki a cikin `~/.omniroute/runtime/` yana kauce wa ma'ajiyar wucin gadi ta npm ta duniya.
-- **Babu kayan aikin ginawa**: Wasu mahallai (Windows na kamfani ba tare da VS Build
-  Tools ba, ƙananan hotunan Docker) ba za su iya haɗa `better-sqlite3` ba. Mai girka na lokacin aiki
-  yana samo binary da aka riga aka gina daga ma'ajiyar npm; direbobin madadin
-  suna tabbatar da cewa OmniRoute zai iya farawa ko da hakan ya gaza.
-- **Tsarukan da ba su da haɗin waje**: Idan ba za a iya isa ma'ajiyar npm ba, `node:sqlite`
+  `better_sqlite3.node` na sigar da ta gabata yana kulle saboda wani process da ke gudana. Girka na lokacin
+  aiki a cikin `~/.omniroute/runtime/` yana kauce wa cache na npm na global.
+- **Babu kayan aikin build**: Wasu mahallai (Windows na kamfani ba tare da VS Build
+  Tools ba, ko ƙananan hotunan Docker) ba za su iya compile `better-sqlite3` ba. Mai girkawa na lokacin
+  aiki yana samo binary da aka riga aka build daga registry na npm; direbobin
+  madadin suna tabbatar da cewa OmniRoute zai ci gaba da farawa ko da hakan ya gaza.
+- **Tsarukan da aka ware daga intanet**: Idan ba a iya isa registry na npm ba, `node:sqlite`
   ko `sql.js` suna tabbatar da samuwar aƙalla ayyukan asali.
 
-## Tantance magic-byte
+## Tabbatar da magic-byte
 
-Kafin loda fayil ɗin `.node` da aka girka lokacin aiki, OmniRoute yana karanta bytes 8 na farko
-kuma yana kwatanta su da sanannun magic na dandamali:
+Kafin loda fayil ɗin `.node` da aka girka a lokacin aiki, OmniRoute yana karanta bytes 8 na farko
+kuma yana kwatanta su da sanannun magic na dandali:
 
-| Dandamali             | Bytes (hex)   | Lakabi      |
+| Dandali               | Bytes (hex)   | Lakabi      |
 | --------------------- | ------------- | ----------- |
 | Linux                 | `7F 45 4C 46` | `elf`       |
 | macOS 64-bit BE       | `FE ED FA CF` | `macho`     |
@@ -45,7 +45,7 @@ kuma yana kwatanta su da sanannun magic na dandamali:
 | macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
 | Windows               | `4D 5A` (MZ)  | `pe`        |
 
-Idan magic bai dace ba → ana yin watsi da fayil ɗin, sannan a ci gaba zuwa matakin madadin na gaba.
+Idan magic bai dace ba → ana yin watsi da fayil ɗin, sannan madadin ya ci gaba zuwa mataki na gaba.
 
 ## Duba direban da ke aiki
 
@@ -60,36 +60,56 @@ const info = getDriverInfo();
 ## Sarrafawa da hannu
 
 ```bash
-# Tsallake dumamar postinstall (domin girke-girken CI masu sauri)
+# Tsallake warm-up na postinstall (domin girkawar CI mai sauri)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
 # Tilasta sake girka better-sqlite3 na lokacin aiki
 rm -rf ~/.omniroute/runtime
 omniroute  # zai sake girkawa a farawa na gaba
 
-# Duba wane direba ne ke aiki
+# Duba direban da ke aiki
 omniroute config db-info  # (idan umarnin CLI yana nan)
 ```
+
+## Gano dalilan tsaikon aiki na synchronous
+
+Tare da `better-sqlite3`, saita `OMNIROUTE_SQLITE_SLOW_MS=200` kafin farawa domin zaɓar
+auna lokacin adapter na synchronous. A tsoho, wannan a kashe yake. Duk wani aiki da ya kammala wanda ya ɗauki
+aƙalla wannan adadin milliseconds yana fitar da gargaɗin `[SQLITE-SLOW]`, ba fiye da sau ɗaya a kowane
+daƙiƙa goma ga kowane adapter ba. Gargaɗin yana ƙunshe da direba, ajin aiki kawai
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, transaction ko maintenance), da
+milliseconds da suka shuɗe: babu SQL, bindings, rows, paths ko rubutun exception.
+
+Wannan taimako ne na bincike, ba timeout ko inganta query ba. Ba zai iya bayar da rahoton
+aikin da bai taɓa dawowa ba, bambance aikin CPU da jiran disk, gano
+ainihin SQL, ko lura da ayyukan da aka yi ta raw driver handle ba.
+An cire tsawon lokacin async backup da gangan; sauran direbobin SQLite ba a
+saka musu wannan kayan aunawa na zaɓi ba. Kashe variable ɗin yana dawo da adapter na asali
+ba tare da wrappers na auna lokaci ba. Babu wani canji ga schema na database ko configuration da aka adana.
+
+Gargaɗin lag na `/healthz` yana bayar da rahoton kololuwar event-loop tun daga sample na baya,
+ba matsakaicin tsawon rayuwar tsarin ba. Daidaita timestamps ɗinsa da gargaɗin ayyuka masu jinkiri
+da metrics na host/storage kafin a danganta tsaiko ga SQLite ko gazawar disk.
 
 ## Manazarta
 
 Aiwatarwa:
 
-- `bin/cli/runtime/magicBytes.mjs` — mataimakan tantance magic-byte na binary
-- `bin/cli/runtime/sqliteRuntime.mjs` — mai gano lokacin aiki mai matakai 5 + mai girkawa lokacin buƙata
+- `bin/cli/runtime/magicBytes.mjs` — kayan taimako na tabbatar da magic-byte na binary
+- `bin/cli/runtime/sqliteRuntime.mjs` — mai tantance runtime mai matakai 5 + mai girkawa idan an buƙata
 - `bin/cli/runtime/index.mjs` — mai tsara farawa (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — ƙugiyar npm bayan girkawa (dumamar da gazawarta ba ta hana aiki)
-- `src/lib/db/core.ts` — fitarwar `ensureDbInitialized()` / `getDriverInfo()`
+- `scripts/postinstall.mjs` — hook na npm bayan girkawa (warm-up marar haddasa gazawa)
+- `src/lib/db/core.ts` — exports na `ensureDbInitialized()` / `getDriverInfo()`
 
-## Tsarin marubuci guda (ba a tallafa wa HA)
+## Tsarin marubuci guda ɗaya (ba a tallafa wa HA)
 
-Jerin direbobin madadin da ke sama har yanzu yana aiki a cikin **tsari guda**. SQLite na asali
-na OmniRoute yana da **marubuci guda**:
+Jerar madadin direban da ke sama har yanzu tana gudana a cikin **process guda ɗaya**. SQLite na tsoho
+na OmniRoute yana da **marubuci guda ɗaya**:
 
-- Kada a haɗa kwafin OmniRoute guda biyu zuwa fayil ɗin `storage.sqlite` ɗaya.
-- Sake kunna kwantena, turawar Recreate, kashewa saboda OOM, ko sake kunnawar HEALTHCHECK yana katse
-  kowane zaman SSE da ke gudana. Babu kwashe zaman cikin tsari na yau da kullum.
-- Binciken rayuwar mai tsara aiki wanda ke ɗaukar `/healthz` mai jinkiri a matsayin matacce zai kashe
-  kwafi guda ɗin kawai. Fi son binciken rayuwa na TCP + shirye-shiryen HTTP `/healthz`. Duba
-  [Jagorar Docker — samuwa](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
-  da [shawarwarin binciken Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).
+- Kada a haɗa replicas biyu na OmniRoute da fayil ɗin `storage.sqlite` guda ɗaya.
+- Sake kunna container, deploy na Recreate, OOM kill, ko sake kunnawar HEALTHCHECK yana katse
+  duk wani zaman SSE da ke gudana. Babu session drain a hanyar da aka tanada ta asali.
+- Liveness na orchestrator da ke ɗaukar `/healthz` mai jinkiri a matsayin matacce zai kashe replica
+  guda ɗaya tilo. Fi son TCP liveness + readiness na HTTP `/healthz`. Duba
+  [Jagorar Docker — samuwar sabis](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
+  da [shawarwarin probe na Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

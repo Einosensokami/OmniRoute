@@ -7,35 +7,35 @@
 OmniRoute phân giải trình điều khiển SQLite khi khởi động thông qua chuỗi dự phòng gồm 5 bước:
 
 1. **`better-sqlite3` đi kèm** (thông qua `dependencies` trong `package.json`)
-   — nhanh nhất, sử dụng tệp nhị phân gốc, được cài đặt bởi `npm install` khi có sẵn các công cụ build.
+   — nhanh nhất, sử dụng tệp nhị phân gốc, được cài đặt bởi `npm install` khi có sẵn các công cụ xây dựng.
 
 2. **`better-sqlite3` được cài đặt lúc chạy** (trong `~/.omniroute/runtime/`)
-   — được cài đặt trì hoãn trong lần chạy đầu tiên **HOẶC** bởi `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Xác thực các byte magic của tệp `.node` gốc (ELF / Mach-O / PE) trước khi tải
-   để bảo vệ khỏi các tệp nhị phân bị hỏng hoặc dành cho nền tảng không phù hợp.
+   — được cài đặt theo nhu cầu trong lần chạy đầu tiên **HOẶC** bởi `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
+   Xác thực các byte nhận diện của tệp `.node` gốc (ELF / Mach-O / PE) trước khi tải
+   để bảo vệ khỏi các tệp nhị phân bị hỏng hoặc không đúng nền tảng.
 
-3. **`node:sqlite`** (thư viện chuẩn của Node ≥22.5) — không cần build mã gốc; được sử dụng khi
-   cả hai đường dẫn better-sqlite3 đều thất bại. Tập tính năng bị giới hạn.
+3. **`node:sqlite`** (thư viện chuẩn của Node ≥22.5) — không cần bản dựng gốc; được sử dụng khi
+   cả hai đường dẫn better-sqlite3 đều thất bại. Tập tính năng hạn chế.
 
 4. **`sql.js`** (WASM) — phương án dự phòng cuối cùng. Hoạt động ở mọi nơi nhưng chậm hơn
-   và ghi dữ liệu theo khoảng thời gian thay vì đồng bộ.
+   và ghi dữ liệu theo định kỳ thay vì đồng bộ.
 
 ## Tại sao lại phức tạp như vậy?
 
 - **Windows EBUSY**: `npm install -g omniroute@latest` có thể thất bại nếu
   `better_sqlite3.node` của phiên bản trước bị khóa bởi một tiến trình đang chạy. Việc cài đặt
   lúc chạy trong `~/.omniroute/runtime/` giúp tránh bộ nhớ đệm npm toàn cục.
-- **Không có công cụ build**: Một số môi trường (Windows doanh nghiệp không có VS Build
-  Tools, các image Docker tối giản) không thể biên dịch `better-sqlite3`. Trình cài đặt
-  lúc chạy phân giải một tệp nhị phân dựng sẵn từ npm registry; các trình điều khiển
-  dự phòng đảm bảo OmniRoute vẫn có thể khởi động ngay cả khi thao tác đó thất bại.
-- **Hệ thống cách ly mạng**: Nếu không thể truy cập npm registry, `node:sqlite`
-  hoặc `sql.js` sẽ đảm bảo chức năng cơ bản.
+- **Không có công cụ xây dựng**: Một số môi trường (Windows doanh nghiệp không có VS Build
+  Tools, các image Docker tối giản) không thể biên dịch `better-sqlite3`. Trình cài đặt lúc chạy
+  phân giải một tệp nhị phân dựng sẵn từ registry npm; các trình điều khiển dự phòng
+  đảm bảo OmniRoute vẫn khởi động ngay cả khi việc đó thất bại.
+- **Hệ thống cách ly mạng**: Nếu không thể truy cập registry npm, `node:sqlite`
+  hoặc `sql.js` đảm bảo chức năng cơ bản.
 
-## Xác thực byte magic
+## Xác thực byte nhận diện
 
-Trước khi tải một tệp `.node` được cài đặt lúc chạy, OmniRoute đọc 8 byte đầu tiên
-và so khớp chúng với các magic nền tảng đã biết:
+Trước khi tải tệp `.node` được cài đặt lúc chạy, OmniRoute đọc 8 byte đầu tiên
+và đối chiếu với các byte nhận diện nền tảng đã biết:
 
 | Nền tảng              | Byte (hex)    | Nhãn        |
 | --------------------- | ------------- | ----------- |
@@ -45,7 +45,7 @@ và so khớp chúng với các magic nền tảng đã biết:
 | macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
 | Windows               | `4D 5A` (MZ)  | `pe`        |
 
-Magic không khớp → tệp bị bỏ qua, quá trình dự phòng tiếp tục sang bước tiếp theo.
+Nếu byte nhận diện không khớp → tệp bị bỏ qua và quy trình dự phòng tiếp tục sang bước tiếp theo.
 
 ## Kiểm tra trình điều khiển đang hoạt động
 
@@ -60,7 +60,7 @@ const info = getDriverInfo();
 ## Điều khiển thủ công
 
 ```bash
-# Bỏ qua bước khởi động sơ bộ sau khi cài đặt (để cài đặt CI nhanh hơn)
+# Bỏ qua bước khởi động sẵn sau khi cài đặt (để cài đặt CI nhanh hơn)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
 # Buộc cài đặt lại better-sqlite3 lúc chạy
@@ -71,25 +71,45 @@ omniroute  # sẽ cài đặt lại trong lần khởi động tiếp theo
 omniroute config db-info  # (nếu lệnh CLI tồn tại)
 ```
 
+## Chẩn đoán tình trạng đình trệ đồng bộ
+
+Với `better-sqlite3`, hãy đặt `OMNIROUTE_SQLITE_SLOW_MS=200` trước khi khởi động để bật
+tính năng đo thời gian của adapter đồng bộ. Tính năng này mặc định bị tắt. Một thao tác hoàn tất
+mất ít nhất số mili giây đó sẽ phát ra cảnh báo `[SQLITE-SLOW]`, tối đa một lần trong
+mỗi mười giây cho mỗi adapter. Cảnh báo chỉ chứa trình điều khiển, lớp thao tác
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, giao dịch hoặc bảo trì) và
+số mili giây đã trôi qua: không có SQL, tham số liên kết, hàng dữ liệu, đường dẫn hoặc nội dung ngoại lệ.
+
+Đây là công cụ hỗ trợ chẩn đoán, không phải thời gian chờ hay cơ chế tối ưu hóa truy vấn. Nó không thể báo cáo
+một thao tác không bao giờ trả về, phân biệt công việc CPU với thời gian chờ ổ đĩa, xác định
+câu lệnh SQL chính xác hoặc quan sát các thao tác được thực hiện thông qua handle trình điều khiển thô.
+Thời lượng sao lưu bất đồng bộ được chủ động loại trừ; các trình điều khiển SQLite khác không được
+đo lường bởi tùy chọn tự nguyện này. Việc tắt biến sẽ khôi phục adapter ban đầu
+mà không có các wrapper đo thời gian. Không có thay đổi nào đối với schema cơ sở dữ liệu hoặc cấu hình đã lưu.
+
+Cảnh báo độ trễ `/healthz` báo cáo mức đỉnh của event loop kể từ lần lấy mẫu trước,
+không phải giá trị trung bình trong toàn bộ vòng đời. Hãy đối chiếu dấu thời gian của cảnh báo này với các cảnh báo thao tác chậm
+và số liệu của máy chủ/hệ thống lưu trữ trước khi quy kết tình trạng đình trệ cho SQLite hoặc lỗi ổ đĩa.
+
 ## Tham khảo
 
 Phần triển khai:
 
-- `bin/cli/runtime/magicBytes.mjs` — các hàm trợ giúp xác thực byte magic của tệp nhị phân
-- `bin/cli/runtime/sqliteRuntime.mjs` — bộ phân giải lúc chạy 5 bước + trình cài đặt trì hoãn
+- `bin/cli/runtime/magicBytes.mjs` — các hàm hỗ trợ xác thực byte nhận diện của tệp nhị phân
+- `bin/cli/runtime/sqliteRuntime.mjs` — bộ phân giải lúc chạy gồm 5 bước + trình cài đặt theo nhu cầu
 - `bin/cli/runtime/index.mjs` — bộ điều phối khởi động (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — hook sau cài đặt của npm (khởi động sơ bộ không gây lỗi nghiêm trọng)
+- `scripts/postinstall.mjs` — hook sau cài đặt npm (khởi động sẵn không gây lỗi nghiêm trọng)
 - `src/lib/db/core.ts` — các export `ensureDbInitialized()` / `getDriverInfo()`
 
-## Mô hình một trình ghi (không hỗ trợ HA)
+## Kiến trúc một trình ghi (không hỗ trợ HA)
 
-Chuỗi trình điều khiển dự phòng ở trên vẫn chạy trong **một tiến trình**. Theo mặc định, SQLite
-của OmniRoute là một **trình ghi duy nhất**:
+Chuỗi dự phòng trình điều khiển ở trên vẫn chạy trong **một tiến trình**. Theo mặc định, SQLite
+của OmniRoute là một hệ thống **một trình ghi**:
 
-- Không kết nối hai bản sao OmniRoute với cùng một tệp `storage.sqlite`.
-- Việc khởi động lại container, triển khai Recreate, OOM kill hoặc khởi động lại do HEALTHCHECK sẽ ngắt
-  mọi phiên SSE đang diễn ra. Không có cơ chế rút phiên trên luồng xử lý mặc định.
-- Kiểm tra liveness của bộ điều phối nếu coi phản hồi `/healthz` chậm là đã chết sẽ dừng bản sao
-  duy nhất. Nên ưu tiên liveness qua TCP + readiness qua HTTP `/healthz`. Xem
+- Không kết nối hai replica OmniRoute với cùng một tệp `storage.sqlite`.
+- Việc khởi động lại container, triển khai Recreate, bị hủy do OOM hoặc khởi động lại bởi HEALTHCHECK sẽ làm gián đoạn
+  mọi phiên SSE đang diễn ra. Luồng mặc định không có cơ chế xả phiên.
+- Cơ chế kiểm tra liveness của trình điều phối coi `/healthz` chậm là đã chết sẽ hủy
+  replica duy nhất. Nên ưu tiên liveness qua TCP + readiness qua HTTP `/healthz`. Xem
   [Hướng dẫn Docker — tính sẵn sàng](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   và [khuyến nghị về probe Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

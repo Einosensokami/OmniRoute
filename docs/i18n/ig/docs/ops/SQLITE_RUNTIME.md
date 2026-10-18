@@ -4,40 +4,40 @@
 
 ---
 
-OmniRoute na-achọpụta draịva SQLite ya mgbe ọ na-amalite site n'usoro ndaghachi nwere nzọụkwụ 5:
+OmniRoute na-achọpụta draịva SQLite ya mgbe ọ na-amalite site n’usoro ndabere nwere nzọụkwụ 5:
 
-1. **`better-sqlite3` etinyere n'ime ngwugwu** (site na `dependencies` dị na `package.json`)
-   — ọ kachasị ọsọ, ọ bụ binary nke sistemụ ahụ, `npm install` na-etinye ya mgbe ngwaọrụ build dị.
+1. **`better-sqlite3` etinyere n’ime ngwugwu** (site na `dependencies` dị na `package.json`)
+   — nke kachasị ọsọ, binary nke sistemụ, nke `npm install` na-etinye mgbe ngwaọrụ build dị.
 
-2. **`better-sqlite3` etinyere n'oge ojiji** (n'ime `~/.omniroute/runtime/`)
-   — a na-etinye ya naanị mgbe achọrọ ya n'oge mbụ a na-agba ya **MA Ọ BỤ** site na `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Ọ na-enyocha magic bytes nke `.node` nke sistemụ ahụ (ELF / Mach-O / PE) tupu ebugo ya
-   iji gbochie binary mebiri emebi ma ọ bụ nke e mere maka platform na-ezighị ezi.
+2. **`better-sqlite3` etinyere n’oge mmemme na-agba** (n’ime `~/.omniroute/runtime/`)
+   — a na-etinye ya naanị mgbe ọ dị mkpa n’oge mbụ a na-agba ya **MA Ọ BỤ** site na `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
+   Ọ na-enyocha magic bytes nke `.node` nke sistemụ (ELF / Mach-O / PE) tupu ebuo ya
+   iji chebe megide binary mebiri emebi ma ọ bụ nke e wuru maka nyiwe na-ezighi ezi.
 
-3. **`node:sqlite`** (stdlib nke Node ≥22.5) — ọ dịghị mkpa ịrụ build nke sistemụ ahụ; a na-eji ya mgbe
+3. **`node:sqlite`** (ọbá akwụkwọ ọkọlọtọ Node ≥22.5) — ọ dịghị mkpa iwulite ihe nke sistemụ; a na-eji ya mgbe
    ụzọ better-sqlite3 abụọ ahụ dara. Ọ nwere atụmatụ ole na ole.
 
-4. **`sql.js`** (WASM) — ndaghachi ikpeazụ. Ọ na-arụ ọrụ ebe niile mana ọ na-eji nwayọọ
-   ma na-ede data n'oge etinyere n'etiti oge kama ide ya ozugbo n'otu oge.
+4. **`sql.js`** (WASM) — ndabere ikpeazụ. Ọ na-arụ ọrụ ebe niile mana ọ na-eji nwayọ karịa
+   ma na-ede data n’oge a kara aka kama ide ya ozugbo n’otu oge.
 
-## Gịnị mere o ji sie ike otu a?
+## Gịnị mere mgbagwoju anya a ji dị?
 
 - **Windows EBUSY**: `npm install -g omniroute@latest` nwere ike ịda ma ọ bụrụ na
-  proses na-agba ọrụ akpọchiela `better_sqlite3.node` nke ụdị gara aga. Ntinye n'oge ojiji
-  n'ime `~/.omniroute/runtime/` na-agafe cache npm zuru ụwa ọnụ.
-- **Enweghị ngwaọrụ build**: Ụfọdụ gburugburu ọrụ (Windows ụlọ ọrụ na-enweghị VS Build
-  Tools, obere onyonyo Docker) enweghị ike ịkọmpaịlụ `better-sqlite3`. Onye nrụnye n'oge ojiji
-  na-enweta binary e wuru tupu oge eruo site na ndekọ npm; draịva ndaghachi
-  na-ahụ na OmniRoute ka ga-amalite ọbụlagodi ma nke ahụ daa.
-- **Sistemụ ndị a kewapụrụ na netwọkụ**: Ọ bụrụ na enweghị ike iru ndekọ npm, `node:sqlite`
-  ma ọ bụ `sql.js` na-ekwe nkwa ọrụ ndị bụ isi.
+  usoro na-agba ọrụ kpọchiri `better_sqlite3.node` nke ụdị gara aga. Ntinye n’oge mmemme
+  na-agba n’ime `~/.omniroute/runtime/` na-agafe cache npm zuru ụwa ọnụ.
+- **Enweghị ngwaọrụ build**: Ụfọdụ gburugburu (Windows ụlọ ọrụ na-enweghị VS Build
+  Tools, onyonyo Docker pere mpe) enweghị ike ịchịkọta `better-sqlite3`. Ihe ntinye
+  nke oge mmemme na-agba na-enweta binary e wuru tupu oge eruo site na ndekọ npm; draịva
+  ndabere na-eme ka OmniRoute ka nwee ike ịmalite ọbụlagodi ma nke ahụ daa.
+- **Sistemụ ndị e kewapụrụ n’ịntanetị**: Ọ bụrụ na enweghị ike iru ndekọ npm, `node:sqlite`
+  ma ọ bụ `sql.js` na-ekwe nkwa na ọrụ ndị bụ isi ga-adị.
 
 ## Nnyocha magic-byte
 
-Tupu ebugo faịlụ `.node` etinyere n'oge ojiji, OmniRoute na-agụ byte 8 mbụ
-ma jiri ha tụnyere magic ndị a maara nke platform:
+Tupu OmniRoute ebuo faịlụ `.node` etinyere n’oge mmemme na-agba, ọ na-agụ bytes 8
+mbụ wee tụnyere ha na magic ndị amaara nke nyiwe:
 
-| Platform              | Bytes (hex)   | Label       |
+| Nyiwe                 | Bytes (hex)   | Akara       |
 | --------------------- | ------------- | ----------- |
 | Linux                 | `7F 45 4C 46` | `elf`       |
 | macOS 64-bit BE       | `FE ED FA CF` | `macho`     |
@@ -45,7 +45,7 @@ ma jiri ha tụnyere magic ndị a maara nke platform:
 | macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
 | Windows               | `4D 5A` (MZ)  | `pe`        |
 
-Magic na-adabaghị → a na-eleghara faịlụ ahụ anya, ndaghachi na-aga n'ihu na nzọụkwụ na-esote.
+Magic na-adabaghị → a na-eleghara faịlụ ahụ anya, usoro ndabere ahụ aga n’ihu na nzọụkwụ na-esote.
 
 ## Ịlele draịva na-arụ ọrụ
 
@@ -53,43 +53,63 @@ Magic na-adabaghị → a na-eleghara faịlụ ahụ anya, ndaghachi na-aga n'i
 import { getDriverInfo } from "@/lib/db/core";
 
 const info = getDriverInfo();
-// { source: "bundled" | "runtime" | "runtime-installed-now" | "node-sqlite" | "sql-js",
-//   kind: "better-sqlite3" | "node-sqlite" | "sql-js" }
+// { isi-mmalite: "bundled" | "runtime" | "runtime-installed-now" | "node-sqlite" | "sql-js",
+//   ụdị: "better-sqlite3" | "node-sqlite" | "sql-js" }
 ```
 
 ## Njikwa aka
 
 ```bash
-# Mafee nkwadebe postinstall (maka ntinye CI ngwa ngwa)
+# Mafere nkwadebe postinstall (maka ntinye CI ngwa ngwa)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
-# Manye nrụnye better-sqlite3 nke runtime ọzọ
+# Manye ntinye ọzọ nke better-sqlite3 nke oge mmemme na-agba
 rm -rf ~/.omniroute/runtime
-omniroute  # ọ ga-etinyegharị ya mgbe ọ malitere ọzọ
+omniroute  # ọ ga-etinye ya ọzọ n’oge mmalite na-esote
 
 # Lelee draịva na-arụ ọrụ
 omniroute config db-info  # (ọ bụrụ na iwu CLI ahụ dị)
 ```
 
-## Nrụtụaka
+## Ịchọpụta nkwụsị nke ọrụ synchronous
+
+Mgbe ị na-eji `better-sqlite3`, tọọ `OMNIROUTE_SQLITE_SLOW_MS=200` tupu mmalite iji họrọ
+ịtụ oge nke ihe nkwụnye synchronous. Na ndabara, agbanyụghị ya. Ọrụ mechara nke were
+opekata mpe ọnụọgụ milliseconds ahụ na-ewepụta ịdọ aka ná ntị `[SQLITE-SLOW]`, nke kachasị
+otu ugboro n’ime sekọnd iri ọ bụla maka ihe nkwụnye ọ bụla. Ịdọ aka ná ntị ahụ nwere naanị draịva, klaasị ọrụ
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, azụmahịa ma ọ bụ mmezi), na
+milliseconds gafere: enweghị SQL, njikọ ụkpụrụ, ahịrị, ụzọ faịlụ ma ọ bụ ederede exception.
+
+Nke a bụ ihe enyemaka nyocha, ọ bụghị timeout ma ọ bụ nkwalite query. Ọ pụghị ịkọ
+ọrụ na-adịghị alaghachi ma ọlị, ịmata ọdịiche dị n’etiti ọrụ CPU na ichere diski, ịchọpụta
+SQL kpọmkwem, ma ọ bụ ịhụ ọrụ ndị e mere site na raw driver handle.
+A kpachapụrụ anya wepụ oge backup asynchronous; etinyeghị ngwaọrụ nlele a a na-ahọrọ iji mee ihe
+na draịva SQLite ndị ọzọ. Ịgbanyụ variable ahụ na-eweghachi ihe nkwụnye mbụ
+na-enweghị ihe mkpuchi ịtụ oge. Ọ dịghị schema database ma ọ bụ nhazi echekwara na-agbanwe.
+
+Ịdọ aka ná ntị lag nke `/healthz` na-akọ ọnụ ọgụgụ kachasị elu nke event-loop kemgbe sample gara aga,
+ọ bụghị nkezi nke ndụ ya niile. Tụnyere timestamps ya na ịdọ aka ná ntị nke ọrụ nwayọ
+yana metrics nke host/storage tupu i kwuo na nkwụsị ahụ sitere na SQLite ma ọ bụ ọdịda diski.
+
+## Ntụaka
 
 Mmejuputa:
 
-- `bin/cli/runtime/magicBytes.mjs` — ngwaọrụ enyemaka maka nnyocha magic-byte nke binary
-- `bin/cli/runtime/sqliteRuntime.mjs` — onye na-achọpụta runtime nwere nzọụkwụ 5 + onye nrụnye mgbe achọrọ ya
+- `bin/cli/runtime/magicBytes.mjs` — ngwa enyemaka maka nnyocha magic-byte nke binary
+- `bin/cli/runtime/sqliteRuntime.mjs` — ihe nchọpụta oge mmemme na-agba nwere nzọụkwụ 5 + ihe ntinye mgbe ọ dị mkpa
 - `bin/cli/runtime/index.mjs` — onye nhazi mmalite (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — hook npm mgbe ntinye gasịrị (nkwadebe na-adịghị egbu usoro ma ọ daa)
+- `scripts/postinstall.mjs` — hook npm mgbe ntinye gasịrị (nkwadebe na-adịghị ebute ọdịda)
 - `src/lib/db/core.ts` — mbupụ `ensureDbInitialized()` / `getDriverInfo()`
 
 ## Nhazi otu onye na-ede ihe (anaghị akwado HA)
 
-Usoro ndaghachi draịva dị n'elu ka na-agba n'ime **otu proses**. SQLite ndabara
+Usoro ndabere draịva dị n’elu ka na-agba n’ime **otu process**. SQLite ndabara
 nke OmniRoute bụ **otu onye na-ede ihe**:
 
-- Ejikọla replica OmniRoute abụọ na otu faịlụ `storage.sqlite`.
-- Mmalitegharị container, mbugharị Recreate, ogbugbu OOM, ma ọ bụ mmalitegharị HEALTHCHECK na-akwụsị
-  session SSE niile na-aga n'ihu. Enweghị igbunyụ session nwayọọ nwayọọ n'ụzọ ndabara.
-- Nnyocha ịdị ndụ nke orchestrator nke na-ewere `/healthz` na-adịghị aza ngwa ngwa dịka nke nwụrụ anwụ ga-egbu naanị
-  replica ahụ. Ka mma iji ịdị ndụ TCP + ịdị njikere HTTP `/healthz`. Lee
-  [Nduzi Docker — nnweta](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
+- Ejikọla replicas OmniRoute abụọ n’otu faịlụ `storage.sqlite`.
+- Mmalite container ọzọ, Recreate deploy, OOM kill, ma ọ bụ HEALTHCHECK restart na-akwụsị
+  session SSE niile na-aga n’ihu. Enweghị session drain n’ụzọ ndabara.
+- Liveness nke orchestrator nke na-ewere `/healthz` dị nwayọ dịka nke nwụrụ anwụ ga-egbu naanị
+  replica ahụ. Họrọ TCP liveness + HTTP `/healthz` readiness. Lee
+  [Ntuziaka Docker — nnweta](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   na [ndụmọdụ probe Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

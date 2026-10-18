@@ -4,48 +4,48 @@
 
 ---
 
-OmniRoute menentukan driver SQLite-nya saat startup melalui rantai fallback 5 langkah:
+OmniRoute menentukan driver SQLite saat startup melalui rantai fallback 5 langkah:
 
 1. **`better-sqlite3` bawaan** (melalui `dependencies` di `package.json`)
-   — paling cepat, menggunakan biner native, diinstal oleh `npm install` ketika build tools tersedia.
+   — paling cepat, biner native, diinstal oleh `npm install` saat alat build tersedia.
 
 2. **`better-sqlite3` yang diinstal saat runtime** (di `~/.omniroute/runtime/`)
    — diinstal secara lazy saat pertama kali dijalankan **ATAU** oleh `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
-   Memvalidasi magic bytes `.node` native (ELF / Mach-O / PE) sebelum memuatnya
-   untuk melindungi dari biner yang rusak atau tidak sesuai dengan platform.
+   Memvalidasi magic byte `.node` native (ELF / Mach-O / PE) sebelum memuatnya
+   untuk melindungi dari biner yang rusak atau ditujukan bagi platform yang salah.
 
 3. **`node:sqlite`** (stdlib Node ≥22.5) — tidak memerlukan build native; digunakan ketika
-   kedua jalur better-sqlite3 gagal. Set fitur terbatas.
+   kedua jalur better-sqlite3 gagal. Kumpulan fiturnya terbatas.
 
-4. **`sql.js`** (WASM) — fallback terakhir. Berfungsi di mana saja tetapi lebih lambat
-   dan menulis data berdasarkan interval, bukan secara sinkron.
+4. **`sql.js`** (WASM) — fallback terakhir. Berfungsi di mana saja, tetapi lebih lambat
+   dan menulis data secara berkala, bukan secara sinkron.
 
 ## Mengapa begitu kompleks?
 
 - **EBUSY Windows**: `npm install -g omniroute@latest` dapat gagal jika
   `better_sqlite3.node` milik versi sebelumnya dikunci oleh proses yang sedang berjalan. Instalasi
   runtime di `~/.omniroute/runtime/` menghindari cache npm global.
-- **Tidak ada build tools**: Beberapa lingkungan (Windows perusahaan tanpa VS Build
-  Tools, image Docker minimal) tidak dapat mengompilasi `better-sqlite3`. Installer runtime
-  mengambil biner siap pakai dari registry npm; driver fallback
-  memastikan OmniRoute tetap dapat dimulai bahkan jika proses tersebut gagal.
+- **Tidak ada alat build**: Beberapa lingkungan (Windows korporat tanpa VS Build
+  Tools, image Docker minimal) tidak dapat mengompilasi `better-sqlite3`. Installer
+  runtime mengambil biner siap pakai dari registry npm; driver fallback
+  memastikan OmniRoute tetap dapat dimulai meskipun proses tersebut gagal.
 - **Sistem air-gapped**: Jika registry npm tidak dapat dijangkau, `node:sqlite`
   atau `sql.js` menjamin fungsionalitas dasar.
 
-## Validasi magic bytes
+## Validasi magic byte
 
-Sebelum memuat file `.node` yang diinstal saat runtime, OmniRoute membaca 8
-byte pertama dan mencocokkannya dengan magic platform yang diketahui:
+Sebelum memuat file `.node` yang diinstal saat runtime, OmniRoute membaca 8 byte
+pertama dan mencocokkannya dengan magic platform yang diketahui:
 
-| Platform              | Byte (hex)    | Label       |
-| --------------------- | ------------- | ----------- |
-| Linux                 | `7F 45 4C 46` | `elf`       |
-| macOS 64-bit BE       | `FE ED FA CF` | `macho`     |
-| macOS 64-bit LE       | `CF FA ED FE` | `macho-le`  |
-| macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
-| Windows               | `4D 5A` (MZ)  | `pe`        |
+| Platform              | Byte (heksadesimal) | Label       |
+| --------------------- | ------------------- | ----------- |
+| Linux                 | `7F 45 4C 46`       | `elf`       |
+| macOS 64-bit BE       | `FE ED FA CF`       | `macho`     |
+| macOS 64-bit LE       | `CF FA ED FE`       | `macho-le`  |
+| macOS fat (universal) | `CA FE BA BE`       | `macho-fat` |
+| Windows               | `4D 5A` (MZ)        | `pe`        |
 
-Magic yang tidak cocok → file diabaikan, fallback dilanjutkan ke langkah berikutnya.
+Magic yang tidak cocok → file diabaikan, fallback berlanjut ke langkah berikutnya.
 
 ## Memeriksa driver yang aktif
 
@@ -63,7 +63,7 @@ const info = getDriverInfo();
 # Lewati pemanasan postinstall (untuk instalasi CI yang cepat)
 OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 
-# Instal ulang secara paksa better-sqlite3 runtime
+# Instal ulang paksa better-sqlite3 runtime
 rm -rf ~/.omniroute/runtime
 omniroute  # akan diinstal ulang saat startup berikutnya
 
@@ -71,25 +71,45 @@ omniroute  # akan diinstal ulang saat startup berikutnya
 omniroute config db-info  # (jika perintah CLI tersedia)
 ```
 
+## Mendiagnosis kemacetan sinkron
+
+Dengan `better-sqlite3`, tetapkan `OMNIROUTE_SQLITE_SLOW_MS=200` sebelum startup untuk
+mengaktifkan pengukuran waktu adaptor sinkron. Secara default fitur ini dinonaktifkan. Operasi yang selesai
+dan memerlukan waktu setidaknya sebanyak itu akan menghasilkan peringatan `[SQLITE-SLOW]`, paling banyak satu kali
+setiap sepuluh detik per adaptor. Peringatan hanya berisi driver, kelas operasi
+(`prepare`, `get`, `all`, `run`, `exec`, `pragma`, transaksi, atau pemeliharaan), dan
+waktu yang berlalu dalam milidetik: tanpa SQL, binding, baris, jalur, atau teks pengecualian.
+
+Ini merupakan alat bantu diagnostik, bukan timeout atau pengoptimalan kueri. Fitur ini tidak dapat melaporkan
+operasi yang tidak pernah selesai, membedakan pekerjaan CPU dari penantian disk, mengidentifikasi
+SQL secara tepat, atau mengamati operasi yang dilakukan melalui handle driver mentah.
+Durasi backup asinkron sengaja dikecualikan; driver SQLite lainnya tidak
+diinstrumentasi oleh fitur opsional ini. Menonaktifkan variabel tersebut akan memulihkan adaptor asli
+tanpa pembungkus pengukuran waktu. Tidak ada perubahan pada skema database atau konfigurasi yang tersimpan.
+
+Peringatan lag `/healthz` melaporkan puncak event loop sejak sampel sebelumnya,
+bukan rata-rata sepanjang masa proses. Korelasikan stempel waktunya dengan peringatan operasi lambat
+dan metrik host/penyimpanan sebelum menyimpulkan bahwa kemacetan disebabkan oleh kegagalan SQLite atau disk.
+
 ## Referensi
 
 Implementasi:
 
-- `bin/cli/runtime/magicBytes.mjs` — helper validasi magic bytes biner
+- `bin/cli/runtime/magicBytes.mjs` — helper validasi magic byte biner
 - `bin/cli/runtime/sqliteRuntime.mjs` — resolver runtime 5 langkah + installer lazy
 - `bin/cli/runtime/index.mjs` — orkestrator startup (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — hook pascainstalasi npm (pemanasan nonfatal)
+- `scripts/postinstall.mjs` — hook pascainstalasi npm (pemanasan yang tidak fatal)
 - `src/lib/db/core.ts` — ekspor `ensureDbInitialized()` / `getDriverInfo()`
 
 ## Topologi single-writer (HA tidak didukung)
 
 Rantai fallback driver di atas tetap berjalan dalam **satu proses**. SQLite default
-OmniRoute menggunakan **single writer**:
+OmniRoute adalah **single writer**:
 
 - Jangan hubungkan dua replika OmniRoute ke file `storage.sqlite` yang sama.
 - Restart container, deployment Recreate, OOM kill, atau restart HEALTHCHECK akan memutus
   setiap sesi SSE yang sedang berlangsung. Tidak ada pengurasan sesi pada jalur standar.
 - Liveness orkestrator yang menganggap `/healthz` lambat sebagai mati akan menghentikan satu-satunya
-  replika. Pilih liveness TCP + readiness HTTP `/healthz`. Lihat
+  replika. Gunakan liveness TCP + readiness HTTP `/healthz`. Lihat
   [Panduan Docker — ketersediaan](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   dan [rekomendasi probe Kubernetes](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).

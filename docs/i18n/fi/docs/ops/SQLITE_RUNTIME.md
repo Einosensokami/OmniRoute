@@ -4,32 +4,32 @@
 
 ---
 
-OmniRoute selvittää SQLite-ajurinsa käynnistyksen yhteydessä viisivaiheisen varaketjun avulla:
+OmniRoute selvittää SQLite-ajurinsa käynnistyksen yhteydessä 5-vaiheisella varaketjulla:
 
 1. **Paketoitu `better-sqlite3`** (`package.json`-tiedoston `dependencies`-määrityksen kautta)
-   — nopein vaihtoehto, natiivibinääri, jonka `npm install` asentaa, kun käännöstyökalut ovat käytettävissä.
+   — nopein vaihtoehto, natiivibinääri, jonka `npm install` asentaa, kun koontityökalut ovat käytettävissä.
 
 2. **Ajonaikaisesti asennettu `better-sqlite3`** (hakemistossa `~/.omniroute/runtime/`)
-   — asennetaan viivästetysti ensimmäisellä käynnistyskerralla **TAI** komennolla `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
+   — asennetaan laiskasti ensimmäisellä suorituskerralla **TAI** komennolla `scripts/build/postinstall.mjs → scripts/postinstall.mjs`.
    Natiivin `.node`-tiedoston tunnistetavut (ELF / Mach-O / PE) tarkistetaan ennen lataamista,
-   jotta vioittuneita tai väärälle alustalle tarkoitettuja binäärejä ei ladata.
+   jotta vioittuneet tai väärälle alustalle tarkoitetut binäärit eivät lataudu.
 
-3. **`node:sqlite`** (Node ≥22.5:n vakiokirjasto) — natiivikäännöstä ei tarvita; käytetään, kun
-   molemmat better-sqlite3-polut epäonnistuvat. Ominaisuusvalikoima on rajallinen.
+3. **`node:sqlite`** (Node ≥22.5:n vakiokirjasto) — natiivikoontia ei tarvita; käytetään, kun
+   kumpikin better-sqlite3-polku epäonnistuu. Ominaisuusvalikoima on rajallinen.
 
 4. **`sql.js`** (WASM) — viimeinen varavaihtoehto. Toimii kaikkialla, mutta on hitaampi
-   ja kirjoittaa tiedot säännöllisin väliajoin synkronisen kirjoittamisen sijaan.
+   ja kirjoittaa tiedot määräajoin synkronisen kirjoittamisen sijaan.
 
-## Miksi tämä on näin monimutkaista?
+## Miksi näin monimutkainen ratkaisu?
 
 - **Windows EBUSY**: `npm install -g omniroute@latest` voi epäonnistua, jos käynnissä oleva
-  prosessi on lukinnut edellisen version `better_sqlite3.node`-tiedoston. Ajonaikainen
-  asennus hakemistoon `~/.omniroute/runtime/` ohittaa globaalin npm-välimuistin.
-- **Ei käännöstyökaluja**: Jotkin ympäristöt (yritysten Windows-ympäristöt ilman VS Build
-  Tools -työkaluja, minimaaliset Docker-levykuvat) eivät pysty kääntämään `better-sqlite3`-pakettia. Ajonaikainen
-  asennusohjelma hakee valmiiksi käännetyn binäärin npm-rekisteristä; vara-ajurit
-  varmistavat, että OmniRoute käynnistyy, vaikka tämä epäonnistuisi.
-- **Ilmaraolla eristetyt järjestelmät**: Jos npm-rekisteriä ei voida käyttää, `node:sqlite`
+  prosessi lukitsee edellisen version `better_sqlite3.node`-tiedoston. Ajonaikainen
+  asennus hakemistoon `~/.omniroute/runtime/` ohittaa npm:n globaalin välimuistin.
+- **Koontityökaluja ei ole**: Jotkin ympäristöt (yritysten Windows-ympäristöt ilman VS Build
+  Tools -työkaluja, minimaaliset Docker-levykuvat) eivät voi kääntää `better-sqlite3`-pakettia.
+  Ajonaikainen asennusohjelma hakee valmiiksi käännetyn binäärin npm-rekisteristä;
+  vara-ajurit varmistavat, että OmniRoute käynnistyy, vaikka tämä epäonnistuisi.
+- **Ilmaraolla eristetyt järjestelmät**: Jos npm-rekisteriin ei saada yhteyttä, `node:sqlite`
   tai `sql.js` takaa perustoiminnallisuuden.
 
 ## Tunnistetavujen tarkistus
@@ -37,13 +37,13 @@ OmniRoute selvittää SQLite-ajurinsa käynnistyksen yhteydessä viisivaiheisen 
 Ennen ajonaikaisesti asennetun `.node`-tiedoston lataamista OmniRoute lukee ensimmäiset 8
 tavua ja vertaa niitä tunnettuihin alustakohtaisiin tunnisteisiin:
 
-| Alusta                | Tavut (heksa) | Tunniste    |
-| --------------------- | ------------- | ----------- |
-| Linux                 | `7F 45 4C 46` | `elf`       |
-| macOS 64-bittinen BE  | `FE ED FA CF` | `macho`     |
-| macOS 64-bittinen LE  | `CF FA ED FE` | `macho-le`  |
-| macOS fat (universal) | `CA FE BA BE` | `macho-fat` |
-| Windows               | `4D 5A` (MZ)  | `pe`        |
+| Alusta                  | Tavut (heks.) | Tunniste    |
+| ----------------------- | ------------- | ----------- |
+| Linux                   | `7F 45 4C 46` | `elf`       |
+| macOS 64-bittinen BE    | `FE ED FA CF` | `macho`     |
+| macOS 64-bittinen LE    | `CF FA ED FE` | `macho-le`  |
+| macOS fat (universaali) | `CA FE BA BE` | `macho-fat` |
+| Windows                 | `4D 5A` (MZ)  | `pe`        |
 
 Jos tunniste ei täsmää, tiedosto ohitetaan ja varaketju jatkaa seuraavaan vaiheeseen.
 
@@ -67,29 +67,53 @@ OMNIROUTE_SKIP_POSTINSTALL=1 npm install -g omniroute
 rm -rf ~/.omniroute/runtime
 omniroute  # asennetaan uudelleen seuraavan käynnistyksen yhteydessä
 
-# Tarkista, mikä ajuri on aktiivinen
+# Tarkista aktiivinen ajuri
 omniroute config db-info  # (jos CLI-komento on olemassa)
 ```
 
-## Viitteet
+## Synkronisten jumitusten diagnosointi
+
+Kun käytössä on `better-sqlite3`, aseta `OMNIROUTE_SQLITE_SLOW_MS=200` ennen käynnistystä,
+jos haluat ottaa synkronisen sovittimen ajoituksen käyttöön. Se on oletusarvoisesti poissa
+käytöstä. Jos valmistunut toiminto kestää vähintään näin monta millisekuntia, järjestelmä
+antaa `[SQLITE-SLOW]`-varoituksen enintään kerran kymmenessä sekunnissa sovitinta kohden.
+Varoitus sisältää vain ajurin, toimintoluokan (`prepare`, `get`, `all`, `run`, `exec`,
+`pragma`, transaktio tai ylläpito) ja kuluneet millisekunnit: ei SQL:ää, sidoksia, rivejä,
+polkuja tai poikkeustekstiä.
+
+Tämä on diagnostiikka-apu, ei aikakatkaisu tai kyselyoptimointi. Se ei voi ilmoittaa
+toiminnosta, joka ei koskaan palaudu, erottaa suoritintyötä levyodotuksista, tunnistaa
+tarkkaa SQL:ää tai seurata raaka-ajurikahvan kautta suoritettuja toimintoja.
+Asynkronisen varmuuskopioinnin kesto on tarkoituksella jätetty pois; tämän valinnaisen
+instrumentoinnin piiriin eivät kuulu muut SQLite-ajurit. Muuttujan poistaminen käytöstä
+palauttaa alkuperäisen sovittimen ilman ajoituskääreitä. Tietokannan skeemaan tai
+tallennettuihin määrityksiin ei tehdä muutoksia.
+
+`/healthz`-viivevaroitus ilmoittaa tapahtumasilmukan huippuviiveen edellisen näytteen
+jälkeen, ei koko käyttöajan keskiarvoa. Vertaa sen aikaleimoja hitaiden toimintojen
+varoituksiin sekä isäntä- ja tallennusmittareihin, ennen kuin päättelet jumituksen
+johtuvan SQLitestä tai levyvirheestä.
+
+## Viite
 
 Toteutus:
 
-- `bin/cli/runtime/magicBytes.mjs` — binäärien tunnistetavujen tarkistuksen apufunktiot
-- `bin/cli/runtime/sqliteRuntime.mjs` — viisivaiheinen ajonaikainen selvitys + viivästetty asennusohjelma
-- `bin/cli/runtime/index.mjs` — käynnistyksen koordinoija (`warmUpRuntimes()`)
-- `scripts/postinstall.mjs` — npm:n asennuksen jälkeinen koukku (ei aiheuta kohtalokasta virhettä)
+- `bin/cli/runtime/magicBytes.mjs` — binääristen tunnistetavujen tarkistuksen apufunktiot
+- `bin/cli/runtime/sqliteRuntime.mjs` — 5-vaiheinen ajonaikainen selvitys + laiska asennusohjelma
+- `bin/cli/runtime/index.mjs` — käynnistyksen orkestrointi (`warmUpRuntimes()`)
+- `scripts/postinstall.mjs` — npm:n asennuksen jälkeinen koukku (ei-kriittinen esilämmitys)
 - `src/lib/db/core.ts` — `ensureDbInitialized()`- / `getDriverInfo()`-viennit
 
-## Yhden kirjoittajan topologia (HA:ta ei tueta)
+## Yhden kirjoittajan topologia (korkeaa käytettävyyttä ei tueta)
 
-Yllä kuvattu ajurien varaketju suoritetaan edelleen **yhdessä prosessissa**. SQLitea
-oletusarvoisesti käyttävä OmniRoute on **yhden kirjoittajan** järjestelmä:
+Yllä oleva ajurien varaketju suoritetaan edelleen **yhdessä prosessissa**. SQLitea
+oletusasetuksilla käyttävä OmniRoute on **yhden kirjoittajan** järjestelmä:
 
 - Älä liitä kahta OmniRoute-replikaa samaan `storage.sqlite`-tiedostoon.
-- Kontin uudelleenkäynnistys, Recreate-käyttöönotto, OOM-pysäytys tai HEALTHCHECK-uudelleenkäynnistys katkaisee
-  kaikki käynnissä olevat SSE-istunnot. Vakiopolku ei tyhjennä istuntoja hallitusti.
-- Orkestroijan elossaolotarkistus, joka tulkitsee hitaan `/healthz`-vastauksen kuolleeksi, lopettaa ainoan
-  replikan. Suosi TCP-elossaolotarkistusta ja HTTP `/healthz` -valmiustarkistusta. Katso
-  [Docker-opas — saatavuus](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
+- Säilön uudelleenkäynnistys, Recreate-käyttöönotto, OOM-lopetus tai HEALTHCHECK-uudelleenkäynnistys
+  katkaisee kaikki käynnissä olevat SSE-istunnot. Vakiopolku ei tyhjennä istuntoja hallitusti.
+- Orkestroijan elossaolotarkistus, joka tulkitsee hitaan `/healthz`-vastauksen kuolleeksi
+  palveluksi, lopettaa ainoan replikan. Suosi TCP-elossaolotarkistusta + HTTP `/healthz`
+  -valmiustarkistusta. Katso
+  [Docker-opas — käytettävyys](../guides/DOCKER_GUIDE.md#availability-default-sqlite-is-single-replica)
   ja [Kubernetes-tarkistusten suositukset](./MONITORING_GUIDE.md#kubernetes-probe-recommendations).
