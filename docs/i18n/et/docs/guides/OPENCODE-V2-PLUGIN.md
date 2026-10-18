@@ -71,31 +71,32 @@ iga otspunkti kohta ühe korra, nimetades otspunkti ja kaotsi läinud andmed —
 
 ## Valikud
 
-| Võti                             | Vaikeväärtus                                           | Märkused                                                                                                                     |
-| -------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `providerId`                     | `"omniroute"`                                          | Teenusepakkuja ID, integratsiooni ID ja prefiks, mille all mudelid kuvatakse                                                 |
-| `baseURL`                        | nõutav                                                 | Lüüsijuur, ainult `http(s)`; järelliide `/v1` lisatakse vajaduse korral                                                      |
-| `apiKey`                         | ühendatud identimisteave, seejärel `OMNIROUTE_API_KEY` | Vestluse võti `/v1/*` jaoks                                                                                                  |
-| `managementReadToken`            | kasutab varuvariandina `apiKey`-d                      | Võti `/api/*` jaoks — tavaliselt **ei ole** see sama võti                                                                    |
-| `displayName`                    | `"OmniRoute"`                                          | Teenusepakkuja nimi valikus                                                                                                  |
-| `timeoutMs`                      | `10000`                                                | Päringu ajalõpp lõpp-punkti kohta (automaatsed kombinatsioonid kasutavad 5 s)                                                |
-| `modelCacheTtlMs`                | `300000`                                               | Kataloogi vahemälu TTL; kettal olev hetktõmmis kiirendab külmkäivitusi                                                       |
-| `timeouts`                       | kasutab varuvariandina `timeoutMs`-i                   | Lõpp-punktipõhised ajapiirangud millisekundites: `models`, `combos`, `autoCombos`, `enrichment`                              |
-| `enrichment`                     | `true`                                                 | Hangib nimed, hinnastuse ja tasuta taseme mahupiirangud                                                                      |
-| `providerTag`                    | `true`                                                 | Lisab kuvatava nime ette selle ülesvoolu teenusepakkuja nime, kuhu päring suunatakse                                         |
-| `usableOnly`                     | `false`                                                | Säilitab ainult need teenusepakkujad, mille lüüs märgib konfigureerituks                                                     |
-| `showcasePerOwner`               | `10`                                                   | Vaikevaates iga teenusepakkuja kohta säilitatavate kirjete arv                                                               |
-| `freshPerOwner`                  | `10`                                                   | Vaikevaates iga teenusepakkuja kohta säilitatavate värskete kirjete arv                                                      |
-| `freshWindowDays`                | `90`                                                   | Värske haru värskusaken päevades                                                                                             |
-| `usageMemory`                    | `true`                                                 | Taastab 30 päeva kasutusanalüütikas nimetatud staatiliselt eemaldatud kirjed (vajab haldustokenit)                           |
-| `visibleModels` / `hiddenModels` | `[]`                                                   | Täpse vaste või sufiksi lubatud loendid; keelamine on ülimuslik; `*` avaldab kogu kataloogi (muud filtrid kehtivad endiselt) |
-| `geminiSanitization`             | `true`                                                 | Eemaldab tööriistaskeemidest JSON Schema märksõnad, mida Gemini ei aktsepteeri (`$ref`-tööriistad edastatakse muutmata)      |
-| `apiFormat.allowAnthropic`       | `false`                                                | Suunab lubatud loendisse kantud ID-d Anthropicu API ploki kaudu                                                              |
-| `apiFormat.anthropicModels`      | `[]`                                                   | Anthropicule suunatavate mudelite täielikud ID-d                                                                             |
-| `logLevel` / `startupDebug`      | `warn` / `false`                                       | Logija detailsus                                                                                                             |
+| Võti                             | Vaikeväärtus                                    | Märkused                                                                                                                       |
+| -------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `providerId`                     | `"omniroute"`                                   | Teenusepakkuja ID, integratsiooni ID ja prefiks, mille all mudelid kuvatakse                                                   |
+| `baseURL`                        | nõutav                                          | Lüüsijuur; ainult `http(s)`; vajaduse korral lisatakse järelliide `/v1`                                                        |
+| `apiKey`                         | ühendatud mandaat, seejärel `OMNIROUTE_API_KEY` | Vestluse võti `/v1/*` jaoks                                                                                                    |
+| `managementReadToken`            | kasutab varuvariandina `apiKey`                 | Võti `/api/*` jaoks — tavaliselt **ei ole** see sama võti                                                                      |
+| `displayName`                    | `"OmniRoute"`                                   | Teenusepakkuja nimi valikus                                                                                                    |
+| `timeoutMs`                      | `10000`                                         | Päringu ajalõpp lõpp-punkti kohta (automaatsed kombinatsioonid kasutavad 5 s)                                                  |
+| `modelCacheTtlMs`                | `300000`                                        | Kataloogi vahemälu TTL; kettale salvestatud hetktõmmis kiirendab külmkäivitusi                                                 |
+| `timeouts`                       | kasutab varuvariandina `timeoutMs`              | Lõpp-punktipõhised ajalimiidid millisekundites: `models`, `combos`, `autoCombos`, `enrichment`                                 |
+| `enrichment`                     | `true`                                          | Hangib nimed, hinnateabe ja tasuta taseme eelarved                                                                             |
+| `providerTag`                    | `true`                                          | Lisab kuvatava nime ette selle lähteteenusepakkuja nime, kuhu päring suunatakse                                                |
+| `usableOnly`                     | `false`                                         | Säilitab ainult need teenusepakkujad, mille lüüs märgib ettevalmistatuks                                                       |
+| `combosSource`                   | `"api"`                                         | `"models"` jätab `/api/combos` vahele ja avaldab `/v1/models` kombinatsiooniread; liikmetaseme filtrid säilitavad `"api"`      |
+| `showcasePerOwner`               | `10`                                            | Teenusepakkuja kohta vaikevaates säilitatavate kirjete arv                                                                     |
+| `freshPerOwner`                  | `10`                                            | Teenusepakkuja kohta vaikevaate värskete kirjete harus säilitatavate kirjete arv                                               |
+| `freshWindowDays`                | `90`                                            | Värskete kirjete haru värskusaken päevades                                                                                     |
+| `usageMemory`                    | `true`                                          | Taastab staatiliselt eemaldatud kirjed, mida nimetab 30 päeva kasutusanalüütika (vajab haldustõendit)                          |
+| `visibleModels` / `hiddenModels` | `[]`                                            | Täpsed või sufiksipõhised lubatud loendid; keelamine on ülimuslik; `*` avaldab kogu kataloogi (muud filtrid kehtivad endiselt) |
+| `geminiSanitization`             | `true`                                          | Eemaldab tööriistaskeemidest JSON Schema märksõnad, mille Gemini tagasi lükkab (`$ref`-iga tööriistad edastatakse muutmata)    |
+| `apiFormat.allowAnthropic`       | `false`                                         | Suunab lubatud loendis olevad ID-d Anthropic API ploki kaudu                                                                   |
+| `apiFormat.anthropicModels`      | `[]`                                            | Anthropicusse suunatavate mudelite täielikud ID-d                                                                              |
+| `logLevel` / `startupDebug`      | `warn` / `false`                                | Logija üksikasjalikkus                                                                                                         |
 
-Kasutusmälu on vaikimisi sisse lülitatud. Ilma haldustokenita jääb see passiivseks
-(käivitamisel logitakse sellekohane teade) ja midagi ei taastata.
+Kasutusmälu on vaikimisi sisse lülitatud. Ilma haldustõendita jääb see passiivseks
+(käivitamisel logitakse teade) ja midagi ei taastata.
 
 ## Kuidas kataloog püsib ajakohasena
 

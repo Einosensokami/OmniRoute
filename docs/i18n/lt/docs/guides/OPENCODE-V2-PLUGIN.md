@@ -72,30 +72,31 @@ pateikia įspėjimą, nurodydamas galinį tašką ir prarastus duomenis — tod�
 
 ## Parinktys
 
-| Raktas                           | Numatytoji reikšmė                                | Pastabos                                                                                                                           |
-| -------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `providerId`                     | `"omniroute"`                                     | Teikėjo ID, integracijos ID ir prefiksas, su kuriuo rodomi modeliai                                                                |
-| `baseURL`                        | privaloma                                         | Tinklo sietuvo šakninis URL, tik `http(s)`; prireikus pridedama `/v1` priesaga                                                     |
-| `apiKey`                         | prijungtas kredencialas, tada `OMNIROUTE_API_KEY` | Pokalbių raktas, skirtas `/v1/*`                                                                                                   |
-| `managementReadToken`            | jei nenurodyta, naudojamas `apiKey`               | Raktas, skirtas `/api/*` — paprastai tai **ne** tas pats raktas                                                                    |
-| `displayName`                    | `"OmniRoute"`                                     | Teikėjo pavadinimas pasirinkimo sąraše                                                                                             |
-| `timeoutMs`                      | `10000`                                           | Kiekvieno galinio taško gavimo skirtasis laikas (automatiniai deriniai naudoja 5 sek.)                                             |
-| `modelCacheTtlMs`                | `300000`                                          | Katalogo podėlio TTL; diske esanti momentinė kopija paspartina šaltąjį paleidimą                                                   |
-| `timeouts`                       | jei nenurodyta, naudojamas `timeoutMs`            | Atskirų galinių taškų laiko limitai milisekundėmis: `models`, `combos`, `autoCombos`, `enrichment`                                 |
-| `enrichment`                     | `true`                                            | Gauti pavadinimus, kainodarą ir nemokamo lygio limitus                                                                             |
-| `providerTag`                    | `true`                                            | Prie rodomo pavadinimo pridėti aukštesniojo lygio teikėjo, į kurį nukreipiama, prefiksą                                            |
-| `usableOnly`                     | `false`                                           | Palikti tik tuos teikėjus, kuriuos tinklo sietuvas nurodo kaip sukonfigūruotus                                                     |
-| `showcasePerOwner`               | `10`                                              | Kiekvienam teikėjui numatytajame rodinyje paliekamų įrašų skaičius                                                                 |
-| `freshPerOwner`                  | `10`                                              | Kiekvienam teikėjui numatytajame rodinyje paliekamų naujų įrašų skaičius                                                           |
-| `freshWindowDays`                | `90`                                              | Naujausių įrašų šakos aktualumo laikotarpis dienomis                                                                               |
-| `usageMemory`                    | `true`                                            | Atkurti statiškai pašalintus įrašus, nurodytus 30 dienų naudojimo analitikoje (reikalingas valdymo prieigos raktas)                |
-| `visibleModels` / `hiddenModels` | `[]`                                              | Tikslių atitikmenų arba priesagų leidžiamųjų sąrašai; draudimas turi pirmenybę; `*` paskelbia visą katalogą (kiti filtrai išlieka) |
-| `geminiSanitization`             | `true`                                            | Iš įrankių schemų pašalinti JSON-Schema raktažodžius, kuriuos Gemini atmeta (`$ref` įrankiai persiunčiami nepakeisti)              |
-| `apiFormat.allowAnthropic`       | `false`                                           | Per Anthropic API bloką nukreipti į leidžiamųjų sąrašą įtrauktus ID                                                                |
-| `apiFormat.anthropicModels`      | `[]`                                              | Visi modelių ID, nukreipiami į Anthropic                                                                                           |
-| `logLevel` / `startupDebug`      | `warn` / `false`                                  | Žurnalo išsamumo lygis                                                                                                             |
+| Raktas                           | Numatytoji reikšmė                               | Pastabos                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `providerId`                     | `"omniroute"`                                    | Teikėjo ID, integracijos ID ir priešdėlis, su kuriuo rodomi modeliai                                                                                |
+| `baseURL`                        | privaloma                                        | Šliuzo šakninis URL, tik `http(s)`; priesaga `/v1` pridedama, kai reikia                                                                            |
+| `apiKey`                         | prijungti kredencialai, tada `OMNIROUTE_API_KEY` | Pokalbių raktas, skirtas `/v1/*`                                                                                                                    |
+| `managementReadToken`            | jei nenurodyta, naudojamas `apiKey`              | Raktas, skirtas `/api/*` — paprastai tai **nėra** tas pats raktas                                                                                   |
+| `displayName`                    | `"OmniRoute"`                                    | Teikėjo pavadinimas parinkiklyje                                                                                                                    |
+| `timeoutMs`                      | `10000`                                          | Kiekvienos galinio taško užklausos skirtasis laikas (automatiniai deriniai naudoja 5 sek.)                                                          |
+| `modelCacheTtlMs`                | `300000`                                         | Katalogo podėlio TTL; disko momentinė kopija paspartina šaltąjį paleidimą                                                                           |
+| `timeouts`                       | jei nenurodyta, naudojamas `timeoutMs`           | Kiekvienam galiniam taškui skirti laiko limitai milisekundėmis: `models`, `combos`, `autoCombos`, `enrichment`                                      |
+| `enrichment`                     | `true`                                           | Gauti pavadinimus, kainodarą ir nemokamo lygio limitus                                                                                              |
+| `providerTag`                    | `true`                                           | Prie rodomo pavadinimo pridėti pirminio teikėjo, į kurį nukreipiama, priešdėlį                                                                      |
+| `usableOnly`                     | `false`                                          | Palikti tik tuos teikėjus, kuriuos šliuzas nurodo kaip sukonfigūruotus                                                                              |
+| `combosSource`                   | `"api"`                                          | `"models"` praleidžia `/api/combos` ir paskelbia `/v1/models` derinių eilutes; narių lygmens filtrai išlaiko `"api"`                                |
+| `showcasePerOwner`               | `10`                                             | Kiekvienam teikėjui numatytajame rodinyje paliekamų įrašų skaičius                                                                                  |
+| `freshPerOwner`                  | `10`                                             | Kiekvienam teikėjui numatytajame rodinyje paliekamų naujų įrašų skaičius                                                                            |
+| `freshWindowDays`                | `90`                                             | Naujos šakos naujumo laikotarpis dienomis                                                                                                           |
+| `usageMemory`                    | `true`                                           | Atkurti statiškai pašalintus įrašus, nurodytus 30 dienų naudojimo analizėje (reikalingas valdymo prieigos raktas)                                   |
+| `visibleModels` / `hiddenModels` | `[]`                                             | Tikslių atitikčių arba priesagų leidžiamųjų reikšmių sąrašai; draudimas turi pirmenybę; `*` paskelbia visą katalogą (kiti filtrai vis tiek taikomi) |
+| `geminiSanitization`             | `true`                                           | Pašalinti iš įrankių schemų JSON Schema raktažodžius, kuriuos „Gemini“ atmeta (`$ref` įrankiai persiunčiami nepakeisti)                             |
+| `apiFormat.allowAnthropic`       | `false`                                          | Nukreipti į leidžiamųjų sąrašą įtrauktus ID per „Anthropic“ API bloką                                                                               |
+| `apiFormat.anthropicModels`      | `[]`                                             | Pilni modelių ID, nukreipiami į „Anthropic“                                                                                                         |
+| `logLevel` / `startupDebug`      | `warn` / `false`                                 | Žurnalo išsamumo lygis                                                                                                                              |
 
-Naudojimo atmintis įjungta pagal numatytuosius nustatymus. Jei nėra valdymo prieigos rakto, ji lieka neaktyvi
+Naudojimo atmintis įjungta pagal numatytuosius nustatymus. Be valdymo prieigos rakto ji lieka neaktyvi
 (paleidžiant įrašamas pranešimas) ir niekas neatkuriama.
 
 ## Kaip katalogas išlaikomas aktualus
