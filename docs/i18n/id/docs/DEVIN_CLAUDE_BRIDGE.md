@@ -5,86 +5,101 @@
 ---
 
 `devin-cli-agentic` memungkinkan runtime Claude Code yang sebenarnya menggunakan endpoint
-Messages Anthropic lokal milik OmniRoute, sementara Devin CLI resmi menyediakan respons model
-melalui ACP stdio. Ini tidak mengubah penyedia Anthropic, Claude OAuth, Claude Web, atau
+Messages Anthropic lokal milik OmniRoute, sementara Devin CLI resmi memasok respons model
+melalui ACP stdio. Ini tidak memodifikasi penyedia Anthropic, Claude OAuth, Claude Web, atau
 `devin-cli` yang sudah ada.
 
-> **Status saat ini: menggunakan Claude Code `2.1.258` yang dipatok; validasi offline dan live
-> terakhir tercatat pada `2.1.220`.** Versi `2.1.220` yang dipatok menyelesaikan tiga skenario
-> terisolasi melalui Devin CLI `3000.2.17` dan model `swe-1-7-lightning`; eksekusi live terakhir
-> tersebut membuktikan giliran `Read`, `Edit`, dan `Bash` yang dikendalikan oleh klien, hasil
-> `npm test` yang berhasil, penemuan perintah dan skill proyek, perutean khusus Devin, serta
-> tidak adanya trafik keluar ke Claude. Versi yang dipatok kemudian dinaikkan menjadi `2.1.258`
-> (generasi CLI yang ditiru oleh identitas Claude milik OmniRoute, sekaligus lini pertama yang
-> menyediakan tingkat Fable 5.1 secara native). Pada versi baru yang dipatok, lapisan instalasi
-> dan `claude --version` telah diverifikasi pada image dasar yang dipatok, serta rangkaian unit
-> bridge, `compose config`, dan pembuktian isolasi statis berhasil — tetapi skenario mock offline
-> dan rangkaian tiga skenario live belum dijalankan kembali. Jalankan kembali semuanya (lihat
-> "Memperbarui alat yang dipatok") sebelum mengandalkan bridge dengan versi yang dipatok ini.
+Untuk pemanggilan alat yang dimiliki klien, rutekan melalui `devin-cli-agentic` (alias `dva`),
+penyedia berkemampuan alat dengan format Claude. Eksekutor ACP `devin-cli` (`dv`) lama hanya
+mendukung teks: eksekutor ini menjalankan peringkas tanpa alat milik Devin dan tidak dapat
+mengembalikan pemanggilan alat. Metadata modelnya ditandai sebagaimana mestinya agar perutean
+kombo yang memerlukan alat akan menghindarinya.
+
+> **Status saat ini: Claude Code disematkan pada `2.1.258`; validasi offline dan langsung
+> terakhir tercatat pada `2.1.220`.** Penyematan `2.1.220` menyelesaikan tiga skenario
+> terisolasi melalui Devin CLI `3000.2.17` dan model `swe-1-7-lightning`; pengujian langsung
+> terakhir tersebut membuktikan giliran `Read`, `Edit`, dan `Bash` yang dimiliki klien,
+> hasil `npm test` yang berhasil, penemuan perintah dan keterampilan proyek, perutean khusus
+> Devin, serta tanpa lalu lintas keluar ke Claude. Penyematan kemudian dinaikkan ke `2.1.258`
+> (generasi CLI yang ditiru oleh identitas Claude milik OmniRoute, dan lini pertama yang
+> menyediakan tingkat Fable 5.1 secara bawaan). Pada penyematan baru, lapisan instalasi dan
+> `claude --version` telah diverifikasi pada image dasar yang disematkan, serta rangkaian
+> pengujian unit bridge, `compose config`, dan bukti isolasi statis berhasil — tetapi skenario
+> mock offline dan rangkaian tiga skenario langsung belum dijalankan ulang. Jalankan ulang
+> semuanya (lihat "Memperbarui alat yang disematkan") sebelum mengandalkan bridge dengan
+> penyematan ini.
 
 ## Arsitektur
 
 ```text
 Claude Code 2.1.258 (kontainer Linux non-root yang terisolasi)
   -> http://omniroute:20128/v1/messages
-  -> devin-cli-agentic (penyedia berformat Claude, tanpa autentikasi)
+  -> devin-cli-agentic (format Claude, penyedia tanpa autentikasi)
   -> devin acp --agent-type summarizer (ACP stdio resmi, tanpa alat Devin)
-  -> Akun Devin dalam volume devin-auth khusus
+  -> akun Devin dalam volume devin-auth khusus
 ```
 
-Agen ACP default milik CLI resmi dapat menjalankan alatnya sendiri, sehingga bridge ini tidak
+Agen ACP bawaan CLI resmi dapat menjalankan alatnya sendiri, sehingga bridge ini tidak
 menggunakannya. Bridge menjalankan agen ACP `summarizer` tetap, yang dalam mode CLI resminya
 tidak memiliki alat, dan membingkai permintaan Anthropic yang diserialisasi sebagai jejak
-eksekusi. Ketika diperlukan tindakan lain yang dikendalikan Claude, respons harus berisi tepat
-satu amplop alat klien. Setiap `tool_call` atau `tool_call_update` ACP ditolak sebelum respons
-dapat dilaporkan berhasil.
+eksekusi. Ketika tindakan lain yang dimiliki Claude diperlukan, respons harus berisi tepat
+satu amplop alat klien. Setiap `tool_call` atau `tool_call_update` ACP ditolak sebelum
+respons dapat dilaporkan berhasil.
 
 Serializer dalam `open-sse/executors/devin-agentic/serializer.ts` mempertahankan `system`,
-`text`, `tool_use`, `tool_result`, `thinking`, `redacted_thinking`, `tool_choice`, dan alat
-yang disediakan oleh Claude Code. Gambar dan blok yang tidak dikenal menyebabkan kegagalan
-secara eksplisit. Hasil alat yang besar menggunakan penanda pemotongan yang terlihat.
+`text`, `tool_use`, `tool_result`, `thinking`, `redacted_thinking`, `tool_choice`, serta alat
+yang disediakan oleh Claude Code. Gambar dan blok yang tidak dikenal akan gagal secara
+eksplisit. Hasil alat berukuran besar menggunakan penanda pemotongan yang terlihat.
 
 Parser menerima satu amplop `<tool>{...}</tool>` mandiri per giliran model. Parser memeriksa
 nama terhadap daftar alat dalam permintaan, memvalidasi argumen terhadap JSON Schema alat
-tersebut, menolak campuran narasi/tindakan, dan mengizinkan satu perbaikan terbatas. Claude
-Code kemudian mengeksekusi `tool_use` Anthropic yang dihasilkan secara lokal dan mengirimkan
-`tool_result` kembali melalui OmniRoute.
+tersebut, menolak campuran narasi/tindakan, dan mengizinkan satu upaya perbaikan terbatas.
+Claude Code kemudian menjalankan `tool_use` Anthropic yang dihasilkan secara lokal dan
+mengirimkan `tool_result` kembali melalui OmniRoute.
+
+## Perutean otomatis
+
+Penyedia ini memenuhi syarat dalam kumpulan kandidat `auto/*` milik OmniRoute ketika tidak
+diblokir. Kelayakan kandidat tidak menjamin pemilihan: strategi perutean kombo tersebut
+(misalnya, last-known-good) mungkin lebih memilih penyedia lain. Gunakan `dva/<model>` atau
+kombo yang memprioritaskan Devin ketika Anda mengharuskan setiap permintaan dirutekan melalui
+Devin.
 
 ## Isolasi dan model ancaman
 
-Instalasi, akun, dan konfigurasi Claude milik host berada di luar cakupan dan diperlakukan
-sebagai hal yang dilarang. Layanan Compose:
+Instalasi, akun, dan konfigurasi Claude pada host berada di luar cakupan dan dianggap
+terlarang. Layanan Compose:
 
-- berjalan sebagai UID/GID `10001:10001`, dengan sistem berkas root hanya-baca, kapabilitas
-  yang dihapus, dan `no-new-privileges`;
-- menggunakan `/home/bridge` privat, volume konfigurasi Claude khusus, data OmniRoute
-  terisolasi, dan volume `devin-auth` terpisah;
-- hanya memasang workspace/bukti `.sandbox` yang bersifat sementara;
-- tidak memasang direktori home host, Keychain, SSH, kredensial cloud, atau soket Docker;
-- membuat lingkungan secara eksplisit dan menghapus variabel API/OAuth/perutean Anthropic;
+- berjalan sebagai UID/GID `10001:10001`, dengan sistem berkas root hanya-baca, kapabilitas yang dilepas, dan
+  `no-new-privileges`;
+- menggunakan `/home/bridge` privat, volume konfigurasi Claude khusus, data OmniRoute yang terisolasi,
+  dan volume `devin-auth` terpisah;
+- hanya memasang ruang kerja/bukti `.sandbox` sekali pakai;
+- tidak memasang direktori home host, Keychain, kredensial SSH, kredensial cloud, atau soket Docker;
+- membangun lingkungan secara eksplisit dan menghapus variabel API/OAuth/perutean Anthropic;
 - mengarahkan inferensi Claude Code hanya ke `http://omniroute:20128` dengan kunci khusus lokal.
 
 Profil offline menggunakan jaringan internal. Dalam profil live, OmniRoute hanya menjangkau
-endpoint Devin resmi melalui `network-guard`; tujuan yang tidak terkait ditolak. Claude Code
-memiliki guard egress tolak-semua yang terpisah dan hanya dapat menjangkau layanan OmniRoute
-lokal melalui `NO_PROXY`. Berkas audit guard hanya dipasang oleh proses guard masing-masing.
-Skrip memverifikasi kepemilikan berkas, mode, jumlah tautan, dan setiap keputusan sebelum
-mengekspor bukti bebas token.
+endpoint resmi Devin melalui `network-guard`; tujuan lain yang tidak terkait ditolak.
+Claude Code memiliki penjaga egress tolak-semua yang terpisah dan hanya dapat menjangkau layanan
+OmniRoute lokal melalui `NO_PROXY`. Berkas audit penjaga hanya dipasang oleh proses penjaganya.
+Skrip memverifikasi kepemilikan berkas, mode, jumlah tautan, dan setiap keputusan sebelum mengekspor
+bukti bebas token.
 
-Jalankan pembuktian isolasi secara terpisah:
+Jalankan pembuktian isolasi secara independen:
 
 ```bash
 ./scripts/devin-bridge/verify-anthropic-isolation
 ```
 
-Skrip tersebut memvalidasi topologi, mount bernama, pengaturan non-root/hanya-baca, perutean
-lokal eksplisit, tidak adanya variabel lingkungan sensitif, tidak adanya soket Docker, akses
-yang diblokir ke `api.anthropic.com` dan `claude.ai`, pemilihan penyedia khusus Devin, serta
-kegagalan eksplisit ketika backend ACP tidak tersedia.
+Perintah ini memvalidasi topologi, pemasangan bernama, pengaturan non-root/hanya-baca, perutean lokal eksplisit,
+ketiadaan variabel lingkungan sensitif, ketiadaan soket Docker, akses yang diblokir ke
+`api.anthropic.com` dan `claude.ai`, pemilihan penyedia khusus Devin, serta kegagalan eksplisit ketika
+backend ACP tidak tersedia.
 
 ## Penyiapan pertama kali dan penggunaan normal
 
-Bangun image yang versinya telah dipatok:
+Bangun image yang versinya dikunci:
 
 ```bash
 ./scripts/devin-bridge/build
@@ -96,19 +111,24 @@ Autentikasi hanya volume Devin yang terisolasi:
 ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/login-devin
 ```
 
-Perintah login menggunakan alur token manual resmi yang ditujukan untuk lingkungan jarak jauh/container. Nilainya dimasukkan langsung ke prompt CLI; nilai tersebut tidak diteruskan sebagai argumen proses, ditulis ke Git, atau disalin dari host.
+Perintah login menggunakan alur token manual resmi yang ditujukan untuk lingkungan
+jarak jauh/container. Nilai dimasukkan langsung ke prompt CLI; nilai tersebut tidak diteruskan sebagai
+argumen proses, ditulis ke Git, atau disalin dari host.
 
-Jalankan runtime Claude Code yang terisolasi:
+Luncurkan runtime Claude Code yang terisolasi:
 
 ```bash
 ./scripts/devin-bridge/launch
 ```
 
-`launch` memeriksa ulang isolasi, autentikasi Devin, dan penemuan model sebelum memulai Claude Code dalam container. Perintah ini tidak pernah menjalankan executable Claude milik host. Alias model dapat ditetapkan di `.env.devin-bridge`; setiap nilai yang dikonfigurasi harus mempertahankan prefiks `devin-cli-agentic/`.
+`launch` memeriksa ulang isolasi, autentikasi Devin, dan penemuan model sebelum memulai
+Claude Code dalam container. Perintah ini tidak pernah menjalankan executable Claude milik host. Alias model dapat
+diatur dalam `.env.devin-bridge`; setiap nilai yang dikonfigurasi harus mempertahankan prefiks
+`devin-cli-agentic/`.
 
 ## Perintah validasi
 
-Jalur offline yang dapat direproduksi tidak memerlukan akun Devin dan tidak memiliki akses Internet saat runtime:
+Jalur offline yang dapat direproduksi tidak memerlukan akun Devin dan tidak memiliki Internet saat runtime:
 
 ```bash
 ./scripts/devin-bridge/test-unit
@@ -117,40 +137,48 @@ Jalur offline yang dapat direproduksi tidak memerlukan akun Devin dan tidak memi
 ./scripts/devin-bridge/verify-anthropic-isolation
 ```
 
-Jalur live terautentikasi yang harus diaktifkan secara eksplisit adalah:
+Jalur live yang diautentikasi dan harus diaktifkan secara eksplisit adalah:
 
 ```bash
 ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/test-live-devin
 ```
 
-Runner live menunggu di antara skenario untuk menghindari pembukaan sesi ACP secara serentak dan memvalidasi event stream Claude terstruktur alih-alih memercayai klaim tekstual. Tiga skenarionya membuktikan:
+Runner live menunggu di antara skenario untuk menghindari pembukaan sesi ACP secara serentak dan
+memvalidasi event stream Claude terstruktur, alih-alih memercayai klaim tekstual. Tiga
+skenarionya membuktikan:
 
 1. pembacaan proyek secara langsung dan analisis cacat;
-2. `Edit` nyata, `Bash` `npm test` yang dimiliki klien, dan hasil terminal;
-3. penemuan `/bridge-check` beserta `bridge-proof`, pembacaan proyek, `npm test` lain yang berhasil dan dimiliki klien, serta penyelesaian tanpa pekerjaan tertunda.
+2. operasi `Edit` nyata, `Bash` `npm test` yang dikendalikan klien, dan hasil terminal;
+3. `/bridge-check` beserta penemuan `bridge-proof`, pembacaan proyek, eksekusi
+   `npm test` lain yang berhasil dan dikendalikan klien, serta penyelesaian tanpa pekerjaan tertunda.
 
-Gate terakhir juga memeriksa audit jaringan Devin dan mengharuskan audit egress Claude tetap kosong.
+Gerbang akhir juga memeriksa audit jaringan Devin dan mengharuskan audit egress Claude
+tetap kosong.
 
-## Memperbarui alat yang versinya dipatok
+## Memperbarui alat yang di-pin
 
-Image tersebut mematok Node, Claude Code, dan Devin CLI di `docker/devin-bridge/Dockerfile`. Untuk memperbaruinya:
+Image melakukan pin terhadap Node, Claude Code, dan Devin CLI di
+`docker/devin-bridge/Dockerfile`. Untuk memperbarui:
 
 1. ubah versi eksplisit;
-2. ganti checksum arsip Devin khusus untuk kedua arsitektur dengan nilai untuk artefak resmi;
-3. bangun ulang dan jalankan setiap perintah validasi offline;
+2. ganti kedua checksum arsip Devin khusus arsitektur dengan nilai untuk artefak
+   resmi;
+3. build ulang dan jalankan setiap perintah validasi offline;
 4. konfirmasikan versi di dalam image;
-5. jalankan ulang rangkaian live tiga skenario yang terautentikasi.
+5. jalankan ulang rangkaian live tiga skenario yang diautentikasi.
 
-Jangan menginstal salah satu CLI secara global pada host atau mengganti verifikasi checksum dengan unduhan yang tidak terverifikasi.
+Jangan menginstal salah satu CLI secara global pada host atau mengganti verifikasi checksum dengan
+unduhan yang tidak diverifikasi.
 
 ## Diagnosis dan pembersihan
 
 - `docker compose -f docker/devin-bridge/compose.yml --profile offline logs omniroute`
-  menampilkan perutean lokal dan error executor yang telah disanitasi.
-- `.sandbox/evidence/mock-acp.jsonl` merekam tindakan ACP mock deterministik.
-- `.sandbox/evidence/claude-stream.jsonl` merekam proses offline Claude Code yang sebenarnya.
-- `.sandbox/evidence/live-*.jsonl` merekam tiga stream live yang telah divalidasi.
-- `.sandbox/evidence/egress.jsonl` dan `.sandbox/evidence/claude-egress.jsonl` merupakan salinan audit guard yang telah divalidasi dan bebas token.
+  menampilkan routing lokal dan error executor yang telah disanitasi.
+- `.sandbox/evidence/mock-acp.jsonl` mencatat tindakan ACP mock yang deterministik.
+- `.sandbox/evidence/claude-stream.jsonl` mencatat proses offline Claude Code yang sebenarnya.
+- `.sandbox/evidence/live-*.jsonl` mencatat tiga stream live yang telah divalidasi.
+- `.sandbox/evidence/egress.jsonl` dan `.sandbox/evidence/claude-egress.jsonl` adalah salinan audit
+  guard yang telah divalidasi dan bebas token.
 
 Hentikan container dan jaringan yang dimiliki sambil mempertahankan volume login/konfigurasi:
 
@@ -166,15 +194,15 @@ Hapus seluruh lingkungan milik bridge, termasuk named volume:
 
 ## Batasan
 
-- Bridge bergantung pada peran `summarizer` tanpa alat yang tetap karena Devin CLI `3000.2.17`
+- Bridge bergantung pada peran `summarizer` tetap tanpa alat karena Devin CLI `3000.2.17`
   tidak menyediakan agen ACP netral tanpa alat. Adapter mengompensasi respons perantara
-  berbentuk ringkasan, tetapi satu upaya perbaikan terbatas masih dapat gagal secara eksplisit.
-- Panggilan ACP langsung dapat mengembalikan respons `502`/`504` sementara. Harness memberi jeda antar-skenario;
-  kegagalan persisten tetap ditangani secara fail-closed dan tidak pernah memilih penyedia lain.
+  yang berbentuk ringkasan, tetapi satu perbaikan terbatas masih dapat gagal secara eksplisit.
+- Panggilan ACP live dapat mengembalikan respons transien `502`/`504`. Harness memberi jeda antar
+  skenario; kegagalan persisten tetap fail-closed dan tidak pernah memilih penyedia lain.
 - Konteks ACP direkonstruksi dari setiap permintaan Anthropic; tidak ada afinitas
   proses/sesi.
 - Satu pemanggilan alat didukung per respons model; pemanggilan paralel ditolak.
-- Gambar secara eksplisit tidak didukung. Vision, keluaran thinking, kontrol effort, dan jendela konteks 1M
-  tidak ditawarkan.
-- SSE menggunakan peristiwa siklus hidup Anthropic yang valid, tetapi dipancarkan setelah giliran ACP terbatas
-  dikumpulkan; chunk ACP tidak diteruskan secara inkremental.
+- Gambar secara eksplisit tidak didukung. Vision, output thinking, kontrol effort, dan jendela
+  konteks 1M tidak diiklankan.
+- SSE menggunakan event siklus hidup Anthropic yang valid, tetapi dipancarkan setelah giliran ACP
+  terbatas dikumpulkan; chunk ACP tidak diteruskan secara inkremental.

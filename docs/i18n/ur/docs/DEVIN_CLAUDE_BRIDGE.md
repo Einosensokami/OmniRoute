@@ -5,107 +5,110 @@
 ---
 
 `devin-cli-agentic` حقیقی Claude Code رن ٹائم کو OmniRoute کا مقامی Anthropic
-Messages endpoint استعمال کرنے دیتا ہے، جبکہ سرکاری Devin CLI ماڈل کے جوابات ACP stdio کے ذریعے فراہم کرتا ہے۔ یہ
-موجودہ Anthropic، Claude OAuth، Claude Web، یا `devin-cli` providers میں کوئی ترمیم نہیں کرتا۔
+Messages اینڈ پوائنٹ استعمال کرنے دیتا ہے، جبکہ آفیشل Devin CLI ماڈل کے جوابات ACP stdio پر فراہم کرتا ہے۔ یہ
+موجودہ Anthropic، Claude OAuth، Claude Web، یا `devin-cli` پرووائیڈرز میں کوئی ترمیم نہیں کرتا۔
 
-> **موجودہ حالت: Claude Code `2.1.258` پر پن شدہ؛ offline اور live توثیق آخری بار
-> `2.1.220` پر ریکارڈ کی گئی۔** `2.1.220` پن نے Devin CLI
-> `3000.2.17` اور ماڈل `swe-1-7-lightning` کے ذریعے تین الگ تھلگ scenarios مکمل کیے؛ اس آخری live run نے client کی ملکیت والے `Read`،
-> `Edit`، اور `Bash` turns، کامیاب `npm test` نتائج، project command اور skill
-> discovery، صرف Devin routing، اور صفر Claude egress ثابت کیے۔ اس کے بعد پن کو `2.1.258`
-> تک بڑھایا گیا (وہ CLI generation جس کی OmniRoute کی Claude identity نقالی کرتی ہے، اور پہلی لائن جو
-> Fable 5.1 tier کو مقامی طور پر فراہم کرتی ہے)۔ نئے پن پر install layer اور `claude --version` کی
-> پن شدہ base image پر توثیق کی گئی، اور bridge unit suite، `compose config` اور
-> static isolation proof کامیاب ہیں — لیکن offline mock scenario اور live تین-scenario
-> suite ابھی دوبارہ نہیں چلائے گئے۔ اس پن کے ساتھ bridge پر انحصار کرنے سے پہلے انہیں دوبارہ چلائیں
-> ("پن شدہ tools کو اپ ڈیٹ کرنا" دیکھیں)۔
+کلائنٹ کی ملکیت والی ٹول کالز کے لیے، `devin-cli-agentic` (عرف `dva`) کے ذریعے روٹ کریں، جو
+Claude فارمیٹ میں ٹول کی صلاحیت رکھنے والا پرووائیڈر ہے۔ پرانا `devin-cli` (`dv`) ACP ایگزیکیوٹر
+صرف متن تک محدود ہے: یہ Devin کا بغیر ٹولز والا summarizer چلاتا ہے اور ٹول کالز واپس نہیں کر سکتا۔ اس کے ماڈل
+میٹا ڈیٹا کو اسی کے مطابق نشان زد کیا گیا ہے، تاکہ ٹول درکار کرنے والی combo روٹنگ اسے استعمال نہ کرے۔
 
-## معماری
+> **موجودہ حالت: Claude Code `2.1.258` پر pin کیا گیا ہے؛ offline اور live توثیق آخری بار
+> `2.1.220` پر ریکارڈ کی گئی تھی۔** `2.1.220` pin نے Devin CLI
+> `3000.2.17` اور ماڈل `swe-1-7-lightning` کے ذریعے تین الگ تھلگ منظرنامے مکمل کیے؛ اس آخری live run نے کلائنٹ کی ملکیت والی `Read`،
+> `Edit`، اور `Bash` ٹرنز، کامیاب `npm test` نتائج، پروجیکٹ کمانڈ اور skill
+> دریافت، صرف Devin روٹنگ، اور Claude کی صفر egress ثابت کی۔ پھر pin کو `2.1.258`
+> تک بڑھا دیا گیا (یہ وہ CLI جنریشن ہے جس کی OmniRoute کی Claude شناخت نقالی کرتی ہے، اور پہلی لائن ہے جو
+> Fable 5.1 tier کو مقامی طور پر شامل کرتی ہے)۔ نئے pin پر، pin کی گئی base image میں install layer اور `claude --version` کی
+> توثیق کی گئی، اور bridge unit suite، `compose config` اور
+> static isolation proof کامیاب ہوتے ہیں — لیکن offline mock منظرنامہ اور live تین منظرناموں والی
+> suite ابھی دوبارہ نہیں چلائی گئی۔ اس pin کے ساتھ bridge پر انحصار کرنے سے پہلے انہیں دوبارہ چلائیں (دیکھیے "Pin کیے گئے ٹولز کو اپ ڈیٹ کرنا")۔
+
+## آرکیٹیکچر
 
 ```text
-Claude Code 2.1.258 (الگ تھلگ non-root Linux container)
+Claude Code 2.1.258 (الگ تھلگ non-root Linux کنٹینر)
   -> http://omniroute:20128/v1/messages
-  -> devin-cli-agentic (Claude-format، بغیر توثیق provider)
-  -> devin acp --agent-type summarizer (سرکاری ACP stdio، کوئی Devin tools نہیں)
-  -> مختص devin-auth volume میں Devin account
+  -> devin-cli-agentic (Claude فارمیٹ، بغیر تصدیق کا پرووائیڈر)
+  -> devin acp --agent-type summarizer (آفیشل ACP stdio، کوئی Devin ٹولز نہیں)
+  -> مخصوص devin-auth والیوم میں Devin اکاؤنٹ
 ```
 
-سرکاری CLI کا default ACP agent اپنے tools چلا سکتا ہے، اس لیے یہ bridge اسے استعمال نہیں کرتا۔
-یہ مقررہ `summarizer` ACP agent شروع کرتا ہے، جس کے سرکاری CLI mode میں کوئی tools نہیں ہوتے، اور
-serialized Anthropic request کو execution trace کے طور پر frame کرتا ہے۔ جب Claude کی ملکیت والی کسی دوسری
-action کی ضرورت ہو، تو response میں لازماً صرف ایک client tool envelope ہونا چاہیے۔ کسی بھی ACP
-`tool_call` یا `tool_call_update` کو response کی کامیابی رپورٹ کیے جانے سے پہلے مسترد کر دیا جاتا ہے۔
+آفیشل CLI کا ڈیفالٹ ACP ایجنٹ اپنے ٹولز خود چلا سکتا ہے، اس لیے یہ bridge اسے استعمال نہیں کرتا۔
+یہ مقررہ `summarizer` ACP ایجنٹ شروع کرتا ہے، جس کے آفیشل CLI موڈ میں کوئی ٹول نہیں، اور
+سیریلائز کردہ Anthropic درخواست کو execution trace کے طور پر frame کرتا ہے۔ جب Claude کی ملکیت والا کوئی اور
+عمل درکار ہو، تو جواب میں لازماً صرف ایک client tool envelope ہونا چاہیے۔ کسی بھی ACP
+`tool_call` یا `tool_call_update` کو جواب کی کامیابی رپورٹ کیے جانے سے پہلے مسترد کر دیا جاتا ہے۔
 
 `open-sse/executors/devin-agentic/serializer.ts` میں موجود serializer، `system`،
-`text`، `tool_use`، `tool_result`، `thinking`، `redacted_thinking`، `tool_choice`، اور Claude Code کی جانب سے
-فراہم کردہ tools کو برقرار رکھتا ہے۔ Images اور نامعلوم blocks واضح طور پر ناکام ہوتے ہیں۔ بڑے tool results
+`text`، `tool_use`، `tool_result`، `thinking`، `redacted_thinking`، `tool_choice`، اور Claude Code کی طرف سے
+فراہم کردہ ٹولز محفوظ رکھتا ہے۔ Images اور نامعلوم blocks واضح طور پر ناکام ہوتے ہیں۔ بڑے tool results
 ایک نمایاں truncation marker استعمال کرتے ہیں۔
 
-Parser ہر model turn میں ایک علیحدہ `<tool>{...}</tool>` envelope قبول کرتا ہے۔ یہ
-نام کو request کی tool list کے مقابل جانچتا ہے، arguments کو اس tool کے JSON
-Schema کے مطابق validate کرتا ہے، ملی جلی narrative/actions کو مسترد کرتا ہے، اور ایک محدود repair کی اجازت دیتا ہے۔ اس کے بعد Claude Code
-نتیجے میں آنے والے Anthropic `tool_use` کو مقامی طور پر چلاتا ہے اور `tool_result` کو OmniRoute کے ذریعے
+parser ہر model turn میں ایک علیحدہ `<tool>{...}</tool>` envelope قبول کرتا ہے۔ یہ
+درخواست کی tool list کے مقابلے میں نام کی جانچ کرتا ہے، arguments کو اس tool کے JSON
+Schema کے مطابق validate کرتا ہے، ملی جلی narrative/actions کو مسترد کرتا ہے، اور ایک محدود repair کی اجازت دیتا ہے۔ پھر Claude Code
+نتیجے میں ملنے والے Anthropic `tool_use` کو مقامی طور پر چلاتا ہے اور `tool_result` کو OmniRoute کے ذریعے
 واپس بھیجتا ہے۔
+
+## خودکار روٹنگ
+
+جب پرووائیڈر block نہ ہو تو وہ OmniRoute کے `auto/*` candidate pools میں اہل ہوتا ہے۔
+Candidate eligibility انتخاب کی ضمانت نہیں دیتی: combo کی routing strategy (مثلاً
+last-known-good) کسی دوسرے پرووائیڈر کو ترجیح دے سکتی ہے۔ جب آپ چاہتے ہوں کہ ہر درخواست
+Devin کے ذریعے جائے تو `dva/<model>` یا Devin-first combo استعمال کریں۔
 
 ## علیحدگی اور خطرے کا ماڈل
 
-Host کی Claude installation، account، اور configuration دائرۂ کار سے باہر ہیں اور انہیں
-ممنوع تصور کیا جاتا ہے۔ Compose services:
+ہوسٹ کی Claude تنصیب، اکاؤنٹ، اور کنفیگریشن دائرۂ کار سے باہر ہیں اور ممنوع تصور کیے جاتے ہیں۔ Compose سروسز:
 
-- UID/GID `10001:10001` کے طور پر، read-only root filesystem، ختم کی گئی capabilities، اور
+- UID/GID `10001:10001` کے طور پر، صرف پڑھنے کے قابل روٹ فائل سسٹم، ختم کردہ صلاحیتوں، اور
   `no-new-privileges` کے ساتھ چلتی ہیں؛
-- ایک نجی `/home/bridge`، مختص Claude config volume، الگ تھلگ OmniRoute data،
-  اور ایک علیحدہ `devin-auth` volume استعمال کرتی ہیں؛
-- صرف عارضی `.sandbox` workspaces/evidence mount کرتی ہیں؛
-- host home، Keychain، SSH، cloud credentials، یا Docker socket mount نہیں کرتی ہیں؛
-- واضح environments بناتی اور Anthropic API/OAuth/routing variables ہٹاتی ہیں؛
-- Claude Code inference کو صرف مقامی key کے ساتھ `http://omniroute:20128` کی طرف بھیجتی ہیں۔
+- ایک نجی `/home/bridge`، Claude کے لیے مخصوص کنفیگریشن والیوم، علیحدہ OmniRoute ڈیٹا،
+  اور ایک الگ `devin-auth` والیوم استعمال کرتی ہیں؛
+- صرف عارضی `.sandbox` ورک اسپیسز/ثبوت ماؤنٹ کرتی ہیں؛
+- ہوسٹ ہوم، Keychain، SSH، کلاؤڈ اسناد، یا Docker ساکٹ ماؤنٹ نہیں کرتی ہیں؛
+- واضح ماحول تشکیل دیتی ہیں اور Anthropic API/OAuth/روٹنگ متغیرات ہٹا دیتی ہیں؛
+- Claude Code کی انفیرنس کو صرف مقامی کلید کے ساتھ `http://omniroute:20128` کی طرف بھیجتی ہیں۔
 
-Offline profile ایک internal network استعمال کرتی ہے۔ Live profile میں، OmniRoute صرف
-`network-guard` کے ذریعے سرکاری Devin endpoints تک پہنچتا ہے؛ غیر متعلقہ destinations مسترد کر دیے جاتے ہیں۔
-Claude Code کے پاس ایک علیحدہ deny-all egress guard ہے اور وہ `NO_PROXY` کے ذریعے صرف مقامی OmniRoute
-service تک پہنچ سکتا ہے۔ Guard audit files صرف ان کے guard process کے ذریعے mount کی جاتی ہیں۔
-Scripts، token سے پاک evidence export کرنے سے پہلے file ownership، mode، link count، اور ہر decision کی
-توثیق کرتی ہیں۔
+آف لائن پروفائل ایک اندرونی نیٹ ورک استعمال کرتا ہے۔ لائیو پروفائل میں، OmniRoute صرف `network-guard` کے ذریعے سرکاری Devin اینڈ پوائنٹس تک رسائی حاصل کرتا ہے؛ غیر متعلقہ منازل تک رسائی مسترد کر دی جاتی ہے۔ Claude Code کے لیے ایک الگ، تمام خارجی رسائی روکنے والا گارڈ ہے اور وہ `NO_PROXY` کے ذریعے صرف مقامی OmniRoute سروس تک پہنچ سکتا ہے۔ گارڈ آڈٹ فائلیں صرف متعلقہ گارڈ پراسیس کے ذریعے ماؤنٹ کی جاتی ہیں۔ اسکرپٹس ٹوکن سے پاک ثبوت برآمد کرنے سے پہلے فائل کی ملکیت، موڈ، لنک کی تعداد، اور ہر فیصلے کی تصدیق کرتی ہیں۔
 
-Isolation proof کو آزادانہ طور پر چلائیں:
+علیحدگی کا ثبوت آزادانہ طور پر چلائیں:
 
 ```bash
 ./scripts/devin-bridge/verify-anthropic-isolation
 ```
 
-یہ topology، named mounts، non-root/read-only settings، واضح local routing،
-حساس environment variables کی عدم موجودگی، Docker socket کی عدم موجودگی، `api.anthropic.com`
-اور `claude.ai` تک مسدود رسائی، صرف Devin provider selection، اور ACP backend
-دستیاب نہ ہونے پر واضح failure کی توثیق کرتا ہے۔
+یہ ٹوپولوجی، نام زدہ ماؤنٹس، نان روٹ/صرف پڑھنے کی ترتیبات، واضح مقامی روٹنگ، حساس ماحولیاتی متغیرات کی عدم موجودگی، Docker ساکٹ کی عدم موجودگی، `api.anthropic.com` اور `claude.ai` تک مسدود رسائی، صرف Devin فراہم کنندہ کے انتخاب، اور ACP بیک اینڈ کی عدم دستیابی پر واضح ناکامی کی توثیق کرتا ہے۔
 
 ## پہلی بار سیٹ اپ اور معمول کا استعمال
 
-پن کی گئی امیج بنائیں:
+پن کردہ امیج بنائیں:
 
 ```bash
 ./scripts/devin-bridge/build
 ```
 
-صرف الگ تھلگ Devin والیوم کی توثیق کریں:
+صرف علیحدہ Devin والیوم کی توثیق کریں:
 
 ```bash
 ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/login-devin
 ```
 
-لاگ اِن کمانڈ ریموٹ/کنٹینر ماحول کے لیے مختص سرکاری دستی ٹوکن طریقۂ کار استعمال کرتی ہے۔ قدر براہِ راست CLI پرامپٹ میں درج کی جاتی ہے؛ اسے پراسیس آرگیومنٹ کے طور پر پاس نہیں کیا جاتا، Git میں نہیں لکھا جاتا، اور نہ ہی ہوسٹ سے کاپی کیا جاتا ہے۔
+لاگ اِن کمانڈ دور دراز/کنٹینر ماحول کے لیے بنایا گیا سرکاری دستی ٹوکن فلو استعمال کرتی ہے۔ قدر براہِ راست CLI پرامپٹ میں درج کی جاتی ہے؛ اسے پراسیس آرگیومنٹ کے طور پر پاس، Git میں تحریر، یا ہوسٹ سے نقل نہیں کیا جاتا۔
 
-الگ تھلگ Claude Code رن ٹائم شروع کریں:
+علیحدہ Claude Code رن ٹائم شروع کریں:
 
 ```bash
 ./scripts/devin-bridge/launch
 ```
 
-`launch` کنٹینرائزڈ Claude Code شروع کرنے سے پہلے آئسولیشن، Devin توثیق، اور ماڈل دریافت کو دوبارہ جانچتا ہے۔ یہ کبھی بھی ہوسٹ کی Claude ایگزیکیوٹیبل نہیں چلاتا۔ ماڈل عرف `.env.devin-bridge` میں مقرر کیے جا سکتے ہیں؛ ترتیب دی گئی ہر قدر میں `devin-cli-agentic/` سابقہ برقرار رہنا چاہیے۔
+`launch` کنٹینرائزڈ Claude Code شروع کرنے سے پہلے علیحدگی، Devin توثیق، اور ماڈل دریافت کو دوبارہ چیک کرتا ہے۔ یہ کبھی بھی ہوسٹ کا Claude ایگزیکیوٹیبل نہیں چلاتا۔ ماڈل عرف `.env.devin-bridge` میں مقرر کیے جا سکتے ہیں؛ ہر کنفیگر کردہ قدر میں
+`devin-cli-agentic/` سابقہ برقرار رہنا ضروری ہے۔
 
 ## توثیقی کمانڈز
 
-قابلِ تکرار آف لائن راستے کے لیے کسی Devin اکاؤنٹ کی ضرورت نہیں اور اس میں رن ٹائم کے دوران انٹرنیٹ دستیاب نہیں ہوتا:
+قابلِ تکرار آف لائن راستے کے لیے کسی Devin اکاؤنٹ کی ضرورت نہیں اور رن ٹائم کے دوران انٹرنیٹ دستیاب نہیں ہوتا:
 
 ```bash
 ./scripts/devin-bridge/test-unit
@@ -120,42 +123,47 @@ ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/login-devin
 ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/test-live-devin
 ```
 
-لائیو رنر منظرناموں کے درمیان انتظار کرتا ہے تاکہ ACP سیشنز ایک ہی وقت میں بڑی تعداد میں نہ کھولے جائیں، اور متنی دعووں پر بھروسا کرنے کے بجائے ساختی Claude اسٹریم ایونٹس کی توثیق کرتا ہے۔ اس کے تین منظرنامے ثابت کرتے ہیں:
+لائیو رنر منظرناموں کے درمیان انتظار کرتا ہے تاکہ ACP سیشنز یک دم نہ کھلیں، اور متنی دعووں پر بھروسا کرنے کے بجائے ساخت یافتہ Claude اسٹریم ایونٹس کی توثیق کرتا ہے۔ اس کے تین منظرنامے ثابت کرتے ہیں:
 
 1. پروجیکٹ کو براہِ راست پڑھنا اور نقص کا تجزیہ؛
 2. ایک حقیقی `Edit`، کلائنٹ کی ملکیت والا `Bash` `npm test`، اور ایک حتمی نتیجہ؛
-3. `/bridge-check` کے ساتھ `bridge-proof` کی دریافت، پروجیکٹ کو پڑھنا، کلائنٹ کی ملکیت والا ایک اور کامیاب `npm test`، اور زیرِ التوا کام کے بغیر تکمیل۔
+3. `/bridge-check` کے ساتھ `bridge-proof` کی دریافت، پروجیکٹ کو پڑھنا، ایک اور کامیاب
+   کلائنٹ کی ملکیت والا `npm test`، اور کسی زیرِ التوا کام کے بغیر تکمیل۔
 
-حتمی گیٹ Devin نیٹ ورک آڈٹ بھی چیک کرتا ہے اور تقاضا کرتا ہے کہ Claude ایگریس آڈٹ خالی رہے۔
+حتمی گیٹ Devin نیٹ ورک آڈٹ بھی چیک کرتا ہے اور تقاضا کرتا ہے کہ Claude کا خارجی رسائی آڈٹ خالی رہے۔
 
-## پن کیے گئے ٹولز کو اپ ڈیٹ کرنا
+## پِن کیے گئے ٹولز کو اپ ڈیٹ کرنا
 
-امیج میں Node، Claude Code، اور Devin CLI کو `docker/devin-bridge/Dockerfile` میں پن کیا گیا ہے۔ اپ ڈیٹ کرنے کے لیے:
+امیج میں Node، Claude Code، اور Devin CLI کو
+`docker/devin-bridge/Dockerfile` میں پِن کیا گیا ہے۔ اپ ڈیٹ کرنے کے لیے:
 
 1. واضح طور پر درج ورژنز تبدیل کریں؛
-2. دونوں آرکیٹیکچر-مخصوص Devin آرکائیو چیک سمز کو سرکاری آرٹیفیکٹ کی قدروں سے تبدیل کریں؛
-3. دوبارہ بنائیں اور ہر آف لائن توثیقی کمانڈ چلائیں؛
+2. فنِ تعمیر کے لحاظ سے مخصوص دونوں Devin آرکائیو چیک سمز کو آفیشل
+   آرٹیفیکٹ کی اقدار سے تبدیل کریں؛
+3. دوبارہ بلڈ کریں اور ہر آف لائن توثیقی کمانڈ چلائیں؛
 4. امیج کے اندر ورژنز کی تصدیق کریں؛
-5. توثیق شدہ تین منظرناموں پر مشتمل لائیو سوئٹ دوبارہ چلائیں۔
+5. تصدیق شدہ تین منظرناموں پر مشتمل لائیو سوئٹ دوبارہ چلائیں۔
 
-دونوں میں سے کسی بھی CLI کو ہوسٹ پر عالمی طور پر انسٹال نہ کریں، اور چیک سم کی توثیق کو غیر توثیق شدہ ڈاؤن لوڈ سے تبدیل نہ کریں۔
+میزبان پر کسی بھی CLI کو گلوبلی انسٹال نہ کریں اور نہ ہی چیک سم کی توثیق کو کسی
+غیر توثیق شدہ ڈاؤن لوڈ سے تبدیل کریں۔
 
 ## تشخیص اور صفائی
 
 - `docker compose -f docker/devin-bridge/compose.yml --profile offline logs omniroute`
   مقامی روٹنگ اور صاف کیے گئے ایگزیکیوٹر ایررز دکھاتا ہے۔
-- `.sandbox/evidence/mock-acp.jsonl` تعینی mock ACP کارروائیاں ریکارڈ کرتی ہے۔
-- `.sandbox/evidence/claude-stream.jsonl` حقیقی Claude Code آف لائن رن ریکارڈ کرتی ہے۔
-- `.sandbox/evidence/live-*.jsonl` تین توثیق شدہ لائیو اسٹریمز ریکارڈ کرتی ہیں۔
-- `.sandbox/evidence/egress.jsonl` اور `.sandbox/evidence/claude-egress.jsonl` گارڈ آڈٹس کی توثیق شدہ، ٹوکن سے پاک نقول ہیں۔
+- `.sandbox/evidence/mock-acp.jsonl` قابلِ تکرار فرضی ACP کارروائیاں ریکارڈ کرتی ہے۔
+- `.sandbox/evidence/claude-stream.jsonl` حقیقی Claude Code آف لائن رَن ریکارڈ کرتی ہے۔
+- `.sandbox/evidence/live-*.jsonl` تین توثیق شدہ لائیو اسٹریمز ریکارڈ کرتی ہے۔
+- `.sandbox/evidence/egress.jsonl` اور `.sandbox/evidence/claude-egress.jsonl` گارڈ آڈٹس کی توثیق شدہ،
+  ٹوکن سے پاک نقول ہیں۔
 
-لاگ اِن/کنفیگریشن والیومز محفوظ رکھتے ہوئے ملکیتی کنٹینرز اور نیٹ ورکس روکیں:
+لاگ اِن/کنفیگ والیومز کو محفوظ رکھتے ہوئے زیرِ ملکیت کنٹینرز اور نیٹ ورکس روکیں:
 
 ```bash
 ./scripts/devin-bridge/clean
 ```
 
-نامزد والیومز سمیت برج کی ملکیت والا مکمل ماحول ہٹا دیں:
+نام زد والیومز سمیت، برج کی ملکیت والا مکمل ماحول ہٹائیں:
 
 ```bash
 ./scripts/devin-bridge/clean --all
@@ -163,15 +171,15 @@ ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/test-live-devin
 
 ## حدود
 
-- برج مقررہ، بغیر ٹولز والے `summarizer` کردار پر انحصار کرتا ہے کیونکہ Devin CLI `3000.2.17`
-  ایک غیر جانب دار، بغیر ٹولز والا ACP ایجنٹ فراہم نہیں کرتا۔ اڈاپٹر خلاصہ نما
-  درمیانی جوابات کی تلافی کرتا ہے، لیکن ایک محدود اصلاح پھر بھی واضح طور پر ناکام ہو سکتی ہے۔
-- براہِ راست ACP کالز عارضی `502`/`504` جوابات واپس کر سکتی ہیں۔ ہارنس منظرناموں کے درمیان وقفہ رکھتا ہے؛
-  مستقل ناکامی کی صورت میں نظام بند رہتا ہے اور کبھی کسی دوسرے فراہم کنندہ کو منتخب نہیں کرتا۔
-- ACP سیاق و سباق ہر Anthropic درخواست سے ازسرِنو تشکیل دیا جاتا ہے؛ عمل/سیشن
-  وابستگی موجود نہیں ہے۔
-- ہر ماڈل جواب میں ایک ٹول کال کی معاونت کی جاتی ہے؛ متوازی کالز مسترد کر دی جاتی ہیں۔
-- تصاویر واضح طور پر غیر معاون ہیں۔ وژن، سوچ کا آؤٹ پٹ، کوشش کے کنٹرولز، اور 1M
-  سیاق و سباق ونڈو کی تشہیر نہیں کی جاتی۔
-- SSE درست Anthropic لائف سائیکل ایونٹس استعمال کرتا ہے، لیکن محدود ACP ٹرن
-  جمع ہونے کے بعد خارج کیا جاتا ہے؛ ACP چنکس بتدریج فارورڈ نہیں کیے جاتے۔
+- برج مقررہ، ٹولز کے بغیر `summarizer` کردار پر انحصار کرتا ہے کیونکہ Devin CLI `3000.2.17`
+  کوئی غیر جانب دار، ٹولز کے بغیر ACP ایجنٹ فراہم نہیں کرتا۔ اڈاپٹر خلاصہ نما
+  درمیانی جوابات کی تلافی کرتا ہے، لیکن ایک محدود مرمت پھر بھی واضح طور پر ناکام ہو سکتی ہے۔
+- لائیو ACP کالز عارضی `502`/`504` جوابات واپس کر سکتی ہیں۔ ہارنس منظرناموں کے درمیان وقفہ رکھتا ہے؛
+  مسلسل ناکامی کی صورت میں نظام بند حالت میں رہتا ہے اور کبھی کسی دوسرے فراہم کنندہ کو منتخب نہیں کرتا۔
+- ACP سیاق ہر Anthropic درخواست سے دوبارہ تشکیل دیا جاتا ہے؛ کوئی پراسیس/سیشن
+  وابستگی نہیں ہے۔
+- ہر ماڈل جواب میں ایک ٹول کال معاونت یافتہ ہے؛ متوازی کالز مسترد کر دی جاتی ہیں۔
+- امیجز واضح طور پر غیر معاونت یافتہ ہیں۔ وژن، تفکری آؤٹ پٹ، کوشش کے کنٹرولز، اور 1M
+  سیاقی ونڈو کی تشہیر نہیں کی جاتی۔
+- SSE درست Anthropic لائف سائیکل ایونٹس استعمال کرتا ہے، لیکن اسے محدود ACP ٹرن
+  جمع ہونے کے بعد خارج کیا جاتا ہے؛ ACP چنکس کو بتدریج آگے نہیں بھیجا جاتا۔

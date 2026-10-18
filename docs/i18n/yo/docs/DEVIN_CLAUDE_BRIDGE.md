@@ -5,113 +5,124 @@
 ---
 
 `devin-cli-agentic` ń jẹ́ kí Claude Code runtime gidi lo endpoint Anthropic
-Messages ti agbègbè OmniRoute nígbà tí Devin CLI ìbílẹ̀ ń pèsè àwọn ìdáhùn model lórí ACP stdio. Kò
-ṣe àtúnṣe sí àwọn provider Anthropic, Claude OAuth, Claude Web, tàbí `devin-cli` tó ti wà.
+Messages agbègbè ti OmniRoute, nígbà tí Devin CLI àṣẹ ń pèsè àwọn ìdáhùn model lórí ACP stdio. Kò
+ṣe àtúnṣe sí àwọn provider Anthropic, Claude OAuth, Claude Web, tàbí `devin-cli` tó ti wà tẹ́lẹ̀.
 
-> **Ipò lọ́wọ́lọ́wọ́: Claude Code `2.1.258` ni a dì mọ́; ìfọwọ́sí offline àti live tí a ṣe àkọsílẹ̀
-> kẹ́yìn wà lórí `2.1.220`.** Ìdìmọ́ `2.1.220` parí àwọn scenario mẹ́ta tó ya sọ́tọ̀ nípasẹ̀ Devin CLI
-> `3000.2.17` àti model `swe-1-7-lightning`; ìṣiṣẹ́ live ìkẹyìn yẹn fi ẹ̀rí múlẹ̀ pé client ló ni àwọn turn `Read`,
-> `Edit`, àti `Bash`, àwọn àbájáde `npm test` ṣàṣeyọrí, a ṣàwárí command àti skill
-> project, routing jẹ́ ti Devin nìkan, kò sì sí egress Claude rárá. Lẹ́yìn náà, a gbé ìdìmọ́ náà sókè sí `2.1.258`
-> (ìran CLI tí identity Claude ti OmniRoute ń ṣe bí ẹni pé òun ni, àti ìlà àkọ́kọ́ tó
-> ní tier Fable 5.1 láti ìbẹ̀rẹ̀). Lórí ìdìmọ́ tuntun náà, a fọwọ́sí layer ìfiṣètò àti `claude --version`
+Fún àwọn tool call tí client ń ṣàkóso, darí wọn gba `devin-cli-agentic` (àpèjúwe `dva`), provider
+tó lè lo tool ní Claude-format. ACP executor `devin-cli` (`dv`) àtijọ́ jẹ́
+ọ̀rọ̀-nìkan: ó ń ṣiṣẹ́ summarizer Devin tí kò ní tool, kò sì lè dá tool call padà. A ti
+ṣàmì metadata model rẹ̀ gẹ́gẹ́ bí ó ti yẹ, kí combo routing tó nílò tool lè yẹra fún un.
+
+> **Ipò lọ́wọ́lọ́wọ́: Claude Code `2.1.258` ni a dì mọ́; offline àti live validation tí a gbasilẹ kẹ́yìn
+> wà lórí `2.1.220`.** Ìdìmọ́ `2.1.220` parí àwọn scenario mẹ́ta tó ya sọ́tọ̀ nípasẹ̀ Devin CLI
+> `3000.2.17` àti model `swe-1-7-lightning`; live run ìkẹyìn yẹn fi hàn pé àwọn turn `Read`,
+> `Edit`, àti `Bash` tí client ń ṣàkóso ṣiṣẹ́, àwọn àbájáde `npm test` ṣàṣeyọrí, project command àti skill
+> discovery ṣiṣẹ́, routing jẹ́ ti Devin-nìkan, kò sì sí Claude egress rárá. Lẹ́yìn náà, a gbé ìdìmọ́ náà sókè sí `2.1.258`
+> (ìran CLI tí ìdánimọ̀ Claude ti OmniRoute ń fara wé, àti laini àkọ́kọ́ tó ní
+> tier Fable 5.1 ní ìbílẹ̀). Lórí ìdìmọ́ tuntun náà, a ṣàyẹ̀wò install layer àti `claude --version`
 > lórí base image tí a dì mọ́, bridge unit suite, `compose config` àti
-> ẹ̀rí isolation static sì kọjá — ṣùgbọ́n a kò tíì tún scenario mock offline àti
-> suite scenario mẹ́ta live ṣiṣẹ́. Tún wọn ṣiṣẹ́ (wo "Mímú àwọn tool tí a dì mọ́ dójú ìwọ̀n") kí o tó gbẹ́kẹ̀ lé
-> bridge náà pẹ̀lú ìdìmọ́ yìí.
+> static isolation proof sì kọjá — ṣùgbọ́n offline mock scenario àti live three-scenario
+> suite kò tíì tún ṣiṣẹ́. Tún wọn ṣiṣẹ́ (wo "Ṣíṣe ìmúdójúìwọ̀n àwọn tool tí a dì mọ́") kí o tó gbára lé
+> bridge pẹ̀lú ìdìmọ́ yìí.
 
-## Àwòrán ìṣètò
+## Àgbékalẹ̀
 
 ```text
-Claude Code 2.1.258 (container Linux non-root tó ya sọ́tọ̀)
+Claude Code 2.1.258 (container Linux non-root tí a ya sọ́tọ̀)
   -> http://omniroute:20128/v1/messages
-  -> devin-cli-agentic (provider tó ní fọ́ọ̀mù Claude, tí kò nílò ìfàṣẹsí)
-  -> devin acp --agent-type summarizer (ACP stdio ìbílẹ̀, láìsí àwọn tool Devin)
-  -> Account Devin nínú volume devin-auth àkànṣe
+  -> devin-cli-agentic (Claude-format, provider tí kò nílò ìfàṣẹsí)
+  -> devin acp --agent-type summarizer (ACP stdio àṣẹ, kò sí àwọn tool Devin)
+  -> Àkọọ́lẹ̀ Devin nínú volume devin-auth àkànṣe
 ```
 
-ACP agent àìyípadà ti CLI ìbílẹ̀ lè ṣiṣẹ́ àwọn tool tirẹ̀, nítorí náà bridge yìí kò lò
-ó. Ó máa ń bẹ̀rẹ̀ ACP agent `summarizer` tí a ti dì mú, èyí tí mode CLI ìbílẹ̀ rẹ̀ kò ní tool, ó sì
-ń fi request Anthropic tí a serialize sí inú execution trace. Nígbà tí action mìíràn tí Claude ní
-bá nílò, response náà gbọ́dọ̀ ní client tool envelope kan ṣoṣo gangan. A ó kọ ACP
-`tool_call` tàbí `tool_call_update` èyíkéyìí sílẹ̀ kí a tó lè ròyìn response kan gẹ́gẹ́ bí èyí tó
-ṣàṣeyọrí.
+ACP agent àiyipada ti CLI àṣẹ lè ṣiṣẹ́ àwọn tool tirẹ̀, nítorí náà bridge yìí kò
+lò ó. Ó ń bẹ̀rẹ̀ ACP agent `summarizer` tí a ti pinnu, èyí tí mode CLI àṣẹ rẹ̀ kò ní tool, ó sì
+ń ṣe framing ìbéèrè Anthropic tí a ti serialize gẹ́gẹ́ bí execution trace. Nígbà tí ìgbésẹ̀ míì tí Claude ń ṣàkóso
+bá ṣe pàtàkì, ìdáhùn náà gbọ́dọ̀ ní client tool envelope kan ṣoṣo. A ó kọ ACP
+`tool_call` tàbí `tool_call_update` èyíkéyìí kí a tó lè jabo ìdáhùn kan gẹ́gẹ́ bí
+èyí tó ṣàṣeyọrí.
 
-Serializer inú `open-sse/executors/devin-agentic/serializer.ts` ń pa `system`,
+Serializer inú `open-sse/executors/devin-agentic/serializer.ts` ń tọ́jú `system`,
 `text`, `tool_use`, `tool_result`, `thinking`, `redacted_thinking`, `tool_choice`, àti àwọn
-tool tí Claude Code pèsè mọ́. Àwọn image àti block àìmọ̀ máa ń kuna ní kedere. Àwọn àbájáde tool ńlá
-máa ń lo àmì truncation tó hàn gbangba.
+tool tí Claude Code pèsè. Àwọn àwòrán àti block àìmọ̀ máa ń kùnà ní kedere. Àwọn àbájáde tool ńlá
+ń lo àmì truncation tó ṣeé rí.
 
-Parser náà gba envelope `<tool>{...}</tool>` kan ṣoṣo tó dúró lọ́tọ̀ fún turn model kọ̀ọ̀kan. Ó ń ṣàyẹ̀wò
-orúkọ náà pẹ̀lú àtòjọ tool inú request náà, ó ń fọwọ́sí àwọn argument gẹ́gẹ́ bí JSON
-Schema tool náà, ó kọ narrative/action tí a dapọ̀ sílẹ̀, ó sì fàyè gba repair tó ní ààlà lẹ́ẹ̀kan. Lẹ́yìn náà, Claude Code
-ń ṣiṣẹ́ Anthropic `tool_use` tí ó yọ jáde ní agbègbè, ó sì ń fi `tool_result` náà padà nípasẹ̀
+Parser náà gba envelope `<tool>{...}</tool>` kan ṣoṣo tó dúró lọ́tọ̀ fún model turn kọ̀ọ̀kan. Ó ń ṣàyẹ̀wò
+orúkọ náà pẹ̀lú àtòjọ tool inú ìbéèrè, ó ń validate àwọn argument pẹ̀lú JSON
+Schema tool náà, ó ń kọ narrative/action tí a dapọ̀, ó sì fàyè gba repair kan tó ní ààlà. Claude Code lẹ́yìn náà
+ń ṣiṣẹ́ Anthropic `tool_use` tó yọ jáde ní agbègbè, ó sì ń fi `tool_result` padà nípasẹ̀
 OmniRoute.
 
-## Isolation àti threat model
+## Routing aládàáṣiṣẹ́
 
-Ìfiṣètò Claude, account, àti configuration inú host kò sí lábẹ́ àfojúsùn, a sì kà wọ́n sí
-ohun tí a kọ̀ láti lò. Àwọn service Compose:
+Provider náà yẹ láti wà nínú àwọn candidate pool `auto/*` ti OmniRoute nígbà tí a kò bá dí i.
+Yíyẹ candidate kò ṣe onígbọ̀wọ́ pé a ó yàn án: routing strategy ti combo náà (fún àpẹẹrẹ,
+last-known-good) lè fẹ́ provider mìíràn. Lo `dva/<model>` tàbí combo Devin-first nígbà tí
+o bá nílò kí gbogbo ìbéèrè kọjá nípasẹ̀ Devin.
 
-- ń ṣiṣẹ́ gẹ́gẹ́ bí UID/GID `10001:10001`, pẹ̀lú root filesystem read-only, àwọn capability tí a yọ kúrò, àti
+## Ìyàsọ́tọ̀ àti àwòṣe ewu
+
+Fífi Claude sórí olùgbàlejò, àkọọ́lẹ̀ rẹ̀, àti àtòjọ rẹ̀ kò sí láàárín ohun tí a ń bójú tó, a sì kà wọ́n sí
+èyí tí a kọ̀ láàyè. Àwọn iṣẹ́ Compose:
+
+- ń ṣiṣẹ́ gẹ́gẹ́ bí UID/GID `10001:10001`, pẹ̀lú ètò fáìlì gbòǹgbò tí a lè kà nìkan, àwọn agbára tí a yọ kúrò, àti
   `no-new-privileges`;
-- ń lo `/home/bridge` àdáni, volume config Claude àkànṣe, data OmniRoute tó ya sọ́tọ̀,
+- ń lo `/home/bridge` aládàáni, volume àtòjọ Claude tí a yà sọ́tọ̀, dátà OmniRoute tí a dá sọ́tọ̀,
   àti volume `devin-auth` ọ̀tọ̀;
-- ń mount àwọn workspace/evidence `.sandbox` tí a lè sọ nù nìkan;
-- kò mount home host, Keychain, SSH, credential cloud, tàbí socket Docker;
-- ń kọ àwọn environment ní kedere, wọ́n sì ń yọ àwọn variable API/OAuth/routing Anthropic kúrò;
-- ń darí inference Claude Code sí `http://omniroute:20128` nìkan pẹ̀lú key ti agbègbè-nìkan.
+- ń mount àwọn ibi-iṣẹ́/ẹ̀rí `.sandbox` tí a lè sọ nù nìkan;
+- kì í mount home olùgbàlejò, Keychain, SSH, àwọn ìwé-ẹ̀rí cloud, tàbí socket Docker;
+- ń ṣe àyíká iṣẹ́ ní kedere, wọ́n sì ń yọ àwọn variable API/OAuth/routing ti Anthropic kúrò;
+- ń darí inference Claude Code sí `http://omniroute:20128` nìkan pẹ̀lú key tí ó jẹ́ ti agbègbè nìkan.
 
-Profile offline ń lo network inú. Nínú profile live, OmniRoute ń dé àwọn
-endpoint Devin ìbílẹ̀ nípasẹ̀ `network-guard` nìkan; a kọ àwọn destination tí kò ní í ṣe pẹ̀lú rẹ̀.
-Claude Code ní egress guard deny-all ọ̀tọ̀, ó sì lè dé service OmniRoute
-agbègbè nìkan nípasẹ̀ `NO_PROXY`. Process guard wọn nìkan ló mount àwọn file audit guard. Àwọn
-script náà ń fọwọ́sí ownership file, mode, iye link, àti gbogbo decision kí wọ́n tó export
-evidence tí kò ní token.
+Profile offline ń lo nẹ́tíwọ́ọ̀kì inú. Nínú profile live, OmniRoute ń dé àwọn endpoint Devin
+ìṣẹ̀dálẹ̀ nìkan nípasẹ̀ `network-guard`; a kọ àwọn ibi míì tí kò ní í ṣe pẹ̀lú rẹ̀. Claude Code ní
+guard egress deny-all ọ̀tọ̀, ó sì lè dé iṣẹ́ OmniRoute agbègbè nìkan nípasẹ̀ `NO_PROXY`.
+Àwọn fáìlì audit guard ni process guard wọn nìkan ni ó mount. Àwọn script náà ń ṣàyẹ̀wò ownership fáìlì,
+mode, iye link, àti gbogbo ìpinnu kí wọ́n tó export ẹ̀rí tí kò ní token.
 
-Ṣiṣẹ́ ẹ̀rí isolation náà lọ́tọ̀:
+Ṣi ẹ̀rí ìyàsọ́tọ̀ náà lọ́tọ̀:
 
 ```bash
 ./scripts/devin-bridge/verify-anthropic-isolation
 ```
 
-Ó ń fọwọ́sí topology, àwọn mount tí a dárúkọ, àwọn setting non-root/read-only, routing agbègbè
-tí a ṣàlàyé ní kedere, àìsí àwọn environment variable tó ní àkóónú ìkọ̀kọ̀, àìsí socket Docker, dídíwọ́ access sí
-`api.anthropic.com` àti `claude.ai`, yíyan provider Devin-nìkan, àti ikùnà tó hàn gbangba nígbà tí
-backend ACP kò bá sí.
+Ó ń fìdí topology, àwọn mount tí a fún ní orúkọ, àwọn ààtò non-root/read-only, routing agbègbè tí a sọ ní kedere,
+àìsí àwọn environment variable tó ní ìkọ̀kọ̀, àìsí socket Docker, dídínà ìwọlé sí
+`api.anthropic.com` àti `claude.ai`, yíyan provider Devin-nìkan, àti ìkùnà kedere nígbà tí
+backend ACP kò bá wà múlẹ̀.
 
 ## Ìṣètò ìgbà àkọ́kọ́ àti lílò déédéé
 
-Kọ àwòrán tí a ti so mọ́ ẹ̀yà pàtó:
+Build image tí a pin sí version kan pàtó:
 
 ```bash
 ./scripts/devin-bridge/build
 ```
 
-Ṣe ìfàṣẹsí fún volume Devin tí a yà sọ́tọ̀ nìkan:
+Authenticate volume Devin tí a yà sọ́tọ̀ nìkan:
 
 ```bash
 ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/login-devin
 ```
 
-Àṣẹ ìwọlé náà ń lo ìlànà token afọwọ́ṣe tí ó jẹ́ ti ìṣèlú, tí a pète fún àwọn àyíká
-jíjìn/container. A ó tẹ iye náà tààrà sínú ìbéèrè CLI; a kò fi í ránṣẹ́ gẹ́gẹ́ bí argument
-process, a kò kọ ọ́ sínú Git, bẹ́ẹ̀ ni a kò daakọ rẹ̀ láti inú host.
+Àṣẹ login náà ń lo ìlànà manual-token ìṣẹ̀dálẹ̀ tí a pète fún àwọn àyíká
+remote/container. A ń tẹ value náà tààrà sínú prompt CLI; a kò fi í ránṣẹ́ gẹ́gẹ́ bí
+argument process, kọ ọ́ sínú Git, tàbí daakọ rẹ̀ láti ọ̀dọ̀ olùgbàlejò.
 
-Ṣe ìfilọ́lẹ̀ runtime Claude Code tí a yà sọ́tọ̀:
+Ṣí runtime Claude Code tí a yà sọ́tọ̀:
 
 ```bash
 ./scripts/devin-bridge/launch
 ```
 
-`launch` tún máa ń ṣàyẹ̀wò ìyàsọ́tọ̀, ìfàṣẹsí Devin, àti ìṣàwárí model kí ó tó bẹ̀rẹ̀
-Claude Code inú container. Kò ṣiṣẹ́ executable Claude ti host láé. A lè ṣètò àwọn alias model
-nínú `.env.devin-bridge`; gbogbo iye tí a ṣètò gbọ́dọ̀ ní
-prefix `devin-cli-agentic/`.
+`launch` tún ń ṣàyẹ̀wò ìyàsọ́tọ̀, authentication Devin, àti model discovery kí ó tó bẹ̀rẹ̀
+Claude Code inú container. Kò ṣiṣẹ́ executable Claude ti olùgbàlejò láéláé. A lè ṣètò àwọn alias model
+nínú `.env.devin-bridge`; gbogbo value tí a ṣètò gbọ́dọ̀ pa prefix
+`devin-cli-agentic/` mọ́.
 
 ## Àwọn àṣẹ ìfọwọ́sí
 
-Ọ̀nà offline tí ó ṣeé tún ṣe kò nílò account Devin, kò sì ní Internet nígbà runtime:
+Ọ̀nà offline tí a lè tún ṣe kò nílò àkọọ́lẹ̀ Devin, kò sì ní Internet ní runtime:
 
 ```bash
 ./scripts/devin-bridge/test-unit
@@ -120,71 +131,67 @@ prefix `devin-cli-agentic/`.
 ./scripts/devin-bridge/verify-anthropic-isolation
 ```
 
-Ọ̀nà live ìfàṣẹsí tí a yàn láti lo ni:
+Ọ̀nà live opt-in tí a ti authenticate ni:
 
 ```bash
 ENABLE_LIVE_DEVIN_TESTS=1 ./scripts/devin-bridge/test-live-devin
 ```
 
-Runner live náà máa ń dúró láàárín àwọn scenario láti yẹra fún ṣíṣí àwọn session ACP ní ọ̀pọ̀ lẹ́ẹ̀kan náà, ó sì
-ń fọwọ́sí àwọn event stream Claude tí a ṣètò dípò gbígbẹ́kẹ̀ lé àwọn àsọyé ọ̀rọ̀. Àwọn scenario mẹ́ta rẹ̀
-fi hàn pé:
+Runner live náà ń dúró láàárín àwọn scenario láti má ṣe ṣí àwọn session ACP lọ́pọ̀ lẹ́ẹ̀kan,
+ó sì ń fìdí àwọn event stream Claude tí a ṣètò múlẹ̀ dípò gbígbẹ́kẹ̀ lé àwọn ẹ̀sùn ọ̀rọ̀. Àwọn
+scenario mẹ́ta rẹ̀ ń fi ẹ̀rí hàn pé:
 
-1. kíkà project tààrà àti ìtúpalẹ̀ àbùkù;
-2. `Edit` gidi kan, `Bash` `npm test` tí client ní, àti àbájáde ìparí;
-3. `/bridge-check` pẹ̀lú ìṣàwárí `bridge-proof`, kíkà project, `npm test` míràn tí client ní tí ó ṣàṣeyọrí,
-   àti ìparí láìsí iṣẹ́ tí ó ṣì ń dúró.
+1. ó ń ka project tààrà, ó sì ń ṣe àyẹ̀wò defect;
+2. `Edit` gidi kan, `Bash` `npm test` tí client ni, àti àbájáde terminal kan;
+3. `/bridge-check` pẹ̀lú discovery `bridge-proof`, kíkà project, `npm test` mìíràn tí
+   client ni tí ó sì ṣàṣeyọrí, àti ìparí láìsí iṣẹ́ tó ṣì ń dúró.
 
-Gate ìkẹyìn náà tún máa ń ṣàyẹ̀wò audit network Devin, ó sì béèrè pé kí audit egress Claude
+Gate ìkẹyìn tún ń ṣàyẹ̀wò audit nẹ́tíwọ́ọ̀kì Devin, ó sì béèrè pé kí audit egress Claude
 wà ní òfo.
 
-## Ṣíṣe ìmúdójúìwọ̀n àwọn irinṣẹ́ tí a so mọ́ ẹ̀yà pàtó
+## Mímúdójúìwọ̀n àwọn irinṣẹ́ tí a ti lè mọ́lẹ̀
 
-Àwòrán náà so Node, Claude Code, àti Devin CLI mọ́ ẹ̀yà pàtó nínú
-`docker/devin-bridge/Dockerfile`. Láti ṣe ìmúdójúìwọ̀n:
+Àwòrán náà ti lè Node, Claude Code, àti Devin CLI mọ́lẹ̀ sínú
+`docker/devin-bridge/Dockerfile`. Láti mú wọn dójú ìwọ̀n:
 
-1. yí àwọn version tí a sọ ní kedere padà;
-2. rọ́pò àwọn checksum archive Devin méjèèjì tó jẹ́ ti architecture pàtó pẹ̀lú àwọn iye fún artifact
-   ìṣèlú;
-3. tún un kọ́, kí o sì ṣiṣẹ́ gbogbo àṣẹ ìfọwọ́sí offline;
-4. fìdí àwọn version inú àwòrán náà múlẹ̀;
-5. tún suite live scenario-mẹ́ta tí a ti fọwọ́sí ṣiṣẹ́.
+1. yí àwọn ẹ̀yà pàtó padà;
+2. fi àwọn iye tó bá artifact ìfìdí-ẹ̀yà mu rọ́pò checksum méjèèjì ti àpò ìpamọ́ Devin tó jẹ́ ti faaji kọ̀ọ̀kan;
+3. tún un kọ́, kí o sì ṣiṣẹ́ gbogbo àṣẹ ìfọwọ́sí àìsílẹ̀;
+4. fìdí àwọn ẹ̀yà tó wà nínú àwòrán náà múlẹ̀;
+5. tún àkójọpọ̀ ìdánwò aláàyè oníṣẹ̀lẹ̀-mẹ́ta tí a ti fi ìdánimọ̀ múlẹ̀ ṣiṣẹ́.
 
-Má ṣe fi èyíkéyìí nínú àwọn CLI náà sí host ní gbogbo agbègbè, má sì fi download tí a kò fọwọ́sí
-rọ́pò ìfọwọ́sí checksum.
+Má ṣe fi èyíkéyìí nínú àwọn CLI náà sílẹ̀ káàkiri lórí host, bẹ́ẹ̀ ni má ṣe fi ìgbàsílẹ̀ tí a kò fìdí rẹ̀ múlẹ̀ rọ́pò ìfọwọ́sí checksum.
 
 ## Ìṣàwárí ìṣòro àti ìmọ́tótó
 
 - `docker compose -f docker/devin-bridge/compose.yml --profile offline logs omniroute`
-  ń fi routing agbègbè àti àwọn error executor tí a ti fọ ìsọfúnni àṣírí kúrò hàn.
-- `.sandbox/evidence/mock-acp.jsonl` ń ṣàkọsílẹ̀ àwọn action ACP mock tí àbájáde wọn dúró ṣinṣin.
-- `.sandbox/evidence/claude-stream.jsonl` ń ṣàkọsílẹ̀ ìṣiṣẹ́ offline Claude Code gidi.
-- `.sandbox/evidence/live-*.jsonl` ń ṣàkọsílẹ̀ àwọn stream live mẹ́ta tí a ti fọwọ́sí.
-- `.sandbox/evidence/egress.jsonl` àti `.sandbox/evidence/claude-egress.jsonl` jẹ́ àwọn ẹ̀dà audit guard
-  tí a ti fọwọ́sí, tí kò ní token.
+  ń ṣàfihàn ìtọ́sọ́nà agbègbè àti àwọn àṣìṣe executor tí a ti sọ di mímọ́.
+- `.sandbox/evidence/mock-acp.jsonl` ń ṣàkọsílẹ̀ àwọn ìṣe ACP àfarawé tí àbájáde wọn dúró ṣinṣin.
+- `.sandbox/evidence/claude-stream.jsonl` ń ṣàkọsílẹ̀ ìṣiṣẹ́ àìsílẹ̀ Claude Code gidi.
+- `.sandbox/evidence/live-*.jsonl` ń ṣàkọsílẹ̀ àwọn ṣiṣàn aláàyè mẹ́ta tí a ti fọwọ́sí.
+- `.sandbox/evidence/egress.jsonl` àti `.sandbox/evidence/claude-egress.jsonl` jẹ́ àwọn ẹ̀dà ìṣàyẹ̀wò guard tí a ti fọwọ́sí, tí kò sì ní token.
 
-Dá àwọn container àti network tí bridge ní dúró, nígbà tí o ń pa àwọn volume ìwọlé/config mọ́:
+Dá àwọn container àti network tí a ní dúró, nígbà tí o ń pa àwọn volume ìwọlé/àtòjọ-ẹ̀yà mọ́:
 
 ```bash
 ./scripts/devin-bridge/clean
 ```
 
-Yọ gbogbo àyíká tí bridge ní kúrò, pẹ̀lú àwọn volume tí a fún ní orúkọ:
+Yọ gbogbo àyíká tí bridge ní kúrò, pẹ̀lú àwọn volume tí a dárúkọ:
 
 ```bash
 ./scripts/devin-bridge/clean --all
 ```
 
-## Àwọn Ààlà
+## Àwọn ààlà
 
-- Afárá náà gbára lé ipa `summarizer` aláìní irinṣẹ́ tí a ti pààlà rẹ̀ nítorí pé Devin CLI `3000.2.17`
-  kò ṣe aṣojú ACP aláìní irinṣẹ́ tí kò ṣe ojúṣàájú sílẹ̀. Adapter náà ń ṣàtúnṣe fún àwọn ìdáhùn àárín tí ó
-  ní ìrísí àkótán, ṣùgbọ́n àtúnṣe kan ṣoṣo tí a pààlà rẹ̀ ṣì lè kùnà ní kedere.
-- Àwọn ìpè ACP ààyè lè dá àwọn ìdáhùn `502`/`504` tí ó jẹ́ ti ìgbà díẹ̀ padà. Harness náà ń fi ààyè sí àárín àwọn scenario;
-  ìkùnà tí ó bá ń bá a lọ yóò ṣì máa pa ara rẹ̀ mọ́ nígbà ìkùnà, kò sì ní yan provider mìíràn láé.
-- A máa ń tún àyíká ACP kọ́ láti inú ìbéèrè Anthropic kọ̀ọ̀kan; kò sí ìsopọ̀ pẹ̀lú process/session.
-- Ìpè irinṣẹ́ kan ṣoṣo ni a ṣe àtìlẹ́yìn fún nínú ìdáhùn model kọ̀ọ̀kan; a kọ àwọn ìpè tí a ṣe ní ìfiṣọ̀kan.
-- A kò ṣe àtìlẹ́yìn fún àwọn àwòrán ní kedere. Vision, àbájáde thinking, àwọn ìṣàkóso effort, àti fèrèsé àyíká 1M
-  ni a kò polówó.
-- SSE ń lo àwọn ìṣẹ̀lẹ̀ lifecycle Anthropic tó péye, ṣùgbọ́n a máa ń fi wọ́n jáde lẹ́yìn tí a bá ti gba turn ACP tí a pààlà rẹ̀;
+- Bridge náà gbára lé ipa `summarizer` aláìní irinṣẹ́ tí a ti fi dúró ṣinṣin, nítorí Devin CLI `3000.2.17`
+  kò pèsè aṣojú ACP aláìní irinṣẹ́ tí kò ṣe ojúṣàájú. Adapter náà ń ṣàtúnṣe fún àwọn ìdáhùn àárín tó dà bí àkótán,
+  ṣùgbọ́n àtúnṣe ẹ̀ẹ̀kan tí a fi ààlà sí ṣì lè kùnà ní kedere.
+- Àwọn ìpè ACP aláàyè lè dá àwọn ìdáhùn `502`/`504` tí kò dúró pẹ́ padà. Harness náà ń fi àlàfo sí àárín àwọn ìṣẹ̀lẹ̀;
+  ìkùnà tó bá ń bá a lọ yóò ṣì wà ní ipò tí ó ti pa mọ́ nítorí ìkùnà, kò sì ní yan olupèsè mìíràn láé.
+- A tún context ACP kọ́ láti inú ìbéèrè Anthropic kọ̀ọ̀kan; kò sí ìsopọ̀ pẹ̀lú process/session kan pàtó.
+- Ipe irinṣẹ́ kan ṣoṣo ni a ṣe àtìlẹ́yìn fún nínú ìdáhùn model kọ̀ọ̀kan; a kọ àwọn ipe tó ń ṣiṣẹ́ ní ìfarakanra.
+- A kò ṣe àtìlẹ́yìn fún àwọn àwòrán rárá. A kò kéde vision, àbájáde thinking, àwọn ìṣàkóso effort, àti fèrèsé context 1M.
+- SSE ń lo àwọn ìṣẹ̀lẹ̀ ìgbésí-ayé Anthropic tó bófin mu, ṣùgbọ́n a máa ń gbé e jáde lẹ́yìn tí a bá ti kó turn ACP oníwọ̀n jọ;
   a kò fi àwọn chunk ACP ránṣẹ́ lọ díẹ̀díẹ̀.
