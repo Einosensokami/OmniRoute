@@ -12,11 +12,11 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ### 前提条件
 
-- **Node.js** `>=22.22.3 <23`、または `>=24.0.0 <27`（推奨: 24 LTS）
+- **Node.js** `>=22.22.2 <23`、または `>=24.0.0 <27`（推奨: 24 LTS）
 - **npm** 10+
 
-> **npm v11+ ユーザー（Node 24+）:** `npm install` の実行後、ネイティブモジュールがインストールされていることを確認してください:
-> `node -e "require('better-sqlite3')"`。`MODULE_NOT_FOUND` で失敗する場合は、
+> **npm v11+ ユーザー（Node 24+）:** `npm install` の実行後、ネイティブモジュールがインストールされたことを確認してください:
+> `node -e "require('better-sqlite3')"`。`MODULE_NOT_FOUND` で失敗した場合は、
 > `npm approve-scripts better-sqlite3 && npm install` を実行してください。詳細は
 > [トラブルシューティング](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module)を参照してください。
 
@@ -36,7 +36,7 @@ npm install
 # テンプレートから .env を作成
 cp .env.example .env
 
-# 必要なシークレットを生成
+# 必須シークレットを生成
 echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
 echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 ```
@@ -49,16 +49,16 @@ echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 | `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128` | フロントエンドのベース URL |
 | `JWT_SECRET`           | （上記で生成）           | JWT 署名用シークレット     |
 | `INITIAL_PASSWORD`     | `CHANGEME`               | 初回ログイン用パスワード   |
-| `APP_LOG_LEVEL`        | `info`                   | ログの詳細レベル           |
+| `APP_LOG_LEVEL`        | `info`                   | ログの詳細度レベル         |
 
 ### ダッシュボード設定
 
 ダッシュボードには、環境変数でも設定可能な機能を切り替えるための UI トグルがあります:
 
-| 設定場所    | トグル           | 説明                                 |
-| ----------- | ---------------- | ------------------------------------ |
-| 設定 → 詳細 | デバッグモード   | デバッグリクエストログを有効化（UI） |
-| 設定 → 一般 | サイドバーの表示 | サイドバーのセクションを表示/非表示  |
+| 設定場所        | トグル           | 説明                                   |
+| --------------- | ---------------- | -------------------------------------- |
+| 設定 → 詳細設定 | デバッグモード   | デバッグ用リクエストログを有効化（UI） |
+| 設定 → 一般     | サイドバーの表示 | サイドバーのセクションを表示／非表示   |
 
 これらの設定はデータベースに保存され、再起動後も維持されます。設定されている場合は、環境変数のデフォルト値より優先されます。
 
@@ -72,48 +72,48 @@ npm run dev
 npm run build    # next build → .build/next/、その後 assembleStandalone → dist/
 npm run start
 
-# コントリビューターによる変更向けの高速なバックエンド/API 専用コンパイル
+# コントリビューターの変更向けの高速なバックエンド／API のみのコンパイル
 npm run build:contributor
 
-# リリースビルド（クリーン再ビルド + HEAD センチネル — デプロイに必須）
+# リリースビルド（クリーンビルド + HEAD センチネル — デプロイに必須）
 npm run build:release   # rm -rf .build dist && build + dist/BUILD_SHA を書き込み
 
 # 一般的なポート設定
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-コントリビュータービルドでは、コンパイルのみの検証を行います。スタンドアロン
-ディストリビューションの構成や、オプションのネイティブパッケージングアセットのビルドは行いません。配布可能なバンドルを
-検証する必要がある場合は、通常の本番ビルドを使用してください。
+コントリビュータービルドでは、コンパイルのみの検証を実行します。スタンドアロン
+ディストリビューションの構成や、オプションのネイティブパッケージングアセットのビルドは行いません。
+配布可能なバンドルを検証する必要がある場合は、通常の本番ビルドを使用してください。
 
 ### ビルド出力の構成
 
-| ディレクトリ | 内容                                                                        | 追跡対象 |
-| ------------ | --------------------------------------------------------------------------- | -------- |
-| `src/`       | アプリケーションソース（TypeScript / TSX）                                  | はい     |
-| `.build/`    | 中間生成物 — `next build` の出力（gitignore 対象、`distDir = .build/next`） | いいえ   |
-| `dist/`      | 配布可能なバンドル — `assembleStandalone` によって構成（gitignore 対象）    | いいえ   |
+| ディレクトリ | 内容                                                                    | 追跡対象 |
+| ------------ | ----------------------------------------------------------------------- | -------- |
+| `src/`       | アプリケーションソース（TypeScript / TSX）                              | はい     |
+| `.build/`    | 中間生成物 — `next build` の出力（gitignored、`distDir = .build/next`） | いいえ   |
+| `dist/`      | 配布可能なバンドル — `assembleStandalone` により構成（gitignored）      | いいえ   |
 
 ビルドパイプラインは単一パスです:
 
 ```
 npm run build
-  └─ next build → .build/next/standalone  （Next.js の出力）
-  └─ assembleStandalone()                 （standalone + static + public + ネイティブアセットをコピー）
-       └─ 出力: dist/                     （server.js、.next/static/、public/、node_modules/）
+  └─ next build → .build/next/standalone  (Next.js の出力)
+  └─ assembleStandalone()                 (standalone + static + public + ネイティブアセットをコピー)
+       └─ 出力: dist/                     (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` はさらに、最初に両方のディレクトリをクリーンアップし、
-デプロイ整合性センチネルとして `dist/BUILD_SHA`（= `git rev-parse --short HEAD`）を書き込みます。
+`npm run build:release` は、最初に両方のディレクトリを追加でクリーンアップし、
+デプロイの整合性を確認するセンチネルとして `dist/BUILD_SHA`（= `git rev-parse --short HEAD`）を書き込みます。
 
-`npm run build:contributor` はバックエンド専用のビルドプロファイルを使用します。ビルド中は一時的に
-ダッシュボード UI ファイルをスタブ化し、API ルートハンドラーを維持したまま、ビルド後に元のファイルを
+`npm run build:contributor` はバックエンドのみのビルドプロファイルを使用します。ビルド中は
+ダッシュボード UI ファイルを一時的にスタブ化し、API ルートハンドラーを維持したうえで、ビルド後に元のファイルを
 復元します。ダッシュボード UI に影響する変更や完全なリリース検証には `npm run build` を使用してください。
-コントリビュータープロファイルはリリースビルドの代替にはなりません。
+コントリビュータープロファイルは、リリースビルドの代替ではありません。
 
-> **VPS デプロイに関する注意:** リモートイメージディレクトリ `/usr/lib/node_modules/omniroute/app/`
-> に変更はありません。デプロイスキルは `dist/` の内容をそこへ rsync します。
-> 変更されたのは、リポジトリ内のビルド出力パスのみです（`app/` → `dist/`）。
+> **VPS デプロイに関する注意:** リモートのイメージディレクトリ `/usr/lib/node_modules/omniroute/app/`
+> は変更されていません。デプロイスキルは `dist/` の内容を rsync でこのディレクトリへ同期します。
+> 変更されたのはリポジトリ内のビルド出力パスのみです（`app/` → `dist/`）。
 
 デフォルト URL:
 
@@ -290,7 +290,7 @@ PR を作成する前に、
 ## プロジェクト構成
 
 ```
-src/                        # TypeScript (.ts / .tsx)
+src/                        # TypeScript（.ts / .tsx）
 ├── app/                    # Next.js 16 App Router
 │   ├── (dashboard)/        # ダッシュボードページ（23セクション）
 │   ├── api/                # APIルート（51ディレクトリ）
@@ -300,17 +300,17 @@ src/                        # TypeScript (.ts / .tsx)
 │   ├── a2a/                # Agent-to-Agent v0.3プロトコルサーバー
 │   ├── acp/                # Agent Communication Protocolレジストリ
 │   ├── compliance/         # コンプライアンスポリシーエンジン
-│   ├── db/                 # SQLiteドメインモジュール + 130件のマイグレーション
+│   ├── db/                 # SQLiteドメインモジュール + 130個のマイグレーション
 │   ├── memory/             # 永続的な会話メモリ
 │   ├── oauth/              # OAuthプロバイダー、サービス、ユーティリティ
 │   ├── skills/             # 拡張可能なスキルフレームワーク
-│   ├── usage/              # 使用量追跡とコスト計算
+│   ├── usage/              # 使用量の追跡とコスト計算
 │   └── localDb.ts          # 再エクスポート層のみ — ここにはロジックを追加しないこと
 ├── middleware/              # リクエストミドルウェア（promptInjectionGuard）
 ├── mitm/                   # MITMプロキシ（証明書、DNS、ターゲットルーティング）
 ├── shared/
 │   ├── components/         # Reactコンポーネント（.tsx）
-│   ├── constants/          # プロバイダー定義（329）、MCPスコープ、19種類のルーティング戦略
+│   ├── constants/          # プロバイダー定義（329）、MCPスコープ、20種類のルーティング戦略
 │   ├── utils/              # サーキットブレーカー、サニタイザー、認証ヘルパー
 │   └── validation/         # Zod v4スキーマ
 └── sse/                    # SSEプロキシパイプライン
@@ -318,7 +318,7 @@ src/                        # TypeScript (.ts / .tsx)
 open-sse/                   # @omniroute/open-sseワークスペース
 ├── executors/              # 150個のエグゼキューターモジュール（エグゼキュータークラス + プロバイダー別ヘルパー）
 ├── handlers/               # 11個のリクエストハンドラー（チャット、レスポンス、埋め込み、画像など）
-├── mcp-server/             # MCPサーバー（110個の固有ツール、3種類のトランスポート、33個のスコープ）
+├── mcp-server/             # MCPサーバー（110種類の固有ツール、3つのトランスポート、33個のスコープ）
 ├── services/               # 178個のトップレベルサービス（combo、autoCombo、rateLimitManagerなど）
 ├── translator/             # フォーマットトランスレーター（OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama）
 ├── transformer/            # Responses APIトランスフォーマー
@@ -347,7 +347,7 @@ docs/
 ├── marketing/               # マーケティング資料
 ├── ops/                     # デプロイ、プロキシ、カバレッジ、リリース
 ├── providers/               # プロバイダー固有のドキュメント
-├── reference/               # APIリファレンス、環境変数、CLIツール、無料枠
+├── reference/               # APIリファレンス、環境変数、CLIツール、無料利用枠
 ├── releases/                # リリースノート
 ├── routing/                 # 自動コンボエンジン、推論リプレイ
 ├── screenshots/             # ダッシュボードのスクリーンショット

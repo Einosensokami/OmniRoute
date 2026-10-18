@@ -8,14 +8,14 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ---
 
-## הגדרת סביבת הפיתוח
+## הגדרת סביבת פיתוח
 
 ### דרישות מקדימות
 
-- **Node.js** `>=22.22.3 <23`, או `>=24.0.0 <27` (מומלץ: 24 LTS)
+- **Node.js** `>=22.22.2 <23`, או `>=24.0.0 <27` (מומלץ: 24 LTS)
 - **npm** 10+
 
-> **למשתמשי npm v11+ (עם Node 24+):** לאחר `npm install`, ודאו שהמודולים המקוריים הותקנו:
+> **משתמשי npm v11+‎ (Node 24+‎):** לאחר `npm install`, ודאו שהמודולים המקוריים הותקנו:
 > `node -e "require('better-sqlite3')"`. אם הפקודה נכשלת עם `MODULE_NOT_FOUND`,
 > הריצו `npm approve-scripts better-sqlite3 && npm install`. ראו
 > [פתרון בעיות](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
@@ -33,7 +33,7 @@ npm install
 ### משתני סביבה
 
 ```bash
-# צרו את קובץ ה-.env שלכם מהתבנית
+# צרו את .env מתוך התבנית
 cp .env.example .env
 
 # צרו את הסודות הנדרשים
@@ -41,44 +41,44 @@ echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
 echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 ```
 
-משתנים עיקריים לפיתוח:
+משתנים מרכזיים לפיתוח:
 
-| משתנה                  | ברירת מחדל לפיתוח        | תיאור                     |
-| ---------------------- | ------------------------ | ------------------------- |
-| `PORT`                 | `20128`                  | יציאת השרת                |
-| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128` | כתובת URL בסיסית לממשק    |
-| `JWT_SECRET`           | (יש ליצור לעיל)          | סוד לחתימת JWT            |
-| `INITIAL_PASSWORD`     | `CHANGEME`               | סיסמת ההתחברות הראשונה    |
-| `APP_LOG_LEVEL`        | `info`                   | רמת הפירוט של יומן הרישום |
+| משתנה                  | ברירת מחדל לפיתוח        | תיאור                  |
+| ---------------------- | ------------------------ | ---------------------- |
+| `PORT`                 | `20128`                  | יציאת השרת             |
+| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128` | כתובת URL בסיסית לממשק |
+| `JWT_SECRET`           | (צרו לעיל)               | סוד לחתימת JWT         |
+| `INITIAL_PASSWORD`     | `CHANGEME`               | סיסמת הכניסה הראשונה   |
+| `APP_LOG_LEVEL`        | `info`                   | רמת הפירוט של היומן    |
 
 ### הגדרות לוח הבקרה
 
-לוח הבקרה מספק מתגי ממשק משתמש עבור תכונות שניתן להגדיר גם באמצעות משתני סביבה:
+לוח הבקרה מספק מתגים בממשק המשתמש עבור תכונות שניתן להגדיר גם באמצעות משתני סביבה:
 
-| מיקום ההגדרה   | מתג              | תיאור                                  |
-| -------------- | ---------------- | -------------------------------------- |
-| הגדרות ← מתקדם | מצב ניפוי שגיאות | הפעלת יומני בקשות לניפוי שגיאות (ממשק) |
-| הגדרות ← כללי  | נראות סרגל הצד   | הצגה/הסתרה של מקטעים בסרגל הצד         |
+| מיקום ההגדרה   | מתג             | תיאור                                       |
+| -------------- | --------------- | ------------------------------------------- |
+| הגדרות ← מתקדם | מצב ניפוי באגים | הפעלת יומני בקשות לניפוי באגים (ממשק משתמש) |
+| הגדרות ← כללי  | נראות סרגל הצד  | הצגה/הסתרה של מקטעי סרגל הצד                |
 
-הגדרות אלה נשמרות במסד הנתונים ונשמרות בין הפעלות מחדש, וכאשר הן מוגדרות הן גוברות על ברירות המחדל של משתני הסביבה.
+הגדרות אלה נשמרות במסד הנתונים ונשארות בתוקף בין הפעלות מחדש, תוך עקיפת ברירות המחדל של משתני הסביבה כאשר הן מוגדרות.
 
-### הפעלה מקומית
+### הרצה מקומית
 
 ```bash
 # מצב פיתוח (טעינה מחדש בזמן אמת)
 npm run dev
 
 # בניית ייצור
-npm run build    # next build → .build/next/ ולאחר מכן assembleStandalone → dist/
+npm run build    # next build → .build/next/ ואז assembleStandalone → dist/
 npm run start
 
 # הידור מהיר של צד השרת/API בלבד עבור שינויים של תורמים
 npm run build:contributor
 
-# בניית הפצה (בנייה נקייה מחדש + סמן HEAD — נדרשת לפריסה)
+# בניית הפצה (בנייה מחדש נקייה + סמן HEAD — נדרש לפריסה)
 npm run build:release   # rm -rf .build dist && build + כותב את dist/BUILD_SHA
 
-# הגדרת יציאה נפוצה
+# תצורת יציאה נפוצה
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
@@ -91,33 +91,33 @@ PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 | ספרייה    | תוכן                                                                     | במעקב |
 | --------- | ------------------------------------------------------------------------ | ----- |
 | `src/`    | קוד המקור של היישום (TypeScript / TSX)                                   | כן    |
-| `.build/` | קובצי ביניים — פלט `next build` (לא במעקב Git,‏ `distDir = .build/next`) | לא    |
-| `dist/`   | חבילה מוכנה להפצה — מורכבת באמצעות `assembleStandalone` (לא במעקב Git)   | לא    |
+| `.build/` | תוצרי ביניים — פלט `next build` (לא במעקב Git,‏ `distDir = .build/next`) | לא    |
+| `dist/`   | חבילה מוכנה להפצה — מורכבת על ידי `assembleStandalone` (לא במעקב Git)    | לא    |
 
 צינור הבנייה מתבצע במעבר יחיד:
 
 ```
 npm run build
   └─ next build → .build/next/standalone  (פלט Next.js)
-  └─ assembleStandalone()                 (מעתיק קבצים עצמאיים + סטטיים + ציבוריים + נכסים מקוריים)
+  └─ assembleStandalone()                 (מעתיקה את הגרסה העצמאית + קבצים סטטיים + קבצים ציבוריים + נכסים מקוריים)
        └─ פלט: dist/                      (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` מנקה תחילה גם את שתי הספריות וכותב את
+בנוסף, `npm run build:release` מנקה תחילה את שתי הספריות וכותבת את
 `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) כסמן תקינות לפריסה.
 
-`npm run build:contributor` משתמש בפרופיל הבנייה של צד השרת בלבד. במהלך הבנייה הוא מחליף זמנית
-את קובצי ממשק המשתמש של לוח הבקרה בקבצי דמה, משאיר את מטפלי נתיבי ה-API ומשחזר את הקבצים המקוריים
+`npm run build:contributor` משתמש בפרופיל הבנייה של צד השרת בלבד. הוא מחליף זמנית
+את קובצי ממשק המשתמש של לוח הבקרה בקובצי דמה במהלך הבנייה, שומר על מטפלי נתיבי ה-API ומשחזר את הקבצים המקוריים
 לאחר הבנייה. השתמשו ב-`npm run build` עבור שינויים המשפיעים על ממשק המשתמש של לוח הבקרה או לצורך
 אימות הפצה מלא; פרופיל התורמים אינו תחליף לבניית ההפצה.
 
-> **הערה לפריסה ב-VPS:** ספריית תמונת השרת המרוחק `/usr/lib/node_modules/omniroute/app/`
-> נותרת ללא שינוי. כלי הפריסה מסנכרנים באמצעות rsync את התוכן של `dist/` לתוכה.
+> **הערה לפריסה ב-VPS:** ספריית האימג' המרוחקת `/usr/lib/node_modules/omniroute/app/`
+> נותרה ללא שינוי. כלי הפריסה מסנכרנים באמצעות rsync את תוכן `dist/` לתוכה.
 > רק נתיב פלט הבנייה בתוך המאגר השתנה (`app/` ← `dist/`).
 
 כתובות URL המוגדרות כברירת מחדל:
 
-- **לוח הבקרה**: `http://localhost:20128/dashboard`
+- **לוח בקרה**: `http://localhost:20128/dashboard`
 - **API**: `http://localhost:20128/v1`
 
 ---
@@ -290,44 +290,44 @@ npm run test:combo:live:vps:failover     # מוסיף תרחיש מעבר לגי
 ## מבנה הפרויקט
 
 ```
-src/                        # TypeScript (.ts / .tsx)
+src/                        # TypeScript ‏(.ts / .tsx)
 ├── app/                    # נתב האפליקציה של Next.js 16
 │   ├── (dashboard)/        # דפי לוח הבקרה (23 מקטעים)
-│   ├── api/                # נתיבי API‏ (51 תיקיות)
+│   ├── api/                # נתיבי API ‏(51 תיקיות)
 │   └── login/              # דפי אימות (.tsx)
 ├── domain/                 # מנוע מדיניות (policyEngine, comboResolver, costRules וכו')
-├── lib/                    # לוגיקת ליבה עסקית (.ts)
+├── lib/                    # לוגיקה עסקית מרכזית (.ts)
 │   ├── a2a/                # שרת פרוטוקול Agent-to-Agent v0.3
-│   ├── acp/                # מרשם Agent Communication Protocol
+│   ├── acp/                # מאגר Agent Communication Protocol
 │   ├── compliance/         # מנוע מדיניות תאימות
-│   ├── db/                 # מודולי תחום של SQLite + 130 מיגרציות
+│   ├── db/                 # מודולי תחום של SQLite ו-130 מיגרציות
 │   ├── memory/             # זיכרון שיחה מתמשך
 │   ├── oauth/              # ספקי OAuth, שירותים וכלי עזר
-│   ├── skills/             # מסגרת מיומנויות הניתנת להרחבה
+│   ├── skills/             # מסגרת מיומנויות ניתנת להרחבה
 │   ├── usage/              # מעקב שימוש וחישוב עלויות
 │   └── localDb.ts          # שכבת ייצוא מחדש בלבד — לעולם אין להוסיף כאן לוגיקה
 ├── middleware/              # תווכת בקשות (promptInjectionGuard)
-├── mitm/                   # פרוקסי MITM‏ (אישור, DNS, ניתוב יעד)
+├── mitm/                   # פרוקסי MITM ‏(אישור, DNS, ניתוב יעד)
 ├── shared/
-│   ├── components/         # רכיבי React‏ (.tsx)
-│   ├── constants/          # הגדרות ספקים (329), תחומי MCP,‏ 19 אסטרטגיות ניתוב
-│   ├── utils/              # מפסק מעגל, מחטא, כלי עזר לאימות
+│   ├── components/         # רכיבי React ‏(.tsx)
+│   ├── constants/          # הגדרות ספקים (329), תחומי MCP, ‏20 אסטרטגיות ניתוב
+│   ├── utils/              # מפסק זרם, מנקה קלט, עזרי אימות
 │   └── validation/         # סכמות Zod v4
-└── sse/                    # צינור עיבוד לפרוקסי SSE
+└── sse/                    # צינור עיבוד פרוקסי SSE
 
 open-sse/                   # סביבת העבודה @omniroute/open-sse
-├── executors/              # 150 מודולי ביצוע (מחלקות ביצוע + כלי עזר לכל ספק)
+├── executors/              # 150 מודולי הרצה (מחלקות הרצה ועזרים לכל ספק)
 ├── handlers/               # 11 מטפלי בקשות (צ'אט, תגובות, הטמעות, תמונות וכו')
-├── mcp-server/             # שרת MCP‏ (110 כלים ייחודיים, 3 תעבורות, 33 תחומים)
+├── mcp-server/             # שרת MCP ‏(110 כלים ייחודיים, 3 תעבורות, 33 תחומים)
 ├── services/               # 178 שירותים ברמה העליונה (combo, autoCombo, rateLimitManager וכו')
-├── translator/             # מתרגמי תבניות (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
+├── translator/             # מתרגמי פורמטים (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
 ├── transformer/            # ממיר Responses API
-└── utils/                  # 22 מודולי כלי עזר (הזרמה, TLS, פרוקסי, רישום)
+└── utils/                  # 22 מודולי עזר (זרימה, TLS, פרוקסי, רישום)
 
-electron/                   # אפליקציית שולחן עבודה Electron‏ (חוצת פלטפורמות)
+electron/                   # יישום שולחני Electron ‏(חוצה פלטפורמות)
 
 tests/
-├── unit/                   # מריץ הבדיקות של Node.js‏ (1,574 קובצי בדיקה)
+├── unit/                   # מריץ הבדיקות של Node.js ‏(1,574 קובצי בדיקה)
 ├── integration/            # בדיקות אינטגרציה
 ├── e2e/                    # בדיקות Playwright
 ├── security/               # בדיקות אבטחה
@@ -336,18 +336,18 @@ tests/
 
 docs/
 ├── adr/                     # רשומות החלטות ארכיטקטוניות
-├── architecture/            # ארכיטקטורת מערכת ועמידות
+├── architecture/            # ארכיטקטורת המערכת וחוסן
 ├── comparison/              # OmniRoute לעומת חלופות
 ├── compression/             # מדריכים וכללים לדחיסה
 ├── dev/                     # מדריכי פיתוח
 ├── diagrams/                # תרשימי ארכיטקטורה
-├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
-├── guides/                  # מדריך למשתמש, Docker, הגדרה, פתרון בעיות
+├── frameworks/              # MCP, A2A, OpenCode, זיכרון, מיומנויות
+├── guides/                  # מדריך למשתמש, Docker, התקנה, פתרון בעיות
 ├── i18n/                    # תרגומי README לשפות שונות
 ├── marketing/               # חומרי שיווק
 ├── ops/                     # פריסה, פרוקסי, כיסוי, הפצות
 ├── providers/               # תיעוד ייעודי לספקים
-├── reference/               # עיון ב-API, משתני סביבה, כלי CLI, שכבות חינמיות
+├── reference/               # תיעוד API, משתני סביבה, כלי CLI, שכבות שימוש חינמיות
 ├── releases/                # הערות הפצה
 ├── routing/                 # מנוע שילוב אוטומטי, הפעלה חוזרת של הסקה
 ├── screenshots/             # צילומי מסך של לוח הבקרה

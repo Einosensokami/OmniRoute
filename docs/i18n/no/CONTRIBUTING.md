@@ -12,7 +12,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ### Forutsetninger
 
-- **Node.js** `>=22.22.3 <23`, eller `>=24.0.0 <27` (anbefalt: 24 LTS)
+- **Node.js** `>=22.22.2 <23`, eller `>=24.0.0 <27` (anbefalt: 24 LTS)
 - **npm** 10+
 
 > **Brukere av npm v11+ (Node 24+):** Etter `npm install`, kontroller at native moduler ble installert:
@@ -48,19 +48,19 @@ Viktige variabler for utvikling:
 | `PORT`                 | `20128`                     | Serverport                    |
 | `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`    | Basis-URL for grensesnittet   |
 | `JWT_SECRET`           | (generer ovenfor)           | Hemmelighet for JWT-signering |
-| `INITIAL_PASSWORD`     | `CHANGEME`                  | Passord ved første innlogging |
+| `INITIAL_PASSWORD`     | `CHANGEME`                  | Passord for første innlogging |
 | `APP_LOG_LEVEL`        | `info`                      | Detaljnivå for logging        |
 
-### Innstillinger for kontrollpanelet
+### Innstillinger i kontrollpanelet
 
-Kontrollpanelet har brytere for funksjoner som også kan konfigureres via miljøvariabler:
+Kontrollpanelet har brytere i brukergrensesnittet for funksjoner som også kan konfigureres via miljøvariabler:
 
-| Plassering av innstilling | Bryter                  | Beskrivelse                                     |
-| ------------------------- | ----------------------- | ----------------------------------------------- |
-| Innstillinger → Avansert  | Feilsøkingsmodus        | Aktiver logger for feilsøkingsforespørsler (UI) |
-| Innstillinger → Generelt  | Synlighet for sidepanel | Vis/skjul deler av sidepanelet                  |
+| Plassering av innstilling | Bryter                   | Beskrivelse                                     |
+| ------------------------- | ------------------------ | ----------------------------------------------- |
+| Innstillinger → Avansert  | Feilsøkingsmodus         | Aktiver feilsøkingslogger for forespørsler (UI) |
+| Innstillinger → Generelt  | Synlighet for sidefeltet | Vis/skjul deler av sidefeltet                   |
 
-Disse innstillingene lagres i databasen og beholdes etter omstarter. Når de er angitt, overstyrer de standardverdiene fra miljøvariablene.
+Disse innstillingene lagres i databasen og beholdes på tvers av omstarter. Når de er angitt, overstyrer de standardverdiene fra miljøvariablene.
 
 ### Lokal kjøring
 
@@ -69,51 +69,51 @@ Disse innstillingene lagres i databasen og beholdes etter omstarter. Når de er 
 npm run dev
 
 # Produksjonsbygg
-npm run build    # next build → .build/next/ og deretter assembleStandalone → dist/
+npm run build    # next build → .build/next/, deretter assembleStandalone → dist/
 npm run start
 
 # Rask kompilering kun av bakenden/API-et for bidragsyterendringer
 npm run build:contributor
 
-# Utgivelsesbygg (ren ombygging + HEAD-sentinel — kreves for utrulling)
+# Utgivelsesbygg (ren ombygging + HEAD-kontrollfil — påkrevd for utrulling)
 npm run build:release   # rm -rf .build dist && build + skriver dist/BUILD_SHA
 
 # Vanlig portkonfigurasjon
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Bidragsyterbygget utfører kun kompileringsvalidering: Det setter ikke sammen den frittstående
+Bidragsyterbygget utfører kun validering ved kompilering: Det setter ikke sammen den frittstående
 distribusjonen eller bygger valgfrie native pakkeressurser. Bruk det vanlige produksjonsbygget når
 du må validere den distribuerbare pakken.
 
-### Utformingen av byggresultatet
+### Struktur for byggresultater
 
-| Mappe     | Innhold                                                                            | Sporet |
-| --------- | ---------------------------------------------------------------------------------- | ------ |
-| `src/`    | Applikasjonens kildekode (TypeScript / TSX)                                        | Ja     |
-| `.build/` | Mellomresultater — resultat fra `next build` (gitignored, `distDir = .build/next`) | Nei    |
-| `dist/`   | Distribuerbar pakke — satt sammen av `assembleStandalone` (gitignored)             | Nei    |
+| Katalog   | Innhold                                                                             | Versjonsstyrt |
+| --------- | ----------------------------------------------------------------------------------- | ------------- |
+| `src/`    | Applikasjonens kildekode (TypeScript / TSX)                                         | Ja            |
+| `.build/` | Mellomresultater — resultat fra `next build` (gitignorert, `distDir = .build/next`) | Nei           |
+| `dist/`   | Distribuerbar pakke — satt sammen av `assembleStandalone` (gitignorert)             | Nei           |
 
-Byggeprosessen består av én gjennomkjøring:
+Byggeprosessen kjøres i én gjennomgang:
 
 ```
 npm run build
   └─ next build → .build/next/standalone  (resultat fra Next.js)
-  └─ assembleStandalone()                 (kopierer standalone + static + public + native ressurser)
+  └─ assembleStandalone()                 (kopierer frittstående pakke + statiske filer + public + native ressurser)
        └─ resultat: dist/                 (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` rydder i tillegg først begge mappene og skriver
-`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) som en integritetssentinel for utrulling.
+`npm run build:release` rydder i tillegg begge katalogene først og skriver
+`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) som en integritetskontrollfil for utrulling.
 
 `npm run build:contributor` bruker byggeprofilen kun for bakenden. Den erstatter midlertidig
-UI-filene til kontrollpanelet med plassholdere under byggingen, beholder API-rutebehandlerne og gjenoppretter originalfilene
-etter byggingen. Bruk `npm run build` for endringer som påvirker kontrollpanelets brukergrensesnitt, eller for fullstendig
+UI-filene for kontrollpanelet med plassholdere under byggingen, beholder API-rutebehandlerne og gjenoppretter originalfilene
+etter byggingen. Bruk `npm run build` for endringer som påvirker kontrollpanelets brukergrensesnitt eller for fullstendig
 utgivelsesvalidering. Bidragsyterprofilen er ikke en erstatning for utgivelsesbygget.
 
-> **Merknad om VPS-utrulling:** Den eksterne image-mappen `/usr/lib/node_modules/omniroute/app/`
-> er uendret. Utrullingsverktøyene synkroniserer innholdet i `dist/` til den med rsync.
-> Bare banen til byggresultatet i repositoriet er flyttet (`app/` → `dist/`).
+> **Merknad om utrulling til VPS:** Den eksterne avbildningskatalogen `/usr/lib/node_modules/omniroute/app/`
+> er uendret. Utrullingsverktøyene bruker rsync til å kopiere innholdet i `dist/` til den.
+> Bare banen for byggresultater i repositoriet er flyttet (`app/` → `dist/`).
 
 Standard-URL-er:
 
@@ -298,7 +298,7 @@ src/                        # TypeScript (.ts / .tsx)
 │   └── login/              # Autentiseringssider (.tsx)
 ├── domain/                 # Regelmotor (policyEngine, comboResolver, costRules osv.)
 ├── lib/                    # Sentral forretningslogikk (.ts)
-│   ├── a2a/                # Agent-til-agent v0.3-protokollserver
+│   ├── a2a/                # Server for Agent-to-Agent v0.3-protokollen
 │   ├── acp/                # Register for Agent Communication Protocol
 │   ├── compliance/         # Regelmotor for samsvar
 │   ├── db/                 # SQLite-domenemoduler + 130 migreringer
@@ -306,20 +306,20 @@ src/                        # TypeScript (.ts / .tsx)
 │   ├── oauth/              # OAuth-leverandører, -tjenester og -verktøy
 │   ├── skills/             # Utvidbart ferdighetsrammeverk
 │   ├── usage/              # Brukssporing og kostnadsberegning
-│   └── localDb.ts          # Kun reeksportlag — legg aldri til logikk her
+│   └── localDb.ts          # Kun lag for reeksport — legg aldri til logikk her
 ├── middleware/              # Mellomvare for forespørsler (promptInjectionGuard)
 ├── mitm/                   # MITM-proxy (sertifikat, DNS, målruting)
 ├── shared/
 │   ├── components/         # React-komponenter (.tsx)
-│   ├── constants/          # Leverandørdefinisjoner (329), MCP-omfang, 19 rutingsstrategier
-│   ├── utils/              # Kretsbryter, rensing, autentiseringshjelpere
+│   ├── constants/          # Leverandørdefinisjoner (329), MCP-omfang, 20 rutingsstrategier
+│   ├── utils/              # Effektbryter, sanitering, autentiseringshjelpere
 │   └── validation/         # Zod v4-skjemaer
 └── sse/                    # SSE-proxypipeline
 
 open-sse/                   # @omniroute/open-sse-arbeidsområde
-├── executors/              # 150 kjøringsmoduler (kjøringsklasser + leverandørspesifikke hjelpere)
-├── handlers/               # 11 forespørselsbehandlere (chat, svar, innebygginger, bilder osv.)
-├── mcp-server/             # MCP-server (110 unike verktøy, 3 transporter, 33 omfang)
+├── executors/              # 150 utførermoduler (utførerklasser + leverandørspesifikke hjelpere)
+├── handlers/               # 11 forespørselshåndterere (chat, svar, embeddinger, bilder osv.)
+├── mcp-server/             # MCP-server (110 unike verktøy, 3 transportmetoder, 33 omfang)
 ├── services/               # 178 tjenester på toppnivå (combo, autoCombo, rateLimitManager osv.)
 ├── translator/             # Formatoversettere (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
 ├── transformer/            # Transformer for Responses API
@@ -338,20 +338,20 @@ tests/
 docs/
 ├── adr/                     # Arkitekturbeslutningslogger
 ├── architecture/            # Systemarkitektur og robusthet
-├── comparison/              # OmniRoute kontra alternativer
+├── comparison/              # OmniRoute sammenlignet med alternativer
 ├── compression/             # Komprimeringsveiledninger og -regler
 ├── dev/                     # Utviklingsveiledninger
 ├── diagrams/                # Arkitekturdiagrammer
-├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
+├── frameworks/              # MCP, A2A, OpenCode, minne, ferdigheter
 ├── guides/                  # Brukerveiledning, Docker, oppsett, feilsøking
 ├── i18n/                    # Internasjonaliserte README-oversettelser
 ├── marketing/               # Markedsføringsmateriell
 ├── ops/                     # Distribusjon, proxy, dekning, utgivelser
 ├── providers/               # Leverandørspesifikk dokumentasjon
 ├── reference/               # API-referanse, miljøvariabler, CLI-verktøy, gratisnivåer
-├── releases/                # Utgivelsesmerknader
-├── routing/                 # Automatisk kombinasjonsmotor, repetisjon av resonnering
-├── screenshots/             # Skjermbilder av dashbordet
+├── releases/                # Versjonsmerknader
+├── routing/                 # Automatisk kombinasjonsmotor, resonneringsavspilling
+├── screenshots/             # Skjermbilder av dashboardet
 ├── security/                # Sikkerhetsmekanismer, samsvar, skjult modus, tokener
 └── specs/                   # Designspesifikasjoner
 ```

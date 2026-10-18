@@ -17,7 +17,7 @@ dan langkah-langkah rekonsiliasinya.
 
 ### Prasyarat
 
-- **Node.js** `>=22.22.3 <23`, atau `>=24.0.0 <27` (disarankan: 24 LTS)
+- **Node.js** `>=22.22.2 <23`, atau `>=24.0.0 <27` (direkomendasikan: 24 LTS)
 - **npm** 10+
 
 > **Pengguna npm v11+ (Node 24+):** Setelah `npm install`, pastikan modul native telah terinstal:
@@ -52,20 +52,20 @@ Variabel utama untuk pengembangan:
 | ---------------------- | -------------------------- | -------------------------- |
 | `PORT`                 | `20128`                    | Port server                |
 | `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`   | URL dasar untuk frontend   |
-| `JWT_SECRET`           | (buat seperti di atas)     | Secret penandatanganan JWT |
+| `JWT_SECRET`           | (buat di atas)             | Secret penandatanganan JWT |
 | `INITIAL_PASSWORD`     | `CHANGEME`                 | Kata sandi login pertama   |
 | `APP_LOG_LEVEL`        | `info`                     | Tingkat verbositas log     |
 
 ### Pengaturan Dasbor
 
-Dasbor menyediakan tombol UI untuk fitur yang juga dapat dikonfigurasi melalui variabel lingkungan:
+Dasbor menyediakan tombol pengalih UI untuk fitur-fitur yang juga dapat dikonfigurasi melalui variabel lingkungan:
 
-| Lokasi Pengaturan   | Tombol Visibilitas     | Deskripsi                               |
-| ------------------- | ---------------------- | --------------------------------------- |
-| Settings → Advanced | Mode Debug             | Aktifkan log permintaan debug (UI)      |
-| Settings → General  | Visibilitas Bilah Sisi | Tampilkan/sembunyikan bagian bilah sisi |
+| Lokasi Pengaturan     | Tombol Pengalih        | Deskripsi                               |
+| --------------------- | ---------------------- | --------------------------------------- |
+| Pengaturan → Lanjutan | Mode Debug             | Aktifkan log permintaan debug (UI)      |
+| Pengaturan → Umum     | Visibilitas Bilah Sisi | Tampilkan/sembunyikan bagian bilah sisi |
 
-Pengaturan ini disimpan dalam basis data dan tetap tersedia setelah aplikasi dimulai ulang, serta menggantikan nilai default variabel lingkungan jika ditetapkan.
+Pengaturan ini disimpan dalam basis data dan tetap berlaku setelah dimulai ulang, serta menggantikan nilai default variabel lingkungan jika ditetapkan.
 
 ### Menjalankan Secara Lokal
 
@@ -80,16 +80,16 @@ npm run start
 # Kompilasi cepat khusus backend/API untuk perubahan kontributor
 npm run build:contributor
 
-# Build rilis (build ulang bersih + sentinel HEAD — diwajibkan untuk deployment)
+# Build rilis (build ulang bersih + sentinel HEAD — wajib untuk deployment)
 npm run build:release   # rm -rf .build dist && build + menulis dist/BUILD_SHA
 
 # Konfigurasi port umum
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Build kontributor melakukan validasi kompilasi saja: build ini tidak merakit distribusi
-mandiri atau membuat aset pemaketan native opsional. Gunakan build produksi reguler saat
-Anda perlu memvalidasi bundel yang dapat didistribusikan.
+Build kontributor hanya melakukan validasi kompilasi: build ini tidak merakit
+distribusi mandiri atau membangun aset pengemasan native opsional. Gunakan build produksi biasa saat
+Anda perlu memvalidasi bundel yang siap didistribusikan.
 
 ### Tata Letak Output Build
 
@@ -99,7 +99,7 @@ Anda perlu memvalidasi bundel yang dapat didistribusikan.
 | `.build/` | Berkas perantara — output `next build` (diabaikan git, `distDir = .build/next`) | Tidak   |
 | `dist/`   | Bundel siap didistribusikan — dirakit oleh `assembleStandalone` (diabaikan git) | Tidak   |
 
-Pipeline build dilakukan dalam satu tahap:
+Pipeline build berjalan dalam satu lintasan:
 
 ```
 npm run build
@@ -108,17 +108,17 @@ npm run build
        └─ output: dist/                   (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` juga membersihkan kedua direktori terlebih dahulu dan menulis
+`npm run build:release` juga terlebih dahulu membersihkan kedua direktori dan menulis
 `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) sebagai sentinel integritas deployment.
 
-`npm run build:contributor` menggunakan profil build khusus backend. Build ini untuk sementara mengganti
-file UI dasbor dengan stub selama proses build, mempertahankan handler rute API, dan memulihkan file asli
-setelah build selesai. Gunakan `npm run build` untuk perubahan yang memengaruhi UI dasbor atau untuk
-validasi rilis lengkap; profil kontributor bukan pengganti build rilis.
+`npm run build:contributor` menggunakan profil build khusus backend. Perintah ini untuk sementara membuat stub
+bagi file UI dasbor selama proses build, mempertahankan handler rute API, dan memulihkan file asli
+setelah build. Gunakan `npm run build` untuk perubahan yang memengaruhi UI dasbor atau untuk
+validasi rilis penuh; profil kontributor bukan pengganti build rilis.
 
 > **Catatan deployment VPS:** direktori image jarak jauh `/usr/lib/node_modules/omniroute/app/`
-> tidak berubah. Skill deployment melakukan rsync terhadap isi `dist/` ke direktori tersebut.
-> Hanya jalur output build dalam repositori yang berpindah (`app/` → `dist/`).
+> tidak berubah. Skill deployment menyinkronkan isi `dist/` ke dalamnya menggunakan rsync.
+> Hanya jalur output build di dalam repositori yang berpindah (`app/` → `dist/`).
 
 URL default:
 
@@ -297,7 +297,7 @@ Lihat `open-sse/utils/stream.ts` dan `open-sse/utils/streamHandler.ts` untuk con
 
 ```
 src/                        # TypeScript (.ts / .tsx)
-├── app/                    # App Router Next.js 16
+├── app/                    # Next.js 16 App Router
 │   ├── (dashboard)/        # Halaman dasbor (23 bagian)
 │   ├── api/                # Rute API (51 direktori)
 │   └── login/              # Halaman autentikasi (.tsx)
@@ -316,10 +316,10 @@ src/                        # TypeScript (.ts / .tsx)
 ├── mitm/                   # Proksi MITM (sertifikat, DNS, perutean target)
 ├── shared/
 │   ├── components/         # Komponen React (.tsx)
-│   ├── constants/          # Definisi penyedia (329), cakupan MCP, 19 strategi perutean
-│   ├── utils/              # Pemutus sirkuit, pembersih, pembantu autentikasi
+│   ├── constants/          # Definisi penyedia (329), cakupan MCP, 20 strategi perutean
+│   ├── utils/              # Pemutus sirkuit, penyanitasi, pembantu autentikasi
 │   └── validation/         # Skema Zod v4
-└── sse/                    # Pipeline proksi SSE
+└── sse/                    # Alur proksi SSE
 
 open-sse/                   # Ruang kerja @omniroute/open-sse
 ├── executors/              # 150 modul eksekutor (kelas eksekutor + pembantu per penyedia)
@@ -333,7 +333,7 @@ open-sse/                   # Ruang kerja @omniroute/open-sse
 electron/                   # Aplikasi desktop Electron (lintas platform)
 
 tests/
-├── unit/                   # Runner pengujian Node.js (1.574 berkas pengujian)
+├── unit/                   # Pelaksana pengujian Node.js (1.574 berkas pengujian)
 ├── integration/            # Pengujian integrasi
 ├── e2e/                    # Pengujian Playwright
 ├── security/               # Pengujian keamanan
@@ -342,22 +342,22 @@ tests/
 
 docs/
 ├── adr/                     # Catatan Keputusan Arsitektur
-├── architecture/            # Arsitektur & ketahanan sistem
+├── architecture/            # Arsitektur dan ketahanan sistem
 ├── comparison/              # OmniRoute vs alternatif
-├── compression/             # Panduan & aturan kompresi
+├── compression/             # Panduan dan aturan kompresi
 ├── dev/                     # Panduan pengembangan
 ├── diagrams/                # Diagram arsitektur
 ├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
 ├── guides/                  # Panduan pengguna, Docker, penyiapan, pemecahan masalah
 ├── i18n/                    # Terjemahan README yang diinternasionalisasi
 ├── marketing/               # Materi pemasaran
-├── ops/                     # Deployment, proksi, cakupan, rilis
+├── ops/                     # Penerapan, proksi, cakupan, rilis
 ├── providers/               # Dokumentasi khusus penyedia
 ├── reference/               # Referensi API, variabel lingkungan, alat CLI, tingkat gratis
 ├── releases/                # Catatan rilis
 ├── routing/                 # Mesin auto-combo, pemutaran ulang penalaran
 ├── screenshots/             # Tangkapan layar dasbor
-├── security/                # Pembatas pengaman, kepatuhan, penyamaran, token
+├── security/                # Pagar pengaman, kepatuhan, penyamaran, token
 └── specs/                   # Spesifikasi desain
 ```
 

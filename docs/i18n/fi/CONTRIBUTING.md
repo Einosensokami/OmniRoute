@@ -8,21 +8,21 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ---
 
-## Kehitysympäristön määrittäminen
+## Kehitysympäristön määritys
 
 ### Esivaatimukset
 
-- **Node.js** `>=22.22.3 <23` tai `>=24.0.0 <27` (suositus: 24 LTS)
+- **Node.js** `>=22.22.2 <23` tai `>=24.0.0 <27` (suositus: 24 LTS)
 - **npm** 10+
 
-> **npm v11+ -käyttäjät (Node 24+):** Tarkista `npm install` -komennon suorittamisen jälkeen, että natiivimoduulit asennettiin:
-> `node -e "require('better-sqlite3')"`. Jos komento epäonnistuu virheeseen `MODULE_NOT_FOUND`,
+> **npm v11+ -käyttäjät (Node 24+):** Tarkista `npm install` -komennon jälkeen, että natiivimoduulit asennettiin:
+> `node -e "require('better-sqlite3')"`. Jos komento epäonnistuu virheellä `MODULE_NOT_FOUND`,
 > suorita `npm approve-scripts better-sqlite3 && npm install`. Katso
 > [Vianmääritys](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
 
 - **Git**
 
-### Kloonaaminen ja asentaminen
+### Kloonaus ja asennus
 
 ```bash
 git clone https://github.com/diegosouzapw/OmniRoute.git
@@ -33,7 +33,7 @@ npm install
 ### Ympäristömuuttujat
 
 ```bash
-# Luo .env-tiedosto mallipohjasta
+# Luo .env-tiedosto mallista
 cp .env.example .env
 
 # Luo vaaditut salaisuudet
@@ -47,73 +47,73 @@ Kehityksen keskeiset muuttujat:
 | ---------------------- | ------------------------ | ---------------------------------- |
 | `PORT`                 | `20128`                  | Palvelimen portti                  |
 | `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128` | Käyttöliittymän perus-URL          |
-| `JWT_SECRET`           | (luo yllä)               | JWT-allekirjoitussalaisuus         |
+| `JWT_SECRET`           | (luo yllä)               | JWT-allekirjoituksen salaisuus     |
 | `INITIAL_PASSWORD`     | `CHANGEME`               | Ensimmäisen kirjautumisen salasana |
-| `APP_LOG_LEVEL`        | `info`                   | Lokien yksityiskohtaisuustaso      |
+| `APP_LOG_LEVEL`        | `info`                   | Lokituksen yksityiskohtaisuustaso  |
 
 ### Hallintapaneelin asetukset
 
-Hallintapaneelissa on käyttöliittymän valintoja ominaisuuksille, jotka voidaan määrittää myös ympäristömuuttujilla:
+Hallintapaneeli sisältää käyttöliittymäkytkimiä ominaisuuksille, jotka voidaan määrittää myös ympäristömuuttujien avulla:
 
-| Asetuksen sijainti        | Valinta             | Kuvaus                                                      |
+| Asetuksen sijainti        | Kytkin              | Kuvaus                                                      |
 | ------------------------- | ------------------- | ----------------------------------------------------------- |
-| Asetukset → Lisäasetukset | Virheenkorjaustila  | Ota pyyntöjen virheenkorjauslokit käyttöön (käyttöliittymä) |
+| Asetukset → Lisäasetukset | Virheenkorjaustila  | Ota käyttöön pyyntöjen virheenkorjauslokit (käyttöliittymä) |
 | Asetukset → Yleiset       | Sivupalkin näkyvyys | Näytä/piilota sivupalkin osiot                              |
 
 Nämä asetukset tallennetaan tietokantaan ja säilyvät uudelleenkäynnistysten välillä. Kun ne on asetettu, ne ohittavat ympäristömuuttujien oletusarvot.
 
-### Paikallinen suorittaminen
+### Suorittaminen paikallisesti
 
 ```bash
 # Kehitystila (automaattinen uudelleenlataus)
 npm run dev
 
-# Tuotantokoontiversio
+# Tuotantoversio
 npm run build    # next build → .build/next/, sitten assembleStandalone → dist/
 npm run start
 
-# Nopea vain taustajärjestelmän ja API:n käännös osallistujien muutoksille
+# Nopea vain taustajärjestelmän/rajapinnan käännös osallistujien muutoksille
 npm run build:contributor
 
-# Julkaisukoontiversio (puhdas uudelleenkoonti + HEAD-tarkiste — pakollinen käyttöönotossa)
-npm run build:release   # rm -rf .build dist && koonti + kirjoittaa tiedoston dist/BUILD_SHA
+# Julkaisuversio (puhdas uudelleenkäännös + HEAD-tarkiste — vaaditaan käyttöönottoon)
+npm run build:release   # rm -rf .build dist && build + kirjoittaa tiedoston dist/BUILD_SHA
 
 # Yleinen porttimääritys
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Osallistujakoonti suorittaa vain käännöksen validoinnin: se ei kokoa itsenäistä
-jakelua eikä valinnaisia natiivin paketoinnin resursseja. Käytä tavallista tuotantokoontia, kun
-sinun on validoitava toimituskelpoinen paketti.
+Osallistujaversio suorittaa vain käännöksen validoinnin: se ei kokoa itsenäistä
+jakelua eikä valinnaisia natiivipaketoinnin resursseja. Käytä tavallista tuotantokäännöstä,
+kun toimitettavan paketin validointi on tarpeen.
 
-### Koontitulosten hakemistorakenne
+### Käännöstuloksen hakemistorakenne
 
-| Hakemisto | Sisältö                                                                    | Seurannassa |
-| --------- | -------------------------------------------------------------------------- | ----------- |
-| `src/`    | Sovelluksen lähdekoodi (TypeScript / TSX)                                  | Kyllä       |
-| `.build/` | Välitulokset — `next build` -tuloste (gitignored, `distDir = .build/next`) | Ei          |
-| `dist/`   | Toimituskelpoinen paketti — koostajana `assembleStandalone` (gitignored)   | Ei          |
+| Hakemisto | Sisältö                                                                        | Seurannassa |
+| --------- | ------------------------------------------------------------------------------ | ----------- |
+| `src/`    | Sovelluksen lähdekoodi (TypeScript / TSX)                                      | Kyllä       |
+| `.build/` | Välitulokset — `next build` -tuloste (gitin ohittama, `distDir = .build/next`) | Ei          |
+| `dist/`   | Toimitettava paketti — toiminnon `assembleStandalone` kokoama (gitin ohittama) | Ei          |
 
-Koontiputki suoritetaan yhdessä vaiheessa:
+Käännösputki suoritetaan yhdellä ajokerralla:
 
 ```
 npm run build
   └─ next build → .build/next/standalone  (Next.js-tuloste)
-  └─ assembleStandalone()                 (kopioi itsenäisen version + staattiset tiedostot + julkiset tiedostot + natiiviresurssit)
+  └─ assembleStandalone()                 (kopioi itsenäisen paketin + staattiset tiedostot + julkiset tiedostot + natiiviresurssit)
        └─ tuloste: dist/                   (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` tyhjentää lisäksi ensin molemmat hakemistot ja kirjoittaa
-tiedoston `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) käyttöönoton eheystarkisteeksi.
+`npm run build:release` tyhjentää lisäksi ensin molemmat hakemistot ja kirjoittaa tiedoston
+`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) käyttöönoton eheyden tarkisteeksi.
 
-`npm run build:contributor` käyttää vain taustajärjestelmälle tarkoitettua koontiprofiilia. Se korvaa
-hallintapaneelin käyttöliittymätiedostot väliaikaisesti korvikkeilla koonnin ajaksi, säilyttää API-reittien käsittelijät ja palauttaa alkuperäiset tiedostot
-koonnin jälkeen. Käytä komentoa `npm run build` muutoksille, jotka vaikuttavat hallintapaneelin käyttöliittymään, tai täydelliseen
-julkaisun validointiin. Osallistujaprofiili ei korvaa julkaisukoontia.
+`npm run build:contributor` käyttää vain taustajärjestelmälle tarkoitettua käännösprofiilia. Se korvaa
+hallintapaneelin käyttöliittymätiedostot tilapäisesti tynkäversioilla käännöksen ajaksi, säilyttää rajapinnan reitinkäsittelijät ja palauttaa alkuperäiset tiedostot
+käännöksen jälkeen. Käytä komentoa `npm run build` muutoksille, jotka vaikuttavat hallintapaneelin käyttöliittymään, tai täydelliseen
+julkaisun validointiin; osallistujaprofiili ei korvaa julkaisuversiota.
 
-> **Huomautus VPS-käyttöönotosta:** Etäkuvan hakemisto `/usr/lib/node_modules/omniroute/app/`
-> ei ole muuttunut. Käyttöönoton automatisoinnit synkronoivat `dist/`-hakemiston sisällön siihen rsync-komennolla.
-> Vain repositorion sisäinen koontitulosten polku muuttui (`app/` → `dist/`).
+> **VPS-käyttöönottoa koskeva huomautus:** etäpalvelimen näköistiedostohakemisto `/usr/lib/node_modules/omniroute/app/`
+> ei muutu. Käyttöönoton automaatiot synkronoivat `dist/`-hakemiston sisällön siihen rsyncillä.
+> Vain repositorion sisäinen käännöstuloksen polku muuttui (`app/` → `dist/`).
 
 Oletus-URL-osoitteet:
 
@@ -294,40 +294,40 @@ src/                        # TypeScript (.ts / .tsx)
 ├── app/                    # Next.js 16 App Router
 │   ├── (dashboard)/        # Hallintapaneelin sivut (23 osiota)
 │   ├── api/                # API-reitit (51 hakemistoa)
-│   └── login/              # Tunnistautumissivut (.tsx)
-├── domain/                 # Käytäntömoottori (policyEngine, comboResolver, costRules jne.)
-├── lib/                    # Keskeinen liiketoimintalogiikka (.ts)
+│   └── login/              # Todennussivut (.tsx)
+├── domain/                 # Sääntömoottori (policyEngine, comboResolver, costRules jne.)
+├── lib/                    # Liiketoiminnan ydinlogiikka (.ts)
 │   ├── a2a/                # Agent-to-Agent v0.3 -protokollapalvelin
 │   ├── acp/                # Agent Communication Protocol -rekisteri
-│   ├── compliance/         # Vaatimustenmukaisuuskäytäntöjen moottori
+│   ├── compliance/         # Vaatimustenmukaisuuden sääntömoottori
 │   ├── db/                 # SQLite-toimialuemoduulit + 130 migraatiota
 │   ├── memory/             # Pysyvä keskustelumuisti
 │   ├── oauth/              # OAuth-palveluntarjoajat, -palvelut ja -apuohjelmat
 │   ├── skills/             # Laajennettava taitokehys
 │   ├── usage/              # Käytön seuranta ja kustannusten laskenta
-│   └── localDb.ts          # Vain jälleenvientikerros — älä koskaan lisää logiikkaa tänne
-├── middleware/              # Pyyntöjen väliohjelmisto (promptInjectionGuard)
+│   └── localDb.ts          # Vain uudelleenvientikerros — älä koskaan lisää logiikkaa tähän
+├── middleware/              # Pyyntöjen väliohjelmistot (promptInjectionGuard)
 ├── mitm/                   # MITM-välityspalvelin (varmenne, DNS, kohdereititys)
 ├── shared/
 │   ├── components/         # React-komponentit (.tsx)
-│   ├── constants/          # Palveluntarjoajien määritykset (329), MCP-käyttöalueet, 19 reititysstrategiaa
-│   ├── utils/              # Katkaisija, puhdistaja, tunnistautumisen apufunktiot
+│   ├── constants/          # Palveluntarjoajamääritykset (329), MCP-käyttöalueet, 20 reititysstrategiaa
+│   ├── utils/              # Katkaisija, puhdistaja, todennuksen apufunktiot
 │   └── validation/         # Zod v4 -skeemat
-└── sse/                    # SSE-välityspalvelinputki
+└── sse/                    # SSE-välitysputki
 
 open-sse/                   # @omniroute/open-sse-työtila
 ├── executors/              # 150 suoritusmoduulia (suoritusluokat + palveluntarjoajakohtaiset apufunktiot)
 ├── handlers/               # 11 pyyntökäsittelijää (keskustelu, vastaukset, upotukset, kuvat jne.)
 ├── mcp-server/             # MCP-palvelin (110 yksilöllistä työkalua, 3 siirtotapaa, 33 käyttöaluetta)
-├── services/               # 178 ylimmän tason palvelua (combo, autoCombo, rateLimitManager jne.)
+├── services/               # 178 ylätason palvelua (combo, autoCombo, rateLimitManager jne.)
 ├── translator/             # Muotomuuntimet (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
 ├── transformer/            # Responses API -muunnin
 └── utils/                  # 22 apuohjelmamoduulia (suoratoisto, TLS, välityspalvelin, lokitus)
 
-electron/                   # Electron-työpöytäsovellus (monialustainen)
+electron/                   # Monialustainen Electron-työpöytäsovellus
 
 tests/
-├── unit/                   # Node.js-testisuorittaja (1 574 testitiedostoa)
+├── unit/                   # Node.js-testiajo-ohjelma (1 574 testitiedostoa)
 ├── integration/            # Integraatiotestit
 ├── e2e/                    # Playwright-testit
 ├── security/               # Tietoturvatestit
@@ -336,22 +336,22 @@ tests/
 
 docs/
 ├── adr/                     # Arkkitehtuuripäätösten dokumentit
-├── architecture/            # Järjestelmäarkkitehtuuri ja häiriönsietokyky
+├── architecture/            # Järjestelmäarkkitehtuuri ja vikasietoisuus
 ├── comparison/              # OmniRoute verrattuna vaihtoehtoihin
 ├── compression/             # Pakkausoppaat ja -säännöt
 ├── dev/                     # Kehitysoppaat
 ├── diagrams/                # Arkkitehtuurikaaviot
 ├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
-├── guides/                  # Käyttöopas, Docker, käyttöönotto, vianmääritys
+├── guides/                  # Käyttöopas, Docker, määritys, vianmääritys
 ├── i18n/                    # Kansainvälistetyt README-käännökset
 ├── marketing/               # Markkinointimateriaalit
 ├── ops/                     # Käyttöönotto, välityspalvelin, kattavuus, julkaisut
 ├── providers/               # Palveluntarjoajakohtaiset dokumentit
-├── reference/               # API-viite, ympäristömuuttujat, CLI-työkalut, ilmaiset käyttökiintiöt
+├── reference/               # API-viite, ympäristömuuttujat, CLI-työkalut, maksuttomat tasot
 ├── releases/                # Julkaisutiedot
 ├── routing/                 # Automaattinen yhdistelmämoottori, päättelyn uudelleentoisto
-├── screenshots/             # Hallintapaneelin näyttökuvat
-├── security/                # Suojakaiteet, vaatimustenmukaisuus, häivetila, tunnukset
+├── screenshots/             # Hallintapaneelin kuvakaappaukset
+├── security/                # Suojakaiteet, vaatimustenmukaisuus, häivetekniikat, tunnisteet
 └── specs/                   # Suunnittelumääritykset
 ```
 

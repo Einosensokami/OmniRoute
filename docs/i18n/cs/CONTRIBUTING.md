@@ -12,7 +12,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ### Předpoklady
 
-- **Node.js** `>=22.22.3 <23` nebo `>=24.0.0 <27` (doporučeno: 24 LTS)
+- **Node.js** `>=22.22.2 <23` nebo `>=24.0.0 <27` (doporučeno: 24 LTS)
 - **npm** 10+
 
 > **Uživatelé npm v11+ (Node 24+):** Po spuštění `npm install` ověřte, že byly nainstalovány nativní moduly:
@@ -36,31 +36,31 @@ npm install
 # Vytvořte soubor .env ze šablony
 cp .env.example .env
 
-# Vygenerujte požadované tajné hodnoty
+# Vygenerujte požadované tajné klíče
 echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
 echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 ```
 
 Klíčové proměnné pro vývoj:
 
-| Proměnná               | Výchozí hodnota pro vývoj | Popis                           |
-| ---------------------- | ------------------------- | ------------------------------- |
-| `PORT`                 | `20128`                   | Port serveru                    |
-| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`  | Základní URL pro frontend       |
-| `JWT_SECRET`           | (vygenerujte výše)        | Tajný klíč pro podepisování JWT |
-| `INITIAL_PASSWORD`     | `CHANGEME`                | Heslo pro první přihlášení      |
-| `APP_LOG_LEVEL`        | `info`                    | Úroveň podrobnosti protokolů    |
+| Proměnná               | Výchozí hodnota pro vývoj | Popis                            |
+| ---------------------- | ------------------------- | -------------------------------- |
+| `PORT`                 | `20128`                   | Port serveru                     |
+| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`  | Základní URL pro frontend        |
+| `JWT_SECRET`           | (vygenerujte výše)        | Tajný klíč pro podepisování JWT  |
+| `INITIAL_PASSWORD`     | `CHANGEME`                | Heslo pro první přihlášení       |
+| `APP_LOG_LEVEL`        | `info`                    | Úroveň podrobnosti protokolování |
 
-### Nastavení ovládacího panelu
+### Nastavení řídicího panelu
 
-Ovládací panel poskytuje přepínače uživatelského rozhraní pro funkce, které lze konfigurovat také pomocí proměnných prostředí:
+Řídicí panel poskytuje přepínače uživatelského rozhraní pro funkce, které lze také nakonfigurovat pomocí proměnných prostředí:
 
 | Umístění nastavení    | Přepínač                       | Popis                                       |
 | --------------------- | ------------------------------ | ------------------------------------------- |
 | Nastavení → Pokročilé | Režim ladění                   | Povolit protokoly požadavků pro ladění (UI) |
-| Nastavení → Obecné    | Viditelnost postranního panelu | Zobrazit/skrýt sekce postranního panelu     |
+| Nastavení → Obecné    | Viditelnost postranního panelu | Zobrazit/skrýt části postranního panelu     |
 
-Tato nastavení jsou uložena v databázi a přetrvávají mezi restarty. Pokud jsou nastavena, mají přednost před výchozími hodnotami proměnných prostředí.
+Tato nastavení jsou uložena v databázi, přetrvávají mezi restarty a po nastavení přepisují výchozí hodnoty proměnných prostředí.
 
 ### Lokální spuštění
 
@@ -75,23 +75,23 @@ npm run start
 # Rychlá kompilace pouze backendu/API pro změny přispěvatelů
 npm run build:contributor
 
-# Sestavení vydání (čisté opětovné sestavení + kontrolní soubor HEAD — vyžadováno pro nasazení)
+# Vydávací sestavení (čisté opětovné sestavení + kontrolní soubor HEAD — vyžadováno pro nasazení)
 npm run build:release   # rm -rf .build dist && sestavení + zápis dist/BUILD_SHA
 
 # Běžná konfigurace portu
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Sestavení pro přispěvatele provádí pouze ověření kompilace: nesestavuje samostatnou
-distribuci ani volitelné nativní prostředky pro tvorbu balíčku. Pokud potřebujete ověřit
-distribuovatelný balíček, použijte běžné produkční sestavení.
+Sestavení pro přispěvatele provádí pouze validaci kompilace: nesestavuje samostatnou
+distribuci ani volitelné prostředky pro nativní balíčky. Pokud potřebujete
+ověřit distribuovatelný balíček, použijte běžné produkční sestavení.
 
 ### Struktura výstupu sestavení
 
 | Adresář   | Obsah                                                                               | Sledováno |
 | --------- | ----------------------------------------------------------------------------------- | --------- |
 | `src/`    | Zdrojový kód aplikace (TypeScript / TSX)                                            | Ano       |
-| `.build/` | Mezivýstupy — výstup `next build` (ignorováno Gitem, `distDir = .build/next`)       | Ne        |
+| `.build/` | Mezisoubory — výstup `next build` (ignorováno Gitem, `distDir = .build/next`)       | Ne        |
 | `dist/`   | Distribuovatelný balíček — sestavený pomocí `assembleStandalone` (ignorováno Gitem) | Ne        |
 
 Proces sestavení probíhá v jediném průchodu:
@@ -99,25 +99,25 @@ Proces sestavení probíhá v jediném průchodu:
 ```
 npm run build
   └─ next build → .build/next/standalone  (výstup Next.js)
-  └─ assembleStandalone()                 (zkopíruje samostatné, statické, veřejné a nativní prostředky)
+  └─ assembleStandalone()                 (kopíruje samostatné + statické + veřejné + nativní prostředky)
        └─ výstup: dist/                   (server.js, .next/static/, public/, node_modules/)
 ```
 
 `npm run build:release` navíc nejprve vyčistí oba adresáře a zapíše
 `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) jako kontrolní soubor integrity nasazení.
 
-`npm run build:contributor` používá profil sestavení pouze pro backend. Během sestavení dočasně
-nahrazuje soubory uživatelského rozhraní ovládacího panelu zástupnými soubory, zachovává obslužné rutiny tras API a po sestavení
-obnoví původní soubory. Pro změny ovlivňující uživatelské rozhraní ovládacího panelu nebo pro úplné
-ověření vydání použijte `npm run build`; profil pro přispěvatele nenahrazuje sestavení vydání.
+`npm run build:contributor` používá profil sestavení pouze pro backend. Během sestavení dočasně nahrazuje
+soubory uživatelského rozhraní řídicího panelu zástupnými soubory, zachovává obslužné rutiny tras API a po sestavení obnoví původní soubory.
+Pro změny ovlivňující uživatelské rozhraní řídicího panelu nebo pro úplné ověření
+vydání použijte `npm run build`; profil pro přispěvatele nenahrazuje vydávací sestavení.
 
-> **Poznámka k nasazení na VPS:** adresář vzdáleného obrazu `/usr/lib/node_modules/omniroute/app/`
-> zůstává beze změny. Nástroje pro nasazení pomocí rsync synchronizují jeho obsah s obsahem `dist/`.
+> **Poznámka k nasazení na VPS:** vzdálený adresář obrazu `/usr/lib/node_modules/omniroute/app/`
+> zůstává beze změny. Nástroje pro nasazení synchronizují pomocí rsync obsah adresáře `dist/` do tohoto umístění.
 > Změnila se pouze cesta k výstupu sestavení v repozitáři (`app/` → `dist/`).
 
 Výchozí adresy URL:
 
-- **Ovládací panel**: `http://localhost:20128/dashboard`
+- **Řídicí panel**: `http://localhost:20128/dashboard`
 - **API**: `http://localhost:20128/v1`
 
 ---
@@ -293,65 +293,65 @@ Příklady použití najdete v `open-sse/utils/stream.ts` a `open-sse/utils/stre
 ```
 src/                        # TypeScript (.ts / .tsx)
 ├── app/                    # Next.js 16 App Router
-│   ├── (dashboard)/        # Stránky dashboardu (23 sekcí)
+│   ├── (dashboard)/        # Stránky řídicího panelu (23 sekcí)
 │   ├── api/                # Trasy API (51 adresářů)
 │   └── login/              # Stránky ověřování (.tsx)
 ├── domain/                 # Modul zásad (policyEngine, comboResolver, costRules atd.)
 ├── lib/                    # Základní obchodní logika (.ts)
 │   ├── a2a/                # Server protokolu Agent-to-Agent v0.3
 │   ├── acp/                # Registr protokolu Agent Communication Protocol
-│   ├── compliance/         # Modul zásad pro dodržování předpisů
+│   ├── compliance/         # Modul zásad dodržování předpisů
 │   ├── db/                 # Doménové moduly SQLite + 130 migrací
 │   ├── memory/             # Trvalá konverzační paměť
 │   ├── oauth/              # Poskytovatelé, služby a nástroje OAuth
-│   ├── skills/             # Rozšiřitelný framework dovedností
+│   ├── skills/             # Rozšiřitelný rámec dovedností
 │   ├── usage/              # Sledování využití a výpočet nákladů
-│   └── localDb.ts          # Pouze vrstva pro opětovný export — nikdy sem nepřidávejte logiku
+│   └── localDb.ts          # Pouze vrstva pro reexport — nikdy sem nepřidávejte logiku
 ├── middleware/              # Middleware požadavků (promptInjectionGuard)
-├── mitm/                   # Proxy MITM (certifikáty, DNS, směrování cíle)
+├── mitm/                   # Proxy MITM (certifikát, DNS, směrování cíle)
 ├── shared/
-│   ├── components/         # Komponenty Reactu (.tsx)
-│   ├── constants/          # Definice poskytovatelů (329), rozsahy MCP, 19 strategií směrování
-│   ├── utils/              # Jistič, sanitizace, pomocné funkce ověřování
+│   ├── components/         # Komponenty React (.tsx)
+│   ├── constants/          # Definice poskytovatelů (329), rozsahy MCP, 20 strategií směrování
+│   ├── utils/              # Jistič, sanitizér, pomocné funkce ověřování
 │   └── validation/         # Schémata Zod v4
-└── sse/                    # Pipeline proxy SSE
+└── sse/                    # Kanál proxy SSE
 
 open-sse/                   # Pracovní prostor @omniroute/open-sse
-├── executors/              # 150 modulů vykonavatelů (třídy vykonavatelů + pomocné funkce jednotlivých poskytovatelů)
+├── executors/              # 150 modulů vykonavatelů (třídy vykonavatelů + pomocné funkce pro jednotlivé poskytovatele)
 ├── handlers/               # 11 obslužných rutin požadavků (chat, odpovědi, vektorové reprezentace, obrázky atd.)
 ├── mcp-server/             # Server MCP (110 jedinečných nástrojů, 3 transporty, 33 rozsahů)
 ├── services/               # 178 služeb nejvyšší úrovně (combo, autoCombo, rateLimitManager atd.)
 ├── translator/             # Převodníky formátů (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
-├── transformer/            # Transformátor rozhraní Responses API
-└── utils/                  # 22 modulů nástrojů (streamování, TLS, proxy, protokolování)
+├── transformer/            # Transformátor Responses API
+└── utils/                  # 22 pomocných modulů (streamování, TLS, proxy, protokolování)
 
 electron/                   # Desktopová aplikace Electron (multiplatformní)
 
 tests/
-├── unit/                   # Testovací nástroj Node.js (1 574 testovacích souborů)
+├── unit/                   # Spouštěč testů Node.js (1 574 testovacích souborů)
 ├── integration/            # Integrační testy
 ├── e2e/                    # Testy Playwright
 ├── security/               # Bezpečnostní testy
-├── translator/             # Testy specifické pro převodníky
+├── translator/             # Testy specifické pro převodník
 └── load/                   # Zátěžové testy
 
 docs/
 ├── adr/                     # Záznamy architektonických rozhodnutí
-├── architecture/            # Architektura systému a odolnost
+├── architecture/            # Architektura a odolnost systému
 ├── comparison/              # OmniRoute oproti alternativám
 ├── compression/             # Průvodci a pravidla komprese
 ├── dev/                     # Vývojářské příručky
-├── diagrams/                # Diagramy architektury
+├── diagrams/                # Architektonická schémata
 ├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
 ├── guides/                  # Uživatelská příručka, Docker, nastavení, řešení problémů
-├── i18n/                    # Internacionalizované překlady README
+├── i18n/                    # Lokalizované překlady souboru README
 ├── marketing/               # Marketingové materiály
 ├── ops/                     # Nasazení, proxy, pokrytí, vydání
-├── providers/               # Dokumentace pro konkrétní poskytovatele
+├── providers/               # Dokumentace pro jednotlivé poskytovatele
 ├── reference/               # Referenční dokumentace API, proměnné prostředí, nástroje CLI, bezplatné úrovně
 ├── releases/                # Poznámky k vydáním
-├── routing/                 # Modul automatických kombinací, opakované přehrání uvažování
-├── screenshots/             # Snímky obrazovky dashboardu
+├── routing/                 # Modul automatických kombinací, opakované přehrávání uvažování
+├── screenshots/             # Snímky obrazovky řídicího panelu
 ├── security/                # Ochranná opatření, dodržování předpisů, utajení, tokeny
 └── specs/                   # Specifikace návrhu
 ```

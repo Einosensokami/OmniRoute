@@ -12,13 +12,13 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ### Pré-requisitos
 
-- **Node.js** `>=22.22.3 <23`, ou `>=24.0.0 <27` (recomendado: 24 LTS)
+- **Node.js** `>=22.22.2 <23`, ou `>=24.0.0 <27` (recomendado: 24 LTS)
 - **npm** 10+
 
-> **Utilizadores do npm v11+ (Node 24+):** Após executar `npm install`, verifique se os módulos nativos foram instalados:
+> **Utilizadores do npm v11+ (Node 24+):** Após `npm install`, verifique se os módulos nativos foram instalados:
 > `node -e "require('better-sqlite3')"`. Se falhar com `MODULE_NOT_FOUND`,
 > execute `npm approve-scripts better-sqlite3 && npm install`. Consulte
-> [Resolução de problemas](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
+> [Resolução de Problemas](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
 
 - **Git**
 
@@ -46,21 +46,21 @@ Principais variáveis para desenvolvimento:
 | Variável               | Predefinição de Desenvolvimento | Descrição                                  |
 | ---------------------- | ------------------------------- | ------------------------------------------ |
 | `PORT`                 | `20128`                         | Porta do servidor                          |
-| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`        | URL base para o frontend                   |
+| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`        | URL base do frontend                       |
 | `JWT_SECRET`           | (gerar acima)                   | Segredo de assinatura do JWT               |
 | `INITIAL_PASSWORD`     | `CHANGEME`                      | Palavra-passe do primeiro início de sessão |
 | `APP_LOG_LEVEL`        | `info`                          | Nível de detalhe dos registos              |
 
 ### Definições do Painel
 
-O painel disponibiliza controlos na interface para funcionalidades que também podem ser configuradas através de variáveis de ambiente:
+O painel disponibiliza seletores na interface para funcionalidades que também podem ser configuradas através de variáveis de ambiente:
 
-| Localização da Definição | Controlo                      | Descrição                                           |
+| Localização da Definição | Seletor                       | Descrição                                           |
 | ------------------------ | ----------------------------- | --------------------------------------------------- |
 | Definições → Avançadas   | Modo de Depuração             | Ativar registos de pedidos de depuração (interface) |
 | Definições → Geral       | Visibilidade da Barra Lateral | Mostrar/ocultar secções da barra lateral            |
 
-Estas definições são armazenadas na base de dados e mantêm-se após reinícios, substituindo as predefinições das variáveis de ambiente quando configuradas.
+Estas definições são armazenadas na base de dados e persistem entre reinícios, substituindo as predefinições das variáveis de ambiente quando configuradas.
 
 ### Executar Localmente
 
@@ -69,32 +69,32 @@ Estas definições são armazenadas na base de dados e mantêm-se após reiníci
 npm run dev
 
 # Compilação de produção
-npm run build    # next build → .build/next/ e depois assembleStandalone → dist/
+npm run build    # next build → .build/next/ e, em seguida, assembleStandalone → dist/
 npm run start
 
-# Compilação rápida apenas do backend/API para alterações de contribuidores
+# Compilação rápida apenas do backend/API para alterações de colaboradores
 npm run build:contributor
 
-# Compilação de lançamento (recompilação limpa + sentinela HEAD — necessária para implementação)
+# Compilação de lançamento (recompilação limpa + sentinela HEAD — obrigatória para implementação)
 npm run build:release   # rm -rf .build dist && compilação + escreve dist/BUILD_SHA
 
-# Configuração habitual da porta
+# Configuração comum da porta
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-A compilação para contribuidores realiza uma validação apenas de compilação: não prepara a
-distribuição autónoma nem compila recursos opcionais de empacotamento nativo. Utilize a compilação de produção normal quando
+A compilação de colaborador efetua uma validação apenas de compilação: não cria a distribuição autónoma
+nem compila recursos opcionais de empacotamento nativo. Utilize a compilação de produção normal quando
 necessitar de validar o pacote distribuível.
 
-### Estrutura do Resultado da Compilação
+### Estrutura dos Resultados da Compilação
 
-| Diretório | Conteúdo                                                                                       | Controlado |
-| --------- | ---------------------------------------------------------------------------------------------- | ---------- |
-| `src/`    | Código-fonte da aplicação (TypeScript / TSX)                                                   | Sim        |
-| `.build/` | Ficheiros intermédios — resultado de `next build` (ignorado pelo Git, `distDir = .build/next`) | Não        |
-| `dist/`   | Pacote distribuível — preparado por `assembleStandalone` (ignorado pelo Git)                   | Não        |
+| Diretório | Conteúdo                                                                                       | Rastreado |
+| --------- | ---------------------------------------------------------------------------------------------- | --------- |
+| `src/`    | Código-fonte da aplicação (TypeScript / TSX)                                                   | Sim       |
+| `.build/` | Ficheiros intermédios — resultado de `next build` (ignorado pelo Git, `distDir = .build/next`) | Não       |
+| `dist/`   | Pacote distribuível — criado por `assembleStandalone` (ignorado pelo Git)                      | Não       |
 
-O processo de compilação é executado numa única passagem:
+O pipeline de compilação consiste numa única passagem:
 
 ```
 npm run build
@@ -107,13 +107,13 @@ npm run build
 `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) como sentinela de integridade da implementação.
 
 `npm run build:contributor` utiliza o perfil de compilação apenas do backend. Substitui temporariamente
-os ficheiros da interface do painel por stubs durante a compilação, mantém os processadores de rotas da API e restaura os ficheiros originais
-após a compilação. Utilize `npm run build` para alterações que afetem a interface do painel ou para uma
-validação completa do lançamento; o perfil para contribuidores não substitui a compilação de lançamento.
+os ficheiros da interface do painel por stubs durante a compilação, mantém os handlers das rotas da API e restaura os ficheiros originais
+após a compilação. Utilize `npm run build` para alterações que afetem a interface do painel ou para uma validação
+completa do lançamento; o perfil de colaborador não substitui a compilação de lançamento.
 
-> **Nota sobre implementação em VPS:** o diretório remoto da imagem `/usr/lib/node_modules/omniroute/app/`
-> permanece inalterado. As competências de implementação sincronizam o conteúdo de `dist/` para o mesmo através de rsync.
-> Apenas foi alterado o caminho do resultado da compilação dentro do repositório (`app/` → `dist/`).
+> **Nota sobre a implementação em VPS:** o diretório remoto da imagem `/usr/lib/node_modules/omniroute/app/`
+> permanece inalterado. As rotinas de implementação sincronizam o conteúdo de `dist/` para esse diretório através de rsync.
+> Apenas o caminho dos resultados da compilação no repositório foi alterado (`app/` → `dist/`).
 
 URLs predefinidos:
 
@@ -297,38 +297,38 @@ src/                        # TypeScript (.ts / .tsx)
 │   ├── api/                # Rotas da API (51 diretórios)
 │   └── login/              # Páginas de autenticação (.tsx)
 ├── domain/                 # Motor de políticas (policyEngine, comboResolver, costRules, etc.)
-├── lib/                    # Lógica empresarial principal (.ts)
+├── lib/                    # Lógica de negócio principal (.ts)
 │   ├── a2a/                # Servidor do protocolo Agent-to-Agent v0.3
 │   ├── acp/                # Registo do Agent Communication Protocol
 │   ├── compliance/         # Motor de políticas de conformidade
 │   ├── db/                 # Módulos de domínio SQLite + 130 migrações
 │   ├── memory/             # Memória conversacional persistente
 │   ├── oauth/              # Fornecedores, serviços e utilitários OAuth
-│   ├── skills/             # Framework extensível de competências
+│   ├── skills/             # Estrutura extensível de competências
 │   ├── usage/              # Monitorização da utilização e cálculo de custos
 │   └── localDb.ts          # Apenas camada de reexportação — nunca adicionar lógica aqui
 ├── middleware/              # Middleware de pedidos (promptInjectionGuard)
-├── mitm/                   # Proxy MITM (certificados, DNS, encaminhamento para destinos)
+├── mitm/                   # Proxy MITM (certificados, DNS, encaminhamento de destinos)
 ├── shared/
 │   ├── components/         # Componentes React (.tsx)
-│   ├── constants/          # Definições de fornecedores (329), âmbitos MCP, 19 estratégias de encaminhamento
-│   ├── utils/              # Disjuntor, higienizador, auxiliares de autenticação
+│   ├── constants/          # Definições de fornecedores (329), âmbitos MCP, 20 estratégias de encaminhamento
+│   ├── utils/              # Disjuntor, sanitizador, auxiliares de autenticação
 │   └── validation/         # Esquemas Zod v4
-└── sse/                    # Pipeline de proxy SSE
+└── sse/                    # Pipeline do proxy SSE
 
-open-sse/                   # Workspace @omniroute/open-sse
-├── executors/              # 150 módulos executores (classes de execução + auxiliares por fornecedor)
-├── handlers/               # 11 processadores de pedidos (chat, respostas, embeddings, imagens, etc.)
+open-sse/                   # Espaço de trabalho @omniroute/open-sse
+├── executors/              # 150 módulos de execução (classes de execução + auxiliares por fornecedor)
+├── handlers/               # 11 processadores de pedidos (conversação, respostas, embeddings, imagens, etc.)
 ├── mcp-server/             # Servidor MCP (110 ferramentas únicas, 3 transportes, 33 âmbitos)
 ├── services/               # 178 serviços de nível superior (combo, autoCombo, rateLimitManager, etc.)
 ├── translator/             # Tradutores de formatos (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
 ├── transformer/            # Transformador da API Responses
-└── utils/                  # 22 módulos utilitários (stream, TLS, proxy, registo)
+└── utils/                  # 22 módulos utilitários (streaming, TLS, proxy, registo)
 
 electron/                   # Aplicação Electron para ambiente de trabalho (multiplataforma)
 
 tests/
-├── unit/                   # Executor de testes do Node.js (1 574 ficheiros de teste)
+├── unit/                   # Executor de testes Node.js (1.574 ficheiros de teste)
 ├── integration/            # Testes de integração
 ├── e2e/                    # Testes Playwright
 ├── security/               # Testes de segurança
@@ -346,14 +346,14 @@ docs/
 ├── guides/                  # Guia do utilizador, Docker, configuração, resolução de problemas
 ├── i18n/                    # Traduções internacionalizadas do README
 ├── marketing/               # Materiais de marketing
-├── ops/                     # Implementação, proxy, cobertura, lançamentos
+├── ops/                     # Implementação, proxy, cobertura, versões
 ├── providers/               # Documentação específica dos fornecedores
 ├── reference/               # Referência da API, variáveis de ambiente, ferramentas CLI, planos gratuitos
-├── releases/                # Notas de lançamento
-├── routing/                 # Motor de combinação automática, repetição do raciocínio
+├── releases/                # Notas de versão
+├── routing/                 # Motor de combinação automática, repetição de raciocínio
 ├── screenshots/             # Capturas de ecrã do painel
-├── security/                # Mecanismos de proteção, conformidade, ocultação, tokens
-└── specs/                   # Especificações de conceção
+├── security/                # Barreiras de proteção, conformidade, modo furtivo, tokens
+└── specs/                   # Especificações de design
 ```
 
 ---

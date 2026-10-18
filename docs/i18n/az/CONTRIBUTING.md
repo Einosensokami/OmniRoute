@@ -12,13 +12,13 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ### İlkin Tələblər
 
-- **Node.js** `>=22.22.3 <23` və ya `>=24.0.0 <27` (tövsiyə olunur: 24 LTS)
+- **Node.js** `>=22.22.2 <23` və ya `>=24.0.0 <27` (tövsiyə olunur: 24 LTS)
 - **npm** 10+
 
-> **npm v11+ istifadəçiləri (Node 24+):** `npm install` əmrindən sonra yerli modulların quraşdırıldığını yoxlayın:
+> **npm v11+ istifadəçiləri (Node 24+):** `npm install` əməlindən sonra yerli modulların quraşdırıldığını yoxlayın:
 > `node -e "require('better-sqlite3')"`. Əgər `MODULE_NOT_FOUND` xətası ilə uğursuz olarsa,
 > `npm approve-scripts better-sqlite3 && npm install` əmrini icra edin. Baxın:
-> [Nasazlıqların aradan qaldırılması](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
+> [Problemlərin aradan qaldırılması](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
 
 - **Git**
 
@@ -46,73 +46,73 @@ echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 | Dəyişən                | İnkişaf üçün İlkin Dəyər | Təsvir                      |
 | ---------------------- | ------------------------ | --------------------------- |
 | `PORT`                 | `20128`                  | Server portu                |
-| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128` | Ön tərəf üçün baza URL-i    |
+| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128` | Ön tərəf üçün əsas URL      |
 | `JWT_SECRET`           | (yuxarıda yaradın)       | JWT imzalama məxfi dəyəri   |
 | `INITIAL_PASSWORD`     | `CHANGEME`               | İlk giriş parolu            |
 | `APP_LOG_LEVEL`        | `info`                   | Jurnal təfərrüatı səviyyəsi |
 
 ### İdarəetmə Paneli Parametrləri
 
-İdarəetmə paneli mühit dəyişənləri vasitəsilə də konfiqurasiya edilə bilən funksiyalar üçün istifadəçi interfeysi keçidləri təqdim edir:
+İdarəetmə paneli, həmçinin mühit dəyişənləri vasitəsilə konfiqurasiya edilə bilən funksiyalar üçün istifadəçi interfeysi keçidləri təqdim edir:
 
-| Parametrin Yeri        | Keçid                 | Təsvir                                        |
-| ---------------------- | --------------------- | --------------------------------------------- |
-| Parametrlər → Qabaqcıl | Sazlama Rejimi        | Sazlama sorğu jurnallarını aktivləşdirin (UI) |
-| Parametrlər → Ümumi    | Yan Panelin Görünməsi | Yan panel bölmələrini göstərin/gizlədin       |
+| Parametrin Yeri        | Keçid                 | Təsvir                                          |
+| ---------------------- | --------------------- | ----------------------------------------------- |
+| Parametrlər → Qabaqcıl | Sazlama Rejimi        | Sazlama sorğusu jurnallarını aktivləşdirir (UI) |
+| Parametrlər → Ümumi    | Yan Panelin Görünməsi | Yan panel bölmələrini göstərir/gizlədir         |
 
-Bu parametrlər verilənlər bazasında saxlanılır və yenidən başlatmalar arasında qorunur; təyin edildikdə mühit dəyişənlərinin ilkin dəyərlərini əvəz edir.
+Bu parametrlər verilənlər bazasında saxlanılır və yenidən başladılmalar arasında qorunur; təyin edildikdə mühit dəyişənlərinin ilkin dəyərlərini üstələyir.
 
 ### Lokal İşə Salma
 
 ```bash
-# İnkişaf rejimi (ani yenidən yükləmə)
+# İnkişaf rejimi (avtomatik yenidən yükləmə)
 npm run dev
 
 # İstehsal yığımı
 npm run build    # next build → .build/next/, sonra assembleStandalone → dist/
 npm run start
 
-# Töhfəçilərin dəyişiklikləri üçün sürətli, yalnız arxa tərəf/API kompilyasiyası
+# Töhfə verənlərin dəyişiklikləri üçün sürətli, yalnız arxa tərəf/API kompilyasiyası
 npm run build:contributor
 
-# Buraxılış yığımı (təmiz yenidən yığım + HEAD nəzarət faylı — yerləşdirmə üçün tələb olunur)
-npm run build:release   # rm -rf .build dist && build + dist/BUILD_SHA faylını yazır
+# Buraxılış yığımı (təmiz yenidən yığım + HEAD nəzarətçisi — yerləşdirmə üçün tələb olunur)
+npm run build:release   # rm -rf .build dist && build + dist/BUILD_SHA yazır
 
 # Ümumi port konfiqurasiyası
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Töhfəçi yığımı yalnız kompilyasiya yoxlamasını yerinə yetirir: o, avtonom
-paylamanı toplamır və ya istəyə bağlı yerli paketləmə resurslarını yığmır. Paylanmağa hazır paketi
+Töhfəçi yığımı yalnız kompilyasiya yoxlaması həyata keçirir: o, müstəqil
+paylanmanı toplamır və ya əlavə yerli paketləmə resurslarını yığmır. Paylanmağa hazır paketi
 yoxlamaq lazım olduqda adi istehsal yığımından istifadə edin.
 
 ### Yığım Nəticəsinin Strukturu
 
-| Kataloq   | Məzmun                                                                                            | İzlənilir |
-| --------- | ------------------------------------------------------------------------------------------------- | --------- |
-| `src/`    | Tətbiqin mənbə kodu (TypeScript / TSX)                                                            | Bəli      |
-| `.build/` | Aralıq fayllar — `next build` nəticəsi (git tərəfindən nəzərə alınmır, `distDir = .build/next`)   | Xeyr      |
-| `dist/`   | Paylanmağa hazır paket — `assembleStandalone` tərəfindən toplanır (git tərəfindən nəzərə alınmır) | Xeyr      |
+| Kataloq   | Məzmun                                                                         | İzlənilir |
+| --------- | ------------------------------------------------------------------------------ | --------- |
+| `src/`    | Tətbiqin mənbə kodu (TypeScript / TSX)                                         | Bəli      |
+| `.build/` | Aralıq fayllar — `next build` nəticəsi (gitignored, `distDir = .build/next`)   | Xeyr      |
+| `dist/`   | Paylanmağa hazır paket — `assembleStandalone` tərəfindən toplanır (gitignored) | Xeyr      |
 
 Yığım prosesi bir keçiddən ibarətdir:
 
 ```
 npm run build
   └─ next build → .build/next/standalone  (Next.js nəticəsi)
-  └─ assembleStandalone()                 (avtonom faylları + statik faylları + public fayllarını + yerli resursları kopyalayır)
+  └─ assembleStandalone()                 (müstəqil faylları + statik faylları + ictimai faylları + yerli resursları kopyalayır)
        └─ nəticə: dist/                   (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` əlavə olaraq əvvəlcə hər iki kataloqu təmizləyir və yerləşdirmə bütövlüyünün nəzarət faylı kimi
+`npm run build:release` əlavə olaraq əvvəlcə hər iki kataloqu təmizləyir və yerləşdirmənin bütövlüyünə nəzarət etmək üçün
 `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) faylını yazır.
 
 `npm run build:contributor` yalnız arxa tərəf üçün yığım profilindən istifadə edir. Yığım zamanı
-idarəetmə panelinin UI fayllarını müvəqqəti olaraq əvəzedici fayllarla əvəz edir, API marşrut işləyicilərini saxlayır və yığımdan
-sonra orijinal faylları bərpa edir. İdarəetmə panelinin UI-sinə təsir edən dəyişikliklər və ya tam
+idarəetmə panelinin UI fayllarını müvəqqəti əvəzedicilərlə dəyişir, API marşrut işləyicilərini saxlayır və yığımdan
+sonra orijinal faylları bərpa edir. İdarəetmə panelinin UI hissəsinə təsir edən dəyişikliklər və ya tam
 buraxılış yoxlaması üçün `npm run build` istifadə edin; töhfəçi profili buraxılış yığımını əvəz etmir.
 
-> **VPS yerləşdirmə qeydi:** uzaq təsvir kataloqu `/usr/lib/node_modules/omniroute/app/`
-> dəyişməz qalıb. Yerləşdirmə vasitələri `dist/` məzmununu rsync vasitəsilə ora köçürür.
+> **VPS yerləşdirmə qeydi:** uzaq obraz kataloqu `/usr/lib/node_modules/omniroute/app/`
+> dəyişməyib. Yerləşdirmə alətləri `dist/` məzmununu rsync vasitəsilə ora köçürür.
 > Yalnız repozitoriya daxilindəki yığım nəticəsinin yolu dəyişib (`app/` → `dist/`).
 
 İlkin URL-lər:
@@ -298,26 +298,26 @@ src/                        # TypeScript (.ts / .tsx)
 │   └── login/              # Autentifikasiya səhifələri (.tsx)
 ├── domain/                 # Siyasət mühərriki (policyEngine, comboResolver, costRules və s.)
 ├── lib/                    # Əsas biznes məntiqi (.ts)
-│   ├── a2a/                # Agent-to-Agent v0.3 protokol serveri
+│   ├── a2a/                # Agentdən-agentə v0.3 protokol serveri
 │   ├── acp/                # Agent Communication Protocol reyestri
 │   ├── compliance/         # Uyğunluq siyasəti mühərriki
 │   ├── db/                 # SQLite domen modulları + 130 miqrasiya
-│   ├── memory/             # Davamlı dialoq yaddaşı
+│   ├── memory/             # Davamlı söhbət yaddaşı
 │   ├── oauth/              # OAuth provayderləri, xidmətləri və utilitləri
-│   ├── skills/             # Genişləndirilə bilən bacarıq çərçivəsi
+│   ├── skills/             # Genişləndirilə bilən bacarıqlar çərçivəsi
 │   ├── usage/              # İstifadənin izlənməsi və xərcin hesablanması
 │   └── localDb.ts          # Yalnız təkrar ixrac qatı — buraya heç vaxt məntiq əlavə etməyin
 ├── middleware/              # Sorğu ara proqramı (promptInjectionGuard)
 ├── mitm/                   # MITM proksisi (sertifikat, DNS, hədəf marşrutlaşdırması)
 ├── shared/
 │   ├── components/         # React komponentləri (.tsx)
-│   ├── constants/          # Provayder tərifləri (329), MCP əhatə dairələri, 19 marşrutlaşdırma strategiyası
+│   ├── constants/          # Provayder tərifləri (329), MCP əhatə dairələri, 20 marşrutlaşdırma strategiyası
 │   ├── utils/              # Dövrə açarı, təmizləyici, autentifikasiya köməkçiləri
 │   └── validation/         # Zod v4 sxemləri
 └── sse/                    # SSE proksi emal xətti
 
 open-sse/                   # @omniroute/open-sse iş sahəsi
-├── executors/              # 150 icraçı modul (icraçı sinifləri + hər provayder üçün köməkçilər)
+├── executors/              # 150 icraçı modulu (icraçı sinifləri + hər provayder üçün köməkçilər)
 ├── handlers/               # 11 sorğu emalçısı (söhbət, cavablar, vektor təsvirləri, şəkillər və s.)
 ├── mcp-server/             # MCP serveri (110 unikal alət, 3 nəqliyyat üsulu, 33 əhatə dairəsi)
 ├── services/               # 178 üst səviyyəli xidmət (combo, autoCombo, rateLimitManager və s.)
@@ -328,27 +328,27 @@ open-sse/                   # @omniroute/open-sse iş sahəsi
 electron/                   # Electron masaüstü tətbiqi (çarpaz platformalı)
 
 tests/
-├── unit/                   # Node.js test icraçısı (1,574 test faylı)
+├── unit/                   # Node.js test icraçısı (1 574 test faylı)
 ├── integration/            # İnteqrasiya testləri
 ├── e2e/                    # Playwright testləri
 ├── security/               # Təhlükəsizlik testləri
-├── translator/             # Çeviriciyə xas testlər
+├── translator/             # Çeviriciyə aid testlər
 └── load/                   # Yük testləri
 
 docs/
-├── adr/                     # Arxitektura Qərarları Qeydləri
+├── adr/                     # Arxitektura Qərarı Qeydləri
 ├── architecture/            # Sistem arxitekturası və dayanıqlılığı
 ├── comparison/              # OmniRoute və alternativlərin müqayisəsi
 ├── compression/             # Sıxılma təlimatları və qaydaları
 ├── dev/                     # Tərtibat təlimatları
 ├── diagrams/                # Arxitektura diaqramları
-├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
-├── guides/                  # İstifadəçi təlimatı, Docker, quraşdırma, nasazlıqların aradan qaldırılması
+├── frameworks/              # MCP, A2A, OpenCode, Yaddaş, Bacarıqlar
+├── guides/                  # İstifadəçi təlimatı, Docker, quraşdırma, problemlərin aradan qaldırılması
 ├── i18n/                    # Beynəlmiləlləşdirilmiş README tərcümələri
 ├── marketing/               # Marketinq materialları
 ├── ops/                     # Yerləşdirmə, proksi, əhatə dairəsi, buraxılışlar
-├── providers/               # Provayderə xas sənədlər
-├── reference/               # API arayışı, mühit dəyişənləri, CLI alətləri, pulsuz tariflər
+├── providers/               # Provayderlərə aid sənədlər
+├── reference/               # API arayışı, mühit dəyişənləri, CLI alətləri, pulsuz səviyyələr
 ├── releases/                # Buraxılış qeydləri
 ├── routing/                 # Avtomatik kombinasiya mühərriki, əsaslandırmanın təkrar icrası
 ├── screenshots/             # İdarəetmə panelinin ekran görüntüləri

@@ -17,11 +17,11 @@ qamrovi va muvofiqlashtirish bosqichlari bilan bogʻlangan.
 
 ### Dastlabki talablar
 
-- **Node.js** `>=22.22.3 <23` yoki `>=24.0.0 <27` (tavsiya etiladi: 24 LTS)
+- **Node.js** `>=22.22.2 <23` yoki `>=24.0.0 <27` (tavsiya etiladi: 24 LTS)
 - **npm** 10+
 
-> **npm v11+ foydalanuvchilari (Node 24+):** `npm install` dan soʻng mahalliy modullar oʻrnatilganini tekshiring:
-> `node -e "require('better-sqlite3')"`. Agar u `MODULE_NOT_FOUND` xatosi bilan bajarilmasa,
+> **npm v11+ foydalanuvchilari (Node 24+):** `npm install` buyrugʻidan soʻng mahalliy modullar oʻrnatilganini tekshiring:
+> `node -e "require('better-sqlite3')"`. Agar buyruq `MODULE_NOT_FOUND` xatosi bilan bajarilmasa,
 > `npm approve-scripts better-sqlite3 && npm install` buyrugʻini ishga tushiring. Quyidagiga qarang:
 > [Muammolarni bartaraf etish](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
 
@@ -41,7 +41,7 @@ npm install
 # Shablondan .env faylingizni yarating
 cp .env.example .env
 
-# Talab qilinadigan maxfiy kalitlarni yarating
+# Kerakli maxfiy kalitlarni yarating
 echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
 echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 ```
@@ -60,67 +60,67 @@ Ishlab chiqish uchun asosiy oʻzgaruvchilar:
 
 Boshqaruv paneli muhit oʻzgaruvchilari orqali ham sozlanishi mumkin boʻlgan funksiyalar uchun UI almashtirgichlarini taqdim etadi:
 
-| Sozlama joylashuvi          | Almashtirgich                 | Tavsif                                                 |
-| --------------------------- | ----------------------------- | ------------------------------------------------------ |
-| Sozlamalar → Kengaytirilgan | Nosozliklarni tuzatish rejimi | Nosozliklarni tuzatish soʻrov jurnallarini yoqish (UI) |
-| Sozlamalar → Umumiy         | Yon panel koʻrinishi          | Yon panel boʻlimlarini koʻrsatish/yashirish            |
+| Sozlama joylashuvi          | Almashtirgich                 | Tavsif                                          |
+| --------------------------- | ----------------------------- | ----------------------------------------------- |
+| Sozlamalar → Kengaytirilgan | Nosozliklarni tuzatish rejimi | Soʻrovlarning tuzatish jurnallarini yoqish (UI) |
+| Sozlamalar → Umumiy         | Yon panel koʻrinishi          | Yon panel boʻlimlarini koʻrsatish/yashirish     |
 
-Bu sozlamalar maʼlumotlar bazasida saqlanadi va qayta ishga tushirishlar davomida saqlanib qoladi; ular oʻrnatilganda muhit oʻzgaruvchilarining standart qiymatlarini bekor qiladi.
+Bu sozlamalar maʼlumotlar bazasida saqlanadi va qayta ishga tushirishlar orasida saqlanib qoladi; oʻrnatilganda ular muhit oʻzgaruvchilarining standart qiymatlarini bekor qiladi.
 
-### Mahalliy muhitda ishga tushirish
+### Lokal ishga tushirish
 
 ```bash
 # Ishlab chiqish rejimi (avtomatik qayta yuklash)
 npm run dev
 
-# Ishlab chiqarish uchun build
+# Ishlab chiqarish uchun yigʻish
 npm run build    # next build → .build/next/, soʻng assembleStandalone → dist/
 npm run start
 
-# Hissa qoʻshuvchilar oʻzgarishlari uchun faqat backend/API ni tezkor kompilyatsiya qilish
+# Hissa qoʻshuvchilar oʻzgarishlari uchun faqat backend/API’ni tezkor kompilyatsiya qilish
 npm run build:contributor
 
-# Reliz buildi (toza qayta build + HEAD sentinel — deploy uchun talab qilinadi)
-npm run build:release   # rm -rf .build dist && build + dist/BUILD_SHA fayliga yozadi
+# Reliz yigʻilishi (toza qayta yigʻish + HEAD nazorat belgisi — joylashtirish uchun talab qilinadi)
+npm run build:release   # rm -rf .build dist, soʻng yigʻadi va dist/BUILD_SHA faylini yozadi
 
-# Keng tarqalgan port konfiguratsiyasi
+# Portning odatiy konfiguratsiyasi
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Hissa qoʻshuvchi buildi faqat kompilyatsiya tekshiruvini bajaradi: u mustaqil
-tarqatma toʻplamini yigʻmaydi yoki ixtiyoriy mahalliy paketlash resurslarini build qilmaydi. Yetkazib beriladigan
-toʻplamni tekshirishingiz kerak boʻlganda odatiy ishlab chiqarish buildidan foydalaning.
+Hissa qoʻshuvchi yigʻilishi faqat kompilyatsiya tekshiruvini amalga oshiradi: u mustaqil
+distributivni yigʻmaydi yoki ixtiyoriy mahalliy paketlash resurslarini yaratmaydi. Yetkazib
+beriladigan toʻplamni tekshirishingiz kerak boʻlganda odatiy ishlab chiqarish yigʻilishidan foydalaning.
 
-### Build natijasi tuzilishi
+### Yigʻilish natijasi tuzilishi
 
-| Katalog   | Tarkibi                                                                              | Kuzatiladi |
-| --------- | ------------------------------------------------------------------------------------ | ---------- |
-| `src/`    | Ilova manba kodi (TypeScript / TSX)                                                  | Ha         |
-| `.build/` | Oraliq fayllar — `next build` natijasi (gitignored, `distDir = .build/next`)         | Yoʻq       |
-| `dist/`   | Yetkazib beriladigan toʻplam — `assembleStandalone` tomonidan yigʻiladi (gitignored) | Yoʻq       |
+| Katalog   | Tarkibi                                                                                                        | Kuzatiladi |
+| --------- | -------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/`    | Ilovaning manba kodi (TypeScript / TSX)                                                                        | Ha         |
+| `.build/` | Oraliq fayllar — `next build` natijasi (git tomonidan eʼtiborsiz qoldiriladi, `distDir = .build/next`)         | Yoʻq       |
+| `dist/`   | Yetkazib beriladigan toʻplam — `assembleStandalone` tomonidan yigʻiladi (git tomonidan eʼtiborsiz qoldiriladi) | Yoʻq       |
 
-Build jarayoni bitta oʻtishda bajariladi:
+Yigʻish jarayoni bir bosqichda bajariladi:
 
 ```
 npm run build
   └─ next build → .build/next/standalone  (Next.js natijasi)
-  └─ assembleStandalone()                 (mustaqil toʻplam + statik fayllar + public + mahalliy resurslarni nusxalaydi)
-       └─ natija: dist/                    (server.js, .next/static/, public/, node_modules/)
+  └─ assembleStandalone()                 (mustaqil fayllar + statik fayllar + public + mahalliy resurslarni nusxalaydi)
+       └─ natija: dist/                   (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` bundan tashqari avval ikkala katalogni ham tozalaydi va deploy yaxlitligini tekshiruvchi sentinel sifatida
-`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) fayliga yozadi.
+`npm run build:release` qoʻshimcha ravishda avval ikkala katalogni ham tozalaydi va
+joylashtirish yaxlitligi nazorat belgisi sifatida `dist/BUILD_SHA` (= `git rev-parse --short HEAD`) faylini yozadi.
 
-`npm run build:contributor` faqat backend uchun moʻljallangan build profilidan foydalanadi. Build davomida u
-boshqaruv paneli UI fayllarini vaqtincha stub fayllar bilan almashtiradi, API marshrut ishlov beruvchilarini saqlab qoladi va builddan
-soʻng asl fayllarni tiklaydi. Boshqaruv paneli UI qismiga taʼsir qiladigan oʻzgarishlar yoki relizni toʻliq
-tekshirish uchun `npm run build` dan foydalaning; hissa qoʻshuvchi profili reliz buildining oʻrnini bosa olmaydi.
+`npm run build:contributor` faqat backend uchun moʻljallangan yigʻish profilidan foydalanadi. U yigʻish
+vaqtida boshqaruv panelining UI fayllarini vaqtincha almashtiradi, API marshrut ishlov beruvchilarini saqlab qoladi
+va yigʻishdan keyin asl fayllarni tiklaydi. Boshqaruv paneli UI’iga taʼsir qiladigan oʻzgarishlar yoki relizni
+toʻliq tekshirish uchun `npm run build` buyrugʻidan foydalaning; hissa qoʻshuvchi profili reliz yigʻilishining oʻrnini bosmaydi.
 
-> **VPS deploy eslatmasi:** masofaviy image katalogi `/usr/lib/node_modules/omniroute/app/`
-> oʻzgarmagan. Deploy vositalari `dist/` tarkibini unga rsync orqali koʻchiradi.
-> Faqat repozitoriy ichidagi build natijasi yoʻli oʻzgardi (`app/` → `dist/`).
+> **VPS’ga joylashtirish eslatmasi:** masofaviy tasvir katalogi `/usr/lib/node_modules/omniroute/app/`
+> oʻzgarmagan. Joylashtirish vositalari `dist/` tarkibini rsync orqali unga koʻchiradi.
+> Faqat repozitoriy ichidagi yigʻilish natijasi yoʻli oʻzgardi (`app/` → `dist/`).
 
-Standart URL manzillar:
+Standart URL’lar:
 
 - **Boshqaruv paneli**: `http://localhost:20128/dashboard`
 - **API**: `http://localhost:20128/v1`
@@ -316,24 +316,24 @@ src/                        # TypeScript (.ts / .tsx)
 ├── mitm/                   # MITM proksi (sertifikat, DNS, maqsadli marshrutlash)
 ├── shared/
 │   ├── components/         # React komponentlari (.tsx)
-│   ├── constants/          # Provayder ta’riflari (329 ta), MCP qamrovlari, 19 ta marshrutlash strategiyasi
-│   ├── utils/              # Zanjir uzgich, sanitizator, autentifikatsiya yordamchilari
+│   ├── constants/          # Provayder ta’riflari (329 ta), MCP qamrovlari, 20 ta marshrutlash strategiyasi
+│   ├── utils/              # Avtomatik uzgich, sanitayzer, autentifikatsiya yordamchilari
 │   └── validation/         # Zod v4 sxemalari
 └── sse/                    # SSE proksi konveyeri
 
 open-sse/                   # @omniroute/open-sse ish maydoni
-├── executors/              # 150 ta ijrochi modul (ijrochi sinflari + har bir provayder uchun yordamchilar)
+├── executors/              # 150 ta bajaruvchi modul (bajaruvchi sinflar + har bir provayder uchun yordamchilar)
 ├── handlers/               # 11 ta so‘rov ishlovchisi (chat, javoblar, embeddinglar, tasvirlar va boshqalar)
 ├── mcp-server/             # MCP serveri (110 ta noyob vosita, 3 ta transport, 33 ta qamrov)
 ├── services/               # 178 ta yuqori darajadagi xizmat (combo, autoCombo, rateLimitManager va boshqalar)
 ├── translator/             # Format tarjimonlari (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
 ├── transformer/            # Responses API transformatori
-└── utils/                  # 22 ta yordamchi modul (oqim, TLS, proksi, jurnal yuritish)
+└── utils/                  # 22 ta yordamchi modul (oqim, TLS, proksi, jurnallash)
 
-electron/                   # Electron ish stoli ilovasi (turli platformalar uchun)
+electron/                   # Electron ish stoli ilovasi (kross-platformali)
 
 tests/
-├── unit/                   # Node.js test ishga tushiruvchisi (1 574 ta test fayli)
+├── unit/                   # Node.js test ishga tushirgichi (1 574 ta test fayli)
 ├── integration/            # Integratsion testlar
 ├── e2e/                    # Playwright testlari
 ├── security/               # Xavfsizlik testlari
@@ -343,19 +343,19 @@ tests/
 docs/
 ├── adr/                     # Arxitektura qarorlari qaydlari
 ├── architecture/            # Tizim arxitekturasi va bardoshliligi
-├── comparison/              # OmniRoute va muqobil yechimlar taqqoslanishi
+├── comparison/              # OmniRoute va muqobillar taqqoslanishi
 ├── compression/             # Siqish bo‘yicha qo‘llanmalar va qoidalar
 ├── dev/                     # Ishlab chiqish bo‘yicha qo‘llanmalar
 ├── diagrams/                # Arxitektura diagrammalari
 ├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
-├── guides/                  # Foydalanuvchi qo‘llanmasi, Docker, sozlash, nosozliklarni bartaraf etish
+├── guides/                  # Foydalanuvchi qo‘llanmasi, Docker, sozlash, muammolarni bartaraf etish
 ├── i18n/                    # Xalqarolashtirilgan README tarjimalari
 ├── marketing/               # Marketing materiallari
 ├── ops/                     # Joylashtirish, proksi, qamrov, relizlar
 ├── providers/               # Provayderlarga xos hujjatlar
 ├── reference/               # API ma’lumotnomasi, muhit o‘zgaruvchilari, CLI vositalari, bepul tariflar
 ├── releases/                # Reliz qaydlari
-├── routing/                 # Avtomatik kombinatsiya mexanizmi, mulohazalarni qayta ijro etish
+├── routing/                 # Avtomatik kombinatsiya mexanizmi, fikrlashni qayta ijro etish
 ├── screenshots/             # Boshqaruv paneli skrinshotlari
 ├── security/                # Himoya cheklovlari, muvofiqlik, yashirinlik, tokenlar
 └── specs/                   # Dizayn spetsifikatsiyalari

@@ -12,12 +12,12 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ### Prérequis
 
-- **Node.js** `>=22.22.3 <23`, ou `>=24.0.0 <27` (recommandé : 24 LTS)
+- **Node.js** `>=22.22.2 <23`, ou `>=24.0.0 <27` (recommandé : 24 LTS)
 - **npm** 10+
 
-> **Utilisateurs de npm v11+ (Node 24+) :** après `npm install`, vérifiez que les modules natifs ont été installés :
-> `node -e "require('better-sqlite3')"`. Si la commande échoue avec `MODULE_NOT_FOUND`,
-> exécutez `npm approve-scripts better-sqlite3 && npm install`. Consultez
+> **Utilisateurs de npm v11+ (Node 24+) :** Après `npm install`, vérifiez que les modules natifs ont été installés :
+> `node -e "require('better-sqlite3')"`. Si cette commande échoue avec `MODULE_NOT_FOUND`,
+> exécutez `npm approve-scripts better-sqlite3 && npm install`. Consultez la section
 > [Dépannage](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
 
 - **Git**
@@ -30,7 +30,7 @@ cd OmniRoute
 npm install
 ```
 
-### Variables d'environnement
+### Variables d’environnement
 
 ```bash
 # Créez votre fichier .env à partir du modèle
@@ -43,26 +43,26 @@ echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 
 Variables principales pour le développement :
 
-| Variable               | Valeur par défaut en développement | Description                        |
-| ---------------------- | ---------------------------------- | ---------------------------------- |
-| `PORT`                 | `20128`                            | Port du serveur                    |
-| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`           | URL de base de l'interface         |
-| `JWT_SECRET`           | (à générer ci-dessus)              | Secret de signature JWT            |
-| `INITIAL_PASSWORD`     | `CHANGEME`                         | Mot de passe de première connexion |
-| `APP_LOG_LEVEL`        | `info`                             | Niveau de verbosité des journaux   |
+| Variable               | Valeur par défaut en développement | Description                            |
+| ---------------------- | ---------------------------------- | -------------------------------------- |
+| `PORT`                 | `20128`                            | Port du serveur                        |
+| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`           | URL de base de l’interface utilisateur |
+| `JWT_SECRET`           | (généré ci-dessus)                 | Secret de signature JWT                |
+| `INITIAL_PASSWORD`     | `CHANGEME`                         | Mot de passe de première connexion     |
+| `APP_LOG_LEVEL`        | `info`                             | Niveau de verbosité des journaux       |
 
 ### Paramètres du tableau de bord
 
-Le tableau de bord fournit des options d'interface pour des fonctionnalités qui peuvent également être configurées au moyen de variables d'environnement :
+Le tableau de bord fournit des options d’interface pour des fonctionnalités qui peuvent également être configurées au moyen de variables d’environnement :
 
 | Emplacement du paramètre | Option                          | Description                                              |
 | ------------------------ | ------------------------------- | -------------------------------------------------------- |
 | Paramètres → Avancé      | Mode de débogage                | Activer les journaux de requêtes de débogage (interface) |
 | Paramètres → Général     | Visibilité de la barre latérale | Afficher/masquer les sections de la barre latérale       |
 
-Ces paramètres sont stockés dans la base de données et persistent après les redémarrages, remplaçant les valeurs par défaut des variables d'environnement lorsqu'ils sont définis.
+Ces paramètres sont stockés dans la base de données et persistent après les redémarrages. Lorsqu’ils sont définis, ils remplacent les valeurs par défaut des variables d’environnement.
 
-### Exécution en local
+### Exécution locale
 
 ```bash
 # Mode développement (rechargement à chaud)
@@ -72,47 +72,47 @@ npm run dev
 npm run build    # next build → .build/next/ puis assembleStandalone → dist/
 npm run start
 
-# Compilation rapide du backend/de l'API uniquement pour les modifications des contributeurs
+# Compilation rapide du backend/de l’API uniquement pour les modifications des contributeurs
 npm run build:contributor
 
-# Build de publication (reconstruction propre + sentinelle HEAD — requis pour le déploiement)
+# Build de publication (reconstruction complète + sentinelle HEAD — requis pour le déploiement)
 npm run build:release   # rm -rf .build dist && build + écrit dist/BUILD_SHA
 
 # Configuration courante du port
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Le build pour les contributeurs effectue uniquement une validation de la compilation : il n'assemble pas la
-distribution autonome et ne génère pas les ressources facultatives de packaging natif. Utilisez le build de production standard lorsque
+Le build destiné aux contributeurs effectue uniquement une validation de la compilation : il n’assemble pas la
+distribution autonome et ne génère pas les ressources facultatives du paquet natif. Utilisez le build de production standard lorsque
 vous devez valider le bundle distribuable.
 
-### Structure des fichiers générés par le build
+### Structure des résultats du build
 
-| Répertoire | Contenu                                                                                     | Suivi par Git |
-| ---------- | ------------------------------------------------------------------------------------------- | ------------- |
-| `src/`     | Code source de l'application (TypeScript / TSX)                                             | Oui           |
-| `.build/`  | Fichiers intermédiaires — sortie de `next build` (ignorée par Git, `distDir = .build/next`) | Non           |
-| `dist/`    | Bundle distribuable — assemblé par `assembleStandalone` (ignoré par Git)                    | Non           |
+| Répertoire | Contenu                                                                                      | Suivi par Git |
+| ---------- | -------------------------------------------------------------------------------------------- | ------------- |
+| `src/`     | Code source de l’application (TypeScript / TSX)                                              | Oui           |
+| `.build/`  | Fichiers intermédiaires — résultat de `next build` (ignoré par Git, `distDir = .build/next`) | Non           |
+| `dist/`    | Bundle distribuable — assemblé par `assembleStandalone` (ignoré par Git)                     | Non           |
 
-Le pipeline de build s'effectue en un seul passage :
+Le pipeline de build s’effectue en une seule passe :
 
 ```
 npm run build
-  └─ next build → .build/next/standalone  (sortie de Next.js)
-  └─ assembleStandalone()                 (copie les fichiers autonomes + statiques + publics + les ressources natives)
-       └─ sortie : dist/                  (server.js, .next/static/, public/, node_modules/)
+  └─ next build → .build/next/standalone  (résultat de Next.js)
+  └─ assembleStandalone()                 (copie les éléments autonomes, statiques, publics et natifs)
+       └─ résultat : dist/                (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` nettoie également les deux répertoires au préalable et écrit
-`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) comme sentinelle d'intégrité du déploiement.
+`npm run build:release` nettoie en outre préalablement les deux répertoires et écrit
+`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) comme sentinelle d’intégrité du déploiement.
 
-`npm run build:contributor` utilise le profil de build du backend uniquement. Il remplace temporairement par des stubs
-les fichiers d'interface du tableau de bord pendant le build, conserve les gestionnaires de routes de l'API et restaure les fichiers d'origine
-après le build. Utilisez `npm run build` pour les modifications qui affectent l'interface du tableau de bord ou pour une
-validation complète de la publication ; le profil pour les contributeurs ne remplace pas le build de publication.
+`npm run build:contributor` utilise le profil de build réservé au backend. Il remplace temporairement par des stubs
+les fichiers de l’interface du tableau de bord pendant le build, conserve les gestionnaires de routes de l’API et restaure les fichiers d’origine
+après le build. Utilisez `npm run build` pour les modifications qui affectent l’interface du tableau de bord ou pour une
+validation complète de la publication ; le profil destiné aux contributeurs ne remplace pas le build de publication.
 
-> **Remarque concernant le déploiement sur VPS :** le répertoire distant de l'image `/usr/lib/node_modules/omniroute/app/`
-> reste inchangé. Les procédures de déploiement synchronisent le contenu de `dist/` avec celui-ci à l'aide de rsync.
+> **Remarque concernant le déploiement sur VPS :** le répertoire distant de l’image `/usr/lib/node_modules/omniroute/app/`
+> reste inchangé. Les outils de déploiement synchronisent le contenu de `dist/` vers celui-ci avec rsync.
 > Seul le chemin de sortie du build dans le dépôt a changé (`app/` → `dist/`).
 
 URL par défaut :
@@ -290,33 +290,33 @@ Consultez `open-sse/utils/stream.ts` et `open-sse/utils/streamHandler.ts` pour d
 
 ```
 src/                        # TypeScript (.ts / .tsx)
-├── app/                    # App Router de Next.js 16
+├── app/                    # Routeur d’application Next.js 16
 │   ├── (dashboard)/        # Pages du tableau de bord (23 sections)
 │   ├── api/                # Routes d’API (51 répertoires)
 │   └── login/              # Pages d’authentification (.tsx)
 ├── domain/                 # Moteur de politiques (policyEngine, comboResolver, costRules, etc.)
 ├── lib/                    # Logique métier principale (.ts)
 │   ├── a2a/                # Serveur du protocole Agent-to-Agent v0.3
-│   ├── acp/                # Registre de l’Agent Communication Protocol
+│   ├── acp/                # Registre du protocole de communication entre agents
 │   ├── compliance/         # Moteur de politiques de conformité
 │   ├── db/                 # Modules de domaine SQLite + 130 migrations
 │   ├── memory/             # Mémoire conversationnelle persistante
 │   ├── oauth/              # Fournisseurs, services et utilitaires OAuth
-│   ├── skills/             # Framework extensible de compétences
+│   ├── skills/             # Cadre extensible de compétences
 │   ├── usage/              # Suivi de l’utilisation et calcul des coûts
 │   └── localDb.ts          # Couche de réexportation uniquement — ne jamais ajouter de logique ici
-├── middleware/              # Middleware de requête (promptInjectionGuard)
+├── middleware/              # Middleware de requêtes (promptInjectionGuard)
 ├── mitm/                   # Proxy MITM (certificats, DNS, routage des cibles)
 ├── shared/
 │   ├── components/         # Composants React (.tsx)
-│   ├── constants/          # Définitions de fournisseurs (329), portées MCP, 19 stratégies de routage
+│   ├── constants/          # Définitions de fournisseurs (329), portées MCP, 20 stratégies de routage
 │   ├── utils/              # Disjoncteur, assainisseur, assistants d’authentification
 │   └── validation/         # Schémas Zod v4
 └── sse/                    # Pipeline de proxy SSE
 
 open-sse/                   # Espace de travail @omniroute/open-sse
 ├── executors/              # 150 modules d’exécution (classes d’exécution + assistants par fournisseur)
-├── handlers/               # 11 gestionnaires de requêtes (chat, réponses, embeddings, images, etc.)
+├── handlers/               # 11 gestionnaires de requêtes (chat, réponses, vectorisations, images, etc.)
 ├── mcp-server/             # Serveur MCP (110 outils uniques, 3 transports, 33 portées)
 ├── services/               # 178 services de premier niveau (combo, autoCombo, rateLimitManager, etc.)
 ├── translator/             # Convertisseurs de formats (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
@@ -334,9 +334,9 @@ tests/
 └── load/                   # Tests de charge
 
 docs/
-├── adr/                     # Registres des décisions architecturales
+├── adr/                     # Registres des décisions d’architecture
 ├── architecture/            # Architecture et résilience du système
-├── comparison/              # OmniRoute comparé aux solutions alternatives
+├── comparison/              # OmniRoute par rapport aux solutions alternatives
 ├── compression/             # Guides et règles de compression
 ├── dev/                     # Guides de développement
 ├── diagrams/                # Diagrammes d’architecture
@@ -348,7 +348,7 @@ docs/
 ├── providers/               # Documentation propre aux fournisseurs
 ├── reference/               # Référence de l’API, variables d’environnement, outils CLI, offres gratuites
 ├── releases/                # Notes de version
-├── routing/                 # Moteur auto-combo, relecture du raisonnement
+├── routing/                 # Moteur de combinaison automatique, relecture du raisonnement
 ├── screenshots/             # Captures d’écran du tableau de bord
 ├── security/                # Garde-fous, conformité, furtivité, jetons
 └── specs/                   # Spécifications de conception

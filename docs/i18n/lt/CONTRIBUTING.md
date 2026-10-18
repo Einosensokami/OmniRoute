@@ -17,13 +17,13 @@ aprėptimi ir suderinimo veiksmais.
 
 ### Būtinosios sąlygos
 
-- **Node.js** `>=22.22.3 <23` arba `>=24.0.0 <27` (rekomenduojama: 24 LTS)
+- **Node.js** `>=22.22.2 <23` arba `>=24.0.0 <27` (rekomenduojama: 24 LTS)
 - **npm** 10+
 
-> **npm v11+ naudotojams (Node 24+):** Paleidę `npm install`, patikrinkite, ar įdiegti savieji moduliai:
-> `node -e "require('better-sqlite3')"`. Jei komanda nepavyksta ir pateikiama klaida `MODULE_NOT_FOUND`,
+> **npm v11+ naudotojams (Node 24+):** Po `npm install` patikrinkite, ar buvo įdiegti savieji moduliai:
+> `node -e "require('better-sqlite3')"`. Jei komanda nepavyksta su klaida `MODULE_NOT_FOUND`,
 > paleiskite `npm approve-scripts better-sqlite3 && npm install`. Žr.
-> [Trikčių diagnostiką](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
+> [Trikčių šalinimą](docs/guides/TROUBLESHOOTING.md#npm-v11-better-sqlite3-not-installed-cannot-find-module).
 
 - **Git**
 
@@ -41,7 +41,7 @@ npm install
 # Sukurkite savo .env pagal šabloną
 cp .env.example .env
 
-# Sugeneruokite reikalingas slaptąsias reikšmes
+# Sugeneruokite būtinąsias slaptąsias reikšmes
 echo "JWT_SECRET=$(openssl rand -base64 48)" >> .env
 echo "API_KEY_SECRET=$(openssl rand -hex 32)" >> .env
 ```
@@ -51,21 +51,21 @@ Pagrindiniai kūrimui skirti kintamieji:
 | Kintamasis             | Numatytoji kūrimo reikšmė | Aprašymas                        |
 | ---------------------- | ------------------------- | -------------------------------- |
 | `PORT`                 | `20128`                   | Serverio prievadas               |
-| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`  | Kliento sąsajos bazinis URL      |
+| `NEXT_PUBLIC_BASE_URL` | `http://localhost:20128`  | Bazinis sąsajos URL              |
 | `JWT_SECRET`           | (sugeneruokite pirmiau)   | JWT pasirašymo paslaptis         |
 | `INITIAL_PASSWORD`     | `CHANGEME`                | Pirmojo prisijungimo slaptažodis |
 | `APP_LOG_LEVEL`        | `info`                    | Žurnalų išsamumo lygis           |
 
 ### Valdymo skydelio nustatymai
 
-Valdymo skydelyje pateikiami funkcijų UI jungikliai, kuriuos taip pat galima konfigūruoti naudojant aplinkos kintamuosius:
+Valdymo skydelyje pateikiami funkcijų jungikliai, kuriuos taip pat galima konfigūruoti naudojant aplinkos kintamuosius:
 
 | Nustatymo vieta           | Jungiklis                 | Aprašymas                               |
 | ------------------------- | ------------------------- | --------------------------------------- |
 | Nustatymai → Išplėstiniai | Derinimo režimas          | Įjungti derinimo užklausų žurnalus (UI) |
 | Nustatymai → Bendrieji    | Šoninės juostos matomumas | Rodyti / slėpti šoninės juostos skiltis |
 
-Šie nustatymai saugomi duomenų bazėje ir išlieka paleidus sistemą iš naujo, o juos nustačius pakeičiamos numatytosios aplinkos kintamųjų reikšmės.
+Šie nustatymai saugomi duomenų bazėje ir išlieka po paleidimo iš naujo, o juos nustačius jie pakeičia numatytąsias aplinkos kintamųjų reikšmes.
 
 ### Paleidimas vietoje
 
@@ -73,52 +73,52 @@ Valdymo skydelyje pateikiami funkcijų UI jungikliai, kuriuos taip pat galima ko
 # Kūrimo režimas (automatinis perkrovimas)
 npm run dev
 
-# Produkcinis kūrimas
+# Produkcinė versija
 npm run build    # next build → .build/next/, tada assembleStandalone → dist/
 npm run start
 
-# Spartus tik galinės sistemos / API kompiliavimas prisidedančiųjų pakeitimams
+# Spartus tik vidinės sistemos / API kompiliavimas bendraautorių pakeitimams
 npm run build:contributor
 
-# Leidimo kūrimas (švarus perkūrimas + HEAD kontrolinė reikšmė — būtina diegimui)
+# Leidimo versija (švarus perkompiliavimas + HEAD kontrolinis failas — būtina diegimui)
 npm run build:release   # rm -rf .build dist && build + įrašo dist/BUILD_SHA
 
 # Įprasta prievado konfigūracija
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 ```
 
-Prisidedantiesiems skirtas kūrimas atlieka tik kompiliavimo patikrą: jis nesurenka autonominio
-platinamojo paketo ir nekuria pasirinktinių savųjų paketavimo išteklių. Kai reikia
-patikrinti platinti paruoštą paketą, naudokite įprastą produkcinį kūrimą.
+Bendraautorių versijoje atliekama tik kompiliavimo patikra: ji nesurenka autonominio
+platinamojo paketo ir nekompiliuoja pasirenkamų savųjų paketavimo išteklių. Naudokite įprastą produkcinę versiją, kai
+reikia patikrinti platinimui paruoštą paketą.
 
-### Kūrimo išvesties struktūra
+### Sukompiliuotų failų struktūra
 
-| Katalogas | Turinys                                                                                   | Sekamas |
-| --------- | ----------------------------------------------------------------------------------------- | ------- |
-| `src/`    | Programos pirminis kodas (TypeScript / TSX)                                               | Taip    |
-| `.build/` | Tarpiniai failai — `next build` išvestis (git ignoruojama, `distDir = .build/next`)       | Ne      |
-| `dist/`   | Platinti paruoštas paketas — surenkamas naudojant `assembleStandalone` (git ignoruojamas) | Ne      |
+| Katalogas | Turinys                                                                                    | Sekamas |
+| --------- | ------------------------------------------------------------------------------------------ | ------- |
+| `src/`    | Programos šaltinio kodas (TypeScript / TSX)                                                | Taip    |
+| `.build/` | Tarpiniai failai — `next build` išvestis (Git ignoruojama, `distDir = .build/next`)        | Ne      |
+| `dist/`   | Platinimui paruoštas paketas — surenkamas naudojant `assembleStandalone` (Git ignoruojama) | Ne      |
 
-Kūrimo konvejeris vykdomas vienu etapu:
+Kompiliavimo konvejeris vykdomas vienu etapu:
 
 ```
 npm run build
   └─ next build → .build/next/standalone  (Next.js išvestis)
-  └─ assembleStandalone()                 (nukopijuoja autonominį paketą + statinius + viešuosius + savuosius išteklius)
+  └─ assembleStandalone()                 (nukopijuoja autonominius + statinius + viešuosius + savuosius išteklius)
        └─ išvestis: dist/                 (server.js, .next/static/, public/, node_modules/)
 ```
 
-`npm run build:release` taip pat pirmiausia išvalo abu katalogus ir įrašo
-`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) kaip diegimo vientisumo kontrolinę reikšmę.
+`npm run build:release` papildomai pirmiausia išvalo abu katalogus ir įrašo
+`dist/BUILD_SHA` (= `git rev-parse --short HEAD`) kaip diegimo vientisumo kontrolinį failą.
 
-`npm run build:contributor` naudoja tik galinei sistemai skirtą kūrimo profilį. Kūrimo metu jis laikinai pakeičia
-valdymo skydelio UI failus imitaciniais failais, išsaugo API maršrutų apdorojimo programas ir po kūrimo atkuria pradinius failus.
-Pakeitimams, turintiems įtakos valdymo skydelio UI, arba visapusiškai leidimo patikrai naudokite `npm run build`;
-prisidedantiesiems skirtas profilis nepakeičia leidimo kūrimo.
+`npm run build:contributor` naudoja tik vidinei sistemai skirtą kompiliavimo profilį. Kompiliavimo metu jis laikinai pakeičia
+valdymo skydelio UI failus pakaitiniais failais, išsaugo API maršrutų apdorojimo funkcijas ir po kompiliavimo atkuria originalius failus.
+Pakeitimams, kurie turi įtakos valdymo skydelio UI, arba visapusiškai leidimo patikrai naudokite `npm run build`;
+bendraautorių profilis nepakeičia leidimo versijos.
 
 > **Pastaba dėl diegimo VPS:** nuotolinis atvaizdo katalogas `/usr/lib/node_modules/omniroute/app/`
 > nepasikeitė. Diegimo priemonės sinchronizuoja `dist/` turinį į jį naudodamos rsync.
-> Pasikeitė tik saugyklos viduje esantis kūrimo išvesties kelias (`app/` → `dist/`).
+> Pasikeitė tik saugykloje esantis kompiliavimo išvesties kelias (`app/` → `dist/`).
 
 Numatytieji URL:
 
@@ -302,36 +302,36 @@ src/                        # TypeScript (.ts / .tsx)
 │   ├── (dashboard)/        # Valdymo skydelio puslapiai (23 skyriai)
 │   ├── api/                # API maršrutai (51 katalogas)
 │   └── login/              # Autentifikavimo puslapiai (.tsx)
-├── domain/                 # Taisyklių modulis (policyEngine, comboResolver, costRules ir kt.)
+├── domain/                 # Politikų modulis (policyEngine, comboResolver, costRules ir kt.)
 ├── lib/                    # Pagrindinė verslo logika (.ts)
-│   ├── a2a/                # „Agent-to-Agent“ v0.3 protokolo serveris
-│   ├── acp/                # „Agent Communication Protocol“ registras
-│   ├── compliance/         # Atitikties taisyklių modulis
-│   ├── db/                 # SQLite domeno moduliai ir 130 migracijų
+│   ├── a2a/                # Agent-to-Agent v0.3 protokolo serveris
+│   ├── acp/                # Agent Communication Protocol registras
+│   ├── compliance/         # Atitikties politikų modulis
+│   ├── db/                 # SQLite domeno moduliai + 130 migracijų
 │   ├── memory/             # Nuolatinė pokalbių atmintis
 │   ├── oauth/              # OAuth teikėjai, paslaugos ir pagalbinės priemonės
-│   ├── skills/             # Išplečiama įgūdžių sistema
+│   ├── skills/             # Išplečiamoji įgūdžių sistema
 │   ├── usage/              # Naudojimo stebėjimas ir sąnaudų skaičiavimas
-│   └── localDb.ts          # Tik pakartotinio eksportavimo sluoksnis — niekada čia nedėkite logikos
+│   └── localDb.ts          # Tik reeksportavimo sluoksnis — niekada čia nepridėkite logikos
 ├── middleware/              # Užklausų tarpinė programinė įranga (promptInjectionGuard)
-├── mitm/                   # MITM tarpinis serveris (sertifikatai, DNS, paskirties maršrutizavimas)
+├── mitm/                   # MITM tarpinis serveris (sertifikatai, DNS, paskirties maršruto parinkimas)
 ├── shared/
 │   ├── components/         # React komponentai (.tsx)
-│   ├── constants/          # Teikėjų aprašai (329), MCP aprėptys, 19 maršrutizavimo strategijų
-│   ├── utils/              # Grandinės pertraukiklis, duomenų valymo ir autentifikavimo pagalbinės priemonės
+│   ├── constants/          # Teikėjų aprašai (329), MCP aprėptys, 20 maršruto parinkimo strategijų
+│   ├── utils/              # Grandinės pertraukiklis, valymo priemonė, autentifikavimo pagalbinės funkcijos
 │   └── validation/         # Zod v4 schemos
-└── sse/                    # SSE tarpinio serverio konvejeris
+└── sse/                    # SSE tarpinio serverio apdorojimo seka
 
 open-sse/                   # @omniroute/open-sse darbo sritis
-├── executors/              # 150 vykdytojų modulių (vykdytojų klasės ir kiekvienam teikėjui skirtos pagalbinės priemonės)
-├── handlers/               # 11 užklausų apdorojimo programų (pokalbiai, atsakymai, įterpiniai, vaizdai ir kt.)
+├── executors/              # 150 vykdytojų modulių (vykdytojų klasės + kiekvienam teikėjui skirtos pagalbinės priemonės)
+├── handlers/               # 11 užklausų apdorojimo priemonių (pokalbiai, atsakymai, vektorinės reprezentacijos, vaizdai ir kt.)
 ├── mcp-server/             # MCP serveris (110 unikalių įrankių, 3 perdavimo būdai, 33 aprėptys)
-├── services/               # 178 aukščiausiojo lygio paslaugos (combo, autoCombo, rateLimitManager ir kt.)
+├── services/               # 178 aukščiausio lygmens paslaugos (combo, autoCombo, rateLimitManager ir kt.)
 ├── translator/             # Formatų keitikliai (OpenAI ↔ Claude ↔ Gemini ↔ Responses ↔ Ollama)
 ├── transformer/            # Responses API transformavimo priemonė
-└── utils/                  # 22 pagalbinių priemonių moduliai (srautai, TLS, tarpinis serveris, žurnalų rašymas)
+└── utils/                  # 22 pagalbinių priemonių moduliai (srautas, TLS, tarpinis serveris, žurnalų rašymas)
 
-electron/                   # Electron darbalaukio programa (įvairioms platformoms)
+electron/                   # Electron darbalaukio programa (skirta kelioms platformoms)
 
 tests/
 ├── unit/                   # Node.js testų vykdymo priemonė (1 574 testų failai)
@@ -342,21 +342,21 @@ tests/
 └── load/                   # Apkrovos testai
 
 docs/
-├── adr/                     # Architektūros sprendimų įrašai
+├── adr/                     # Architektūrinių sprendimų įrašai
 ├── architecture/            # Sistemos architektūra ir atsparumas
-├── comparison/              # OmniRoute palyginimas su alternatyvomis
+├── comparison/              # OmniRoute ir alternatyvų palyginimas
 ├── compression/             # Glaudinimo vadovai ir taisyklės
 ├── dev/                     # Kūrimo vadovai
 ├── diagrams/                # Architektūros diagramos
-├── frameworks/              # MCP, A2A, OpenCode, atmintis, įgūdžiai
+├── frameworks/              # MCP, A2A, OpenCode, Memory, Skills
 ├── guides/                  # Naudotojo vadovas, Docker, sąranka, trikčių šalinimas
-├── i18n/                    # Lokalizuoti README vertimai
+├── i18n/                    # Internacionalizuoti README vertimai
 ├── marketing/               # Rinkodaros medžiaga
 ├── ops/                     # Diegimas, tarpinis serveris, aprėptis, leidimai
 ├── providers/               # Konkretiems teikėjams skirta dokumentacija
 ├── reference/               # API žinynas, aplinkos kintamieji, CLI įrankiai, nemokami planai
 ├── releases/                # Leidimų pastabos
-├── routing/                 # Automatinio derinių parinkimo modulis, samprotavimo pakartojimas
+├── routing/                 # Automatinio derinių parinkimo modulis, samprotavimo atkūrimas
 ├── screenshots/             # Valdymo skydelio ekrano kopijos
 ├── security/                # Apsaugos priemonės, atitiktis, slaptumas, prieigos raktai
 └── specs/                   # Projektavimo specifikacijos
