@@ -114,32 +114,32 @@ E2E, bez żadnej etykiety.
 
 ### Przed wydaniem
 
-- [ ] Wszystkie PR-y przeznaczone do tego wydania są scalone z `release/vX.Y.0`
-- [ ] Wszystkie otwarte elementy Linear/zgłoszenia dla tej wersji są zamknięte lub przeniesione do następnego kamienia milowego
-- [ ] CI ma zielony status na gałęzi `release/vX.Y.0`
+- [ ] Wszystkie PR-y przeznaczone do tego wydania zostały scalone z `release/vX.Y.0`
+- [ ] Wszystkie otwarte elementy w Linear/zgłoszenia dotyczące tej wersji zostały zamknięte lub przeniesione do następnego kamienia milowego
+- [ ] CI działa poprawnie na gałęzi `release/vX.Y.0`
 - [ ] Brak znaczników `TODO(release)` w kodzie: `grep -r "TODO(release)" src/ open-sse/`
 - [ ] Bazowy obraz Docker jest aktualny (obecnie `node:24.15.0-trixie-slim`)
 
 ### Wersja i dziennik zmian
 
 - [ ] Uruchom `/version-bump-cc <patch|minor|major>` (umiejętność Claude Code)
-  - Aktualizuje wersję w `package.json`, `electron/package.json`
+  - Aktualizuje wersje w `package.json`, `electron/package.json`
   - Ponownie generuje `CHANGELOG.md` na podstawie commitów git od ostatniego tagu
-  - Aktualizuje plakietki w README.md
+  - Aktualizuje odznaki w README.md
 - [ ] Ręcznie przejrzyj CHANGELOG.md i w razie potrzeby popraw komunikaty commitów
 - [ ] Upewnij się, że najnowsza sekcja semver w `CHANGELOG.md` odpowiada wersji w `package.json`
-- [ ] Zachowaj `## [Unreleased]` jako pierwszą sekcję dziennika zmian dla przyszłych prac
+- [ ] Zachowaj `## [Unreleased]` jako pierwszą sekcję dziennika zmian przeznaczoną na nadchodzące prace
 - [ ] Zaktualizuj `docs/openapi.yaml` → `info.version` musi odpowiadać wersji w `package.json`
 
 ### Jakość kodu
 
-- [ ] `npm run lint` — 0 błędów (ostrzeżenia istniały wcześniej)
+- [ ] `npm run lint` — 0 błędów (ostrzeżenia istniały już wcześniej)
 - [ ] `npm run typecheck:core` — bez błędów
 - [ ] `npm run typecheck:noimplicit:core` — bez błędów (tryb ścisły)
-- [ ] `npm run check:cycles:ratchet` — `cycles ≤ metrics.cycles.value` (`quality-baseline.json`; `check:cycles`: `cycles > 0 → exit 1`, #15281)
+- [ ] `npm run check:cycles:ratchet` — w granicach zamrożonego limitu `metrics.cycles` (samo `check:cycles` kończy się kodem 1 przy wykryciu dowolnego cyklu, #15281)
 - [ ] `npm run check:any-budget:t11` — w granicach budżetu
 - [ ] `npm run check:route-validation:t06` — bez błędów
-- [ ] `npm run check:node-runtime` — spełniono minimalne wymagania obsługiwanego środowiska uruchomieniowego (`>=22.22.2 <23`, `>=24.0.0 <27`, zgodnie z `SUPPORTED_NODE_RANGE` w `src/shared/utils/nodeRuntimeSupport.ts`; spójne z `engines` w `package.json`)
+- [ ] `npm run check:node-runtime` — spełniono minimalne wymagania obsługiwanego środowiska uruchomieniowego (`>=22.22.2 <23`, `>=24.0.0 <27`, zgodnie z `SUPPORTED_NODE_RANGE` w `src/shared/utils/nodeRuntimeSupport.ts`; zgodne z `engines` w `package.json`)
 
 ### Testowanie
 
@@ -147,9 +147,9 @@ E2E, bez żadnej etykiety.
 - [ ] `npm run test:vitest` — zakończone powodzeniem (serwer MCP, autoCombo, pamięć podręczna)
 - [ ] `npm run test:coverage` — spełniony próg 60/60/60/60 (instrukcje/wiersze/funkcje/gałęzie)
 - [ ] `npm run test:integration` — zakończone powodzeniem (jeśli zmiany dotyczą bazy danych / procedur obsługi)
-- [ ] `npm run test:combo:matrix` — zakończone powodzeniem (macierz strategii combo: deterministycznie potwierdza decyzje wyboru wszystkich 19 publicznych strategii routingu; uruchamiaj przy zmianach dotyczących routingu combo, rozstrzygania strategii lub logiki mechanizmu rezerwowego)
-- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **opcjonalne/ręczne** (test dymny z kontrolowanym dostępem do rzeczywistych usług nadrzędnych; pobiera migawkę bazy danych tylko do odczytu z VPS `root@192.168.0.15`; korzysta z rzeczywistych dostawców i zużywa środki; nigdy nie jest uruchamiany w CI; jest prawidłowo pomijany bez odpowiedniego zezwolenia)
-- [ ] `npm run test:combo:live:vps` — **opcjonalne/ręczne** (test dymny na żywo VPS fazy 3: 7 scenariuszy HTTP względem działającego serwera `.15` przy użyciu zwykłego Node ESM; wymaga `ssh root@192.168.0.15`; tworzy/usuwa wyłącznie combo `__live_test__*`; korzysta z rzeczywistych dostawców; nigdy nie jest uruchamiany w CI)
+- [ ] `npm run test:combo:matrix` — zakończone powodzeniem (macierz strategii combo: deterministycznie potwierdza decyzje wyboru wszystkich 19 publicznych strategii routingu; uruchom w przypadku zmian w routingu combo, rozstrzyganiu strategii lub logice mechanizmu rezerwowego)
+- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **opcjonalne/ręczne** (warunkowy test dymny z rzeczywistymi usługami nadrzędnymi; pobiera migawkę bazy danych tylko do odczytu z VPS `root@192.168.0.15`; korzysta z rzeczywistych dostawców i zużywa środki; nigdy nie jest uruchamiany w CI; bez ustawienia warunku jest pomijany bez błędów)
+- [ ] `npm run test:combo:live:vps` — **opcjonalne/ręczne** (test dymny VPS na żywo fazy 3: 7 scenariuszy HTTP wykonywanych na działającym serwerze `.15` przez zwykły Node ESM; wymaga `ssh root@192.168.0.15`; tworzy/usuwa wyłącznie kombinacje `__live_test__*`; korzysta z rzeczywistych dostawców; nigdy nie jest uruchamiany w CI)
 - [ ] `npm run test:e2e` — zakończone powodzeniem (zmiany interfejsu użytkownika)
 - [ ] `npm run test:protocols:e2e` — zakończone powodzeniem (zmiany MCP/A2A)
 - [ ] `npm run test:ecosystem` — zakończone powodzeniem
@@ -160,60 +160,60 @@ Hooki Husky znajdują się w `.husky/` i są uruchamiane automatycznie podczas o
 
 - **pre-commit:** `npx lint-staged + node scripts/check/check-docs-sync.mjs + npm run check:any-budget:t11`
 - **pre-push:** szybkie, deterministyczne mechanizmy kontrolne — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (aktywowane 2026-06-13). Celowo pomija `test:unit` (wolne; objęte zadaniem CI `test-unit`).
-  - Uruchom `npm run test:unit` ręcznie przed wypchnięciem gałęzi wydań.
+  - Przed wypchnięciem gałęzi wydania uruchom ręcznie `npm run test:unit`.
 
-Jeśli hook zakończy się niepowodzeniem: napraw przyczynę problemu, nie pomijaj go za pomocą `--no-verify`.
+Jeśli hook zakończy się niepowodzeniem: napraw podstawowy problem, nie omijaj go za pomocą `--no-verify`.
 
 ### Conventional Commits
 
-Wszystkie commity przeznaczone do wydania muszą mieć format `type(scope): subject`.
+Wszystkie commity przeznaczone do wydania muszą być zgodne z formatem `type(scope): subject`.
 
 **Dozwolone typy:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `ci`
 
 **Dozwolone zakresy:** `db`, `sse`, `oauth`, `dashboard`, `api`, `cli`, `docker`, `ci`, `mcp`, `a2a`, `memory`, `skills`, `cloud-agent`, `guardrails`, `compression`, `auto-combo`, `resilience`, `providers`, `executors`, `translator`, `domain`, `authz`
 
-Zmiany niezgodne wstecznie: dodaj stopkę `BREAKING CHANGE:` lub `!` po zakresie (np. `feat(api)!: drop /v0`).
+Zmiany niekompatybilne wstecznie: dodaj stopkę `BREAKING CHANGE:` lub `!` po zakresie (np. `feat(api)!: drop /v0`).
 
 ### Dokumentacja
 
-- [ ] `npm run check:docs-sync` przechodzi pomyślnie (uruchamiane automatycznie przez pre-commit)
-- [ ] `npm run check:docs-all` przechodzi pomyślnie (zbiorcze sprawdzenie: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
-- [ ] `npm run check:env-doc-sync` kończy działanie z kodem 0 — kontrakt zmiennych środowiskowych między kodem ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` pozostaje spójny
-- [ ] `npm run check:doc-links` kończy działanie z kodem 0 — brak uszkodzonych wewnętrznych odwołań Markdown po zmianie struktury
-- [ ] Sprawdzono `docs/architecture/ARCHITECTURE.md` pod kątem rozbieżności dotyczących pamięci masowej/środowiska uruchomieniowego
-- [ ] Sprawdzono `docs/guides/TROUBLESHOOTING.md` pod kątem rozbieżności dotyczących zmiennych środowiskowych i działania
+- [ ] `npm run check:docs-sync` kończy się powodzeniem (uruchamiane automatycznie przez pre-commit)
+- [ ] `npm run check:docs-all` kończy się powodzeniem (zbiorcza kontrola: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
+- [ ] `npm run check:env-doc-sync` kończy się kodem 0 — kontrakt zmiennych środowiskowych między kodem ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` pozostaje spójny
+- [ ] `npm run check:doc-links` kończy się kodem 0 — brak uszkodzonych wewnętrznych odwołań markdown po zmianie struktury
+- [ ] Plik `docs/architecture/ARCHITECTURE.md` został sprawdzony pod kątem rozbieżności dotyczących przechowywania danych/środowiska uruchomieniowego
+- [ ] Plik `docs/guides/TROUBLESHOOTING.md` został sprawdzony pod kątem rozbieżności dotyczących zmiennych środowiskowych i działania systemu
 - [ ] Jeśli zmieniono `.env.example`: zaktualizowano `docs/reference/ENVIRONMENT.md`
 - [ ] Jeśli nowa funkcja ma interfejs użytkownika: wspomniano o niej w `docs/guides/USER_GUIDE.md`
 - [ ] Jeśli nowa funkcja ma API: zaktualizowano `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml`
 - [ ] Jeśli nowa funkcja jest modułem: istnieje dedykowany plik `docs/<MODULE>.md`
-- [ ] Jeśli zmiana narusza zgodność wsteczną: `docs/guides/TROUBLESHOOTING.md` zawiera notę migracyjną
+- [ ] Jeśli jest to zmiana niekompatybilna wstecznie: `docs/guides/TROUBLESHOOTING.md` zawiera informację dotyczącą migracji
 
 ### i18n
 
-- [ ] `npm run i18n:check` kończy działanie z kodem 0 — stan tłumaczeń (`.i18n-state.json`) jest zsynchronizowany z dokumentacją źródłową (brak rozbieżnych źródeł w trybie ścisłym; ostrzeżenie w trybie ostrzegawczym jest dopuszczalne w przypadku poprawek dokumentacji w ostatniej chwili, ale przed utworzeniem tagu wynik powinien wynosić 0)
-- [ ] `npm run i18n:check-ui-coverage` kończy działanie z kodem 0 — każda lokalizacja interfejsu użytkownika osiąga lub przekracza minimalny próg pokrycia wynoszący 80%
-- [ ] `npm run i18n:sync-ui:dry` zgłasza 0 brakujących kluczy we wszystkich 42 lokalizacjach
-- [ ] Jeśli zmieniła się źródłowa dokumentacja w języku angielskim, przed utworzeniem tagu uruchom `npm run i18n:run` (wymaga `OMNIROUTE_TRANSLATION_API_KEY` w `.env`)
-- [ ] Drobne zmiany w tłumaczeniach można odłożyć do następnego wydania (należy je śledzić w CHANGELOG)
+- [ ] `npm run i18n:check` kończy się kodem 0 — stan tłumaczeń (`.i18n-state.json`) jest zsynchronizowany z dokumentami źródłowymi (brak rozbieżnych źródeł w trybie ścisłym; ostrzeżenia w trybie ostrzegawczym są akceptowalne w przypadku poprawek dokumentacji w ostatniej chwili, ale przed oznaczeniem tagiem wynik powinien wynosić 0)
+- [ ] `npm run i18n:check-ui-coverage` kończy się kodem 0 — każdy język interfejsu użytkownika osiąga co najmniej próg pokrycia wynoszący 80%
+- [ ] `npm run i18n:sync-ui:dry` zgłasza 0 brakujących kluczy we wszystkich 66 językach docelowych (każdy język poza źródłowym `en`)
+- [ ] Jeśli zmieniono źródłową dokumentację angielską, przed oznaczeniem tagiem uruchom `npm run i18n:run` (wymaga `OMNIROUTE_TRANSLATION_API_KEY` w `.env`)
+- [ ] Wkład w tłumaczenia można odłożyć do następnego wydania, jeśli zmiany są niewielkie (odnotuj to w CHANGELOG)
 
 ### Migracje bazy danych
 
 - [ ] Jeśli katalog `src/lib/db/migrations/` zawiera nowe pliki:
   - [ ] Każda migracja jest idempotentna (`CREATE TABLE IF NOT EXISTS` itd.)
   - [ ] Migracje są opakowane w transakcje
-  - [ ] Numeracja jest poprawna (brak luk w sekwencji)
-- [ ] Test na czystej instalacji: usuń `~/.omniroute/omniroute.db` i uruchom `npm run dev`
-- [ ] Test na istniejącej instalacji: utwórz kopię zapasową bazy danych, uruchom migrację i zweryfikuj schemat
-- [ ] Pliki WAL (`-wal`, `-shm`) są prawidłowo obsługiwane, jeśli migracja ponownie zapisuje tabele
+  - [ ] Numeracja jest prawidłowa (bez luk w kolejności)
+- [ ] Przetestuj na świeżej instalacji: usuń `~/.omniroute/omniroute.db` i uruchom `npm run dev`
+- [ ] Przetestuj na istniejącej instalacji: wykonaj kopię zapasową bazy danych, uruchom migrację i zweryfikuj schemat
+- [ ] Pliki WAL (`-wal`, `-shm`) są prawidłowo obsługiwane, jeśli migracja przepisuje tabele
 
 ### Katalog dostawców (walidowany przez Zod)
 
 - [ ] Schemat Zod w `src/shared/constants/providers.ts` jest prawidłowy podczas ładowania
   - [ ] Wszyscy dostawcy mają wymagane pola (`id`, `label`, `kind` itd.)
   - [ ] Dla nowych bezpłatnych dostawców podano `freeNote`
-  - [ ] Dostawcy OAuth mają `oauthConfig` zarejestrowane w `src/lib/oauth/constants/oauth.ts`
-- [ ] Jeśli dodano nowego dostawcę: odpowiedni executor znajduje się w `open-sse/executors/`
-- [ ] Jeśli format nie jest zgodny z OpenAI: translator znajduje się w `open-sse/translator/`
+  - [ ] Dostawcy OAuth mają konfigurację `oauthConfig` zarejestrowaną w `src/lib/oauth/constants/oauth.ts`
+- [ ] Jeśli dodano nowego dostawcę: istnieje odpowiadający mu executor w `open-sse/executors/`
+- [ ] Jeśli format jest inny niż OpenAI: istnieje translator w `open-sse/translator/`
 - [ ] Modele są zarejestrowane w `open-sse/config/providerRegistry.ts`
 - [ ] Testy jednostkowe w `tests/unit/` obejmują klasyfikację dostawców i routing
 
@@ -221,25 +221,25 @@ Zmiany niezgodne wstecznie: dodaj stopkę `BREAKING CHANGE:` lub `!` po zakresie
 
 Jeśli zmieniono `electron/`:
 
-- [ ] `npm run electron:smoke:packaged` przechodzi pomyślnie
-- [ ] Kompilacje przetestowano dla co najmniej jednego z wariantów `:win`, `:mac`, `:linux`
+- [ ] `npm run electron:smoke:packaged` kończy się powodzeniem
+- [ ] Kompilacje przetestowano dla co najmniej jednego z `:win`, `:mac`, `:linux`
 - [ ] Certyfikaty podpisywania kodu nie wygasły (jeśli używane jest podpisywanie)
 - [ ] Wersja w `electron/package.json` jest zgodna z głównym plikiem `package.json`
-- [ ] Wskaźnik kanału automatycznych aktualizacji został zaktualizowany w przypadku publikowania w kanale `stable`
+- [ ] Wskaźnik kanału automatycznych aktualizacji został zaktualizowany, jeśli wydanie trafia do `stable`
 
 ### Układ kompilacji
 
 Repozytorium używa trzech odrębnych katalogów wyjściowych — nigdy ich nie mieszaj:
 
-| Katalog   | Przeznaczenie                                                          | Śledzony?         |
-| --------- | ---------------------------------------------------------------------- | ----------------- |
-| `src/`    | Kod źródłowy aplikacji (TypeScript / TSX)                              | Tak               |
-| `.build/` | Pliki pośrednie kompilacji — dane wyjściowe `next build` (`distDir`)   | Nie (w gitignore) |
-| `dist/`   | Pakiet npm gotowy do dystrybucji — składany przez `assembleStandalone` | Nie (w gitignore) |
+| Katalog   | Przeznaczenie                                                  | Śledzony?         |
+| --------- | -------------------------------------------------------------- | ----------------- |
+| `src/`    | Kod źródłowy aplikacji (TypeScript / TSX)                      | Tak               |
+| `.build/` | Pliki pośrednie kompilacji — wynik `next build` (`distDir`)    | Nie (w gitignore) |
+| `dist/`   | Dystrybucyjny pakiet npm — tworzony przez `assembleStandalone` | Nie (w gitignore) |
 
-> **Uwaga dla operatora:** katalog obrazu na zdalnym VPS nadal znajduje się w `/usr/lib/node_modules/omniroute/app/`.
-> Zmienił się tylko wynik kompilacji **wewnątrz repozytorium** (`app/` → `dist/`). Mechanizmy wdrażania synchronizują
-> zawartość `dist/` przez rsync ze zdalnym katalogiem `app/` — nie są wymagane żadne zmiany ścieżek na VPS.
+> **Uwaga dla operatora:** katalog obrazu na zdalnym VPS nadal znajduje się pod ścieżką `/usr/lib/node_modules/omniroute/app/`.
+> Zmienił się tylko wynik kompilacji **wewnątrz repozytorium** (`app/` → `dist/`). Procedury wdrażania synchronizują
+> zawartość `dist/` przez rsync do zdalnego katalogu `app/` — zmiana ścieżek na VPS nie jest wymagana.
 
 **Przepływ pojedynczej kompilacji:**
 
@@ -247,28 +247,28 @@ Repozytorium używa trzech odrębnych katalogów wyjściowych — nigdy ich nie 
 npm run build:release
   └─ rm -rf .build dist          (czyszczenie)
   └─ next build → .build/next/   (pliki pośrednie)
-  └─ assembleStandalone          (kopiuje standalone + static + public + natives → dist/)
+  └─ assembleStandalone          (kopiuje pliki standalone + static + public + natywne → dist/)
   └─ writes dist/BUILD_SHA       (wartownik HEAD)
 ```
 
-NIE uruchamiaj `npm run build`, a następnie osobno `npm run build:cli` na potrzeby wdrożenia — użyj
-`npm run build:release`, które wykonuje czystą, ponowną kompilację i tworzy wartownik za pomocą jednego polecenia.
+W celu wdrożenia NIE uruchamiaj `npm run build`, a następnie osobno `npm run build:cli` — użyj
+`npm run build:release`, które wykonuje czystą przebudowę i zapisuje wartownik jednym poleceniem.
 
-### Walidacja artefaktów
+### Walidacja artefaktu
 
 - [ ] `npm run build:release` kończy się powodzeniem, a `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] `npm run check:pack-artifact` nie zgłasza problemów — brak `app.__qa_backup`, `scripts/scratch`, `package-lock.json` ani innych lokalnych pozostałości
+- [ ] `npm run check:pack-artifact` kończy się bez błędów — brak `app.__qa_backup`, `scripts/scratch`, `package-lock.json` lub innych lokalnych pozostałości
 - [ ] Po kompilacji istnieje `dist/server.js`
-- [ ] Opcjonalny lokalny test dymny spakowanego środowiska uruchomieniowego: `npm run dev:candidate -- validate` po wykonaniu `npm run dev:candidate -- build` uruchamia spakowany archiwum tar w izolowanym `DATA_DIR` i sprawdza `/api/health` + `/v1/models` (zobacz [Zalecany proces wnoszenia zmian](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
+- [ ] Opcjonalny lokalny test dymny spakowanego środowiska uruchomieniowego: `npm run dev:candidate -- validate` po `npm run dev:candidate -- build` uruchamia spakowane archiwum tar w odizolowanym `DATA_DIR` i sprawdza `/api/health` oraz `/v1/models` (zobacz [Zalecaną ścieżkę wnoszenia zmian](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
 
 ### Tagowanie i wydanie
 
-- [ ] Uruchom `/generate-release-cc` (mechanizm Claude Code):
+- [ ] Uruchom `/generate-release-cc` (procedura Claude Code):
   - Tworzy tag `vX.Y.Z`
   - Wypycha tag i gałąź
-  - Tworzy wydanie GitHub z treścią changelogu
-  - Dołącza instalatory Electron (jeśli zostały zbudowane)
-- [ ] Lub wykonaj czynności ręcznie:
+  - Tworzy GitHub Release z treścią dziennika zmian
+  - Dołącza instalatory Electron (jeśli je zbudowano)
+- [ ] Lub wykonaj ręcznie:
   ```bash
   git tag -a vX.Y.Z -m "Release vX.Y.Z"
   git push origin vX.Y.Z
@@ -277,14 +277,14 @@ NIE uruchamiaj `npm run build`, a następnie osobno `npm run build:cli` na potrz
 
 ### Wdrożenie
 
-Mechanizmy wdrażania używają lekkiego przepływu rsync — bez `npm pack` i bez `npm i -g`:
+Procedury wdrażania używają lekkiego przepływu rsync — bez `npm pack` i bez `npm i -g`:
 
-- [ ] Użyj skilla wdrożeniowego odpowiadającego środowisku docelowemu:
+- [ ] Użyj procedury wdrażania odpowiadającej środowisku docelowemu:
   - `/deploy-vps-local-cc` — lokalny VPS (192.168.0.15)
   - `/deploy-vps-akamai-cc` — VPS Akamai (69.164.221.35)
   - `/deploy-vps-both-cc` — oba
 - [ ] Przed wdrożeniem potwierdź, że `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] Kompilacja musi zostać uruchomiona w miejscu, w którym `node_modules` jest rzeczywistym katalogiem (główna kopia robocza lub worktree, w którym wykonano `npm ci` — NIE worktree z dowiązaniem symbolicznym)
+- [ ] Kompilacja musi zostać uruchomiona tam, gdzie `node_modules` jest rzeczywistym katalogiem (główny checkout lub worktree z wykonanym `npm ci` — NIE worktree używający dowiązania symbolicznego)
 - [ ] Przeprowadź test dymny wdrożonej instancji:
   - Otwórz `/dashboard/health` → sprawdź, czy ciąg wersji odpowiada wydaniu
   - Wykonaj żądanie `/v1/chat/completions` względem znanego dostawcy
@@ -293,28 +293,28 @@ Mechanizmy wdrażania używają lekkiego przepływu rsync — bez `npm pack` i b
 
 ### Po wydaniu
 
-- [ ] Uruchom `/capture-release-evidences-cc` (skill Claude Code)
-  - Rejestruje zrzuty ekranu/nagrania nowych funkcji w formacie WebP
+- [ ] Uruchom `/capture-release-evidences-cc` (procedura Claude Code)
+  - Rejestruje zrzuty ekranu/nagrania WebP przedstawiające nowe funkcje
   - Dołącza je do informacji o wydaniu / wpisu na blogu
 - [ ] Zaktualizuj GitHub Discussions / Discord, publikując ogłoszenie o wydaniu
 - [ ] Otwórz kamień milowy dla następnej wersji
 - [ ] Jeśli wydanie jest krytyczne: przypnij dyskusję lub opublikuj wpis w `news.json`, aby wyświetlić baner w aplikacji
 
-### Warunek uruchomienia publicznego Radaru
+### Bramka publicznego uruchomienia Radar
 
-Ogłoszenie Radaru zostało celowo zatwierdzone z ustawieniem `active: false`. Aktywacja jest osobną
-zmianą wykonywaną po udokumentowaniu każdego z poniższych punktów:
+Ogłoszenie Radar zostało celowo zatwierdzone z ustawieniem `active: false`. Aktywacja stanowi osobną
+zmianę wykonywaną po udokumentowaniu każdego z poniższych punktów:
 
-- [ ] Wszystkie powiązane PR-y Radaru zostały scalone, a CI dla końcowej wersji wydania zakończyło się powodzeniem
-- [ ] Wdróż i przetestuj dymnie trasy OSS Radaru, pozostawiając `RADAR_ENABLED` domyślnie wyłączone
-- [ ] Przetestuj dymnie `GET /planos`, `/termos`, `/privacidade` oraz `/reembolso` na wskazanym hoście Radaru
+- [ ] Wszystkie nałożone na siebie PR-y Radar zostały scalone, a CI dla końcówki wydania ma stan zielony
+- [ ] Wdróż i przetestuj dymnie trasy OSS Radar, gdy `RADAR_ENABLED` jest nadal domyślnie wyłączone
+- [ ] Przetestuj dymnie `GET /planos`, `/termos`, `/privacidade` oraz `/reembolso` na wskazanym hoście Radar
 - [ ] Zarejestruj tożsamość/dane kontaktowe/adres operatora oraz zatwierdzony przez właściciela przegląd prawny w prywatnej usłudze
-- [ ] Przetestuj Stripe Checkout oraz podpisany webhook wyłącznie w trybie testowym
-- [ ] Przetestuj jedną zaszyfrowaną dostawę wiadomości transakcyjnej z użyciem zatwierdzonego nadawcy/domeny
-- [ ] Potwierdź możliwość odtworzenia kopii zapasowej oraz przeprowadź jedno nadzorowane uruchomienie badawcze z ograniczonym budżetem
-- [ ] Zatwierdź zasady weryfikacji BRL/PIX przed rozpoczęciem przyjmowania dowodów wpłat
-- [ ] Włącz publiczny Checkout dopiero po spełnieniu powyższych warunków, a następnie aktywuj nowy identyfikator w `news.json`
-- [ ] Sprawdź, czy baner na stronie głównej używa zlokalizowanej treści oraz czy nowy identyfikator powoduje ponowne wyświetlenie banera po odrzuceniu starszego identyfikatora
+- [ ] Przetestuj Stripe Checkout i podpisany webhook wyłącznie w trybie testowym
+- [ ] Przetestuj jedną zaszyfrowaną dostawę wiadomości transakcyjnej od zatwierdzonego nadawcy/z zatwierdzonej domeny
+- [ ] Potwierdź przywracanie kopii zapasowej oraz jedno nadzorowane uruchomienie badawcze z limitem budżetu
+- [ ] Zatwierdź zasady przeglądu BRL/PIX przed zaakceptowaniem dowodu darowizny
+- [ ] Włącz publiczny Checkout dopiero po przejściu poprzednich bramek, a następnie aktywuj nowy identyfikator w `news.json`
+- [ ] Sprawdź, czy baner na stronie głównej używa zlokalizowanej treści oraz czy nowy identyfikator pojawia się po odrzuceniu starszego identyfikatora
 
 ## Testy dymne usług wbudowanych (v3.8.4+)
 

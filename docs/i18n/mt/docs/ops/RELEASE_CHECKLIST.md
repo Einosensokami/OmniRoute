@@ -114,54 +114,54 @@ awtomatikament, mingħajr ebda tikketta.
 ### Qabel ir-rilaxx
 
 - [ ] Il-PRs kollha mmirati għal dan ir-rilaxx huma magħquda f’`release/vX.Y.0`
-- [ ] L-elementi kollha miftuħa f’Linear/issues għal din il-verżjoni huma magħluqa jew imċaqalqa għall-milestone li jmiss
-- [ ] Is-CI hija ħadra fuq il-fergħa `release/vX.Y.0`
-- [ ] L-ebda markatur `TODO(release)` fil-kodiċi: `grep -r "TODO(release)" src/ open-sse/`
+- [ ] L-elementi kollha miftuħa f’Linear/jew bħala issues għal din il-verżjoni huma magħluqa jew imċaqalqa għall-istadju importanti li jmiss
+- [ ] Is-CI jirnexxi fuq il-fergħa `release/vX.Y.0`
+- [ ] Ma hemm l-ebda markatur `TODO(release)` fil-kodiċi: `grep -r "TODO(release)" src/ open-sse/`
 - [ ] L-immaġni bażi ta’ Docker hija aġġornata (bħalissa `node:24.15.0-trixie-slim`)
 
-### Verżjoni u Changelog
+### Verżjoni u Reġistru tal-Bidliet
 
-- [ ] Ħaddem `/version-bump-cc <patch|minor|major>` (skill ta’ Claude Code)
+- [ ] Ħaddem `/version-bump-cc <patch|minor|major>` (ħila ta’ Claude Code)
   - Jaġġorna l-verżjoni f’`package.json`, `electron/package.json`
-  - Jiġġenera mill-ġdid `CHANGELOG.md` mill-commits ta’ git mit-tikketta preċedenti
+  - Jiġġenera mill-ġdid `CHANGELOG.md` mill-commits ta’ git mill-aħħar tag
   - Jaġġorna l-badges ta’ README.md
-- [ ] Irrevedi CHANGELOG.md manwalment u rranġa l-messaġġi tal-commits jekk ikun meħtieġ
+- [ ] Irrevedi manwalment CHANGELOG.md u rranġa l-messaġġi tal-commits jekk meħtieġ
 - [ ] Żgura li l-aħħar taqsima semver f’`CHANGELOG.md` tkun daqs il-verżjoni f’`package.json`
-- [ ] Żomm `## [Unreleased]` bħala l-ewwel taqsima tal-changelog għax-xogħol li jmiss
-- [ ] Aġġorna `docs/openapi.yaml` → `info.version` trid tkun daqs il-verżjoni f’`package.json`
+- [ ] Żomm `## [Unreleased]` bħala l-ewwel taqsima tar-reġistru tal-bidliet għax-xogħol li jmiss
+- [ ] Aġġorna `docs/openapi.yaml` → `info.version` irid ikun daqs il-verżjoni f’`package.json`
 
 ### Kwalità tal-Kodiċi
 
 - [ ] `npm run lint` — 0 żbalji (it-twissijiet kienu diġà jeżistu)
-- [ ] `npm run typecheck:core` — nadif
-- [ ] `npm run typecheck:noimplicit:core` — nadif (strett)
-- [ ] `npm run check:cycles:ratchet` — `cycles ≤ metrics.cycles.value` (`quality-baseline.json`; `check:cycles`: `cycles > 0 → exit 1`, #15281)
-- [ ] `npm run check:any-budget:t11` — fil-limitu tal-baġit
-- [ ] `npm run check:route-validation:t06` — nadif
-- [ ] `npm run check:node-runtime` — il-limitu minimu tar-runtime appoġġjat huwa ssodisfat (`>=22.22.2 <23`, `>=24.0.0 <27`, skont `SUPPORTED_NODE_RANGE` f’`src/shared/utils/nodeRuntimeSupport.ts`; allinjat ma’ `engines` f’`package.json`)
+- [ ] `npm run typecheck:core` — mingħajr problemi
+- [ ] `npm run typecheck:noimplicit:core` — mingħajr problemi (strett)
+- [ ] `npm run check:cycles:ratchet` — fil-limitu massimu ffissat ta’ `metrics.cycles` (`check:cycles` waħdu joħroġ b’1 għal kwalunkwe ċiklu, #15281)
+- [ ] `npm run check:any-budget:t11` — fil-baġit
+- [ ] `npm run check:route-validation:t06` — mingħajr problemi
+- [ ] `npm run check:node-runtime` — intlaħaq il-livell minimu appoġġjat tar-runtime (`>=22.22.2 <23`, `>=24.0.0 <27`, skont `SUPPORTED_NODE_RANGE` f’`src/shared/utils/nodeRuntimeSupport.ts`; allinjat ma’ `engines` f’`package.json`)
 
 ### Ittestjar
 
-- [ ] `npm run test:unit` — jgħaddi
-- [ ] `npm run test:vitest` — jgħaddi (server MCP, autoCombo, cache)
-- [ ] `npm run test:coverage` — il-limitu 60/60/60/60 huwa ssodisfat (statements/lines/functions/branches)
-- [ ] `npm run test:integration` — jgħaddi (jekk il-bidliet imissu d-DB / handlers)
-- [ ] `npm run test:combo:matrix` — jgħaddi (matriċi tal-istrateġiji combo: tagħti prova deterministika tad-deċiżjonijiet tal-għażla tad-19-il strateġija pubblika tar-routing; ħaddimha meta tibdel il-combo routing, ir-riżoluzzjoni tal-istrateġija, jew il-loġika ta’ fallback)
-- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **mhux obbligatorju/manwali** (smoke test b’gate kontra upstream reali; jikseb snapshot read-only tad-DB minn VPS `root@192.168.0.15`; jaċċessa providers reali, jiswa krediti; qatt ma jitħaddem fis-CI; jinqabeż b’mod nadif mingħajr il-gate)
-- [ ] `npm run test:combo:live:vps` — **mhux obbligatorju/manwali** (smoke test live tal-VPS tal-Fażi 3: 7 xenarji HTTP kontra s-server live `.15` permezz ta’ Node ESM sempliċi; jeħtieġ `ssh root@192.168.0.15`; joħloq/iħassar biss combos `__live_test__*`; jaċċessa providers reali; qatt ma jitħaddem fis-CI)
-- [ ] `npm run test:e2e` — jgħaddi (bidliet fl-UI)
-- [ ] `npm run test:protocols:e2e` — jgħaddi (bidliet f’MCP/A2A)
-- [ ] `npm run test:ecosystem` — jgħaddi
+- [ ] `npm run test:unit` — jirnexxi
+- [ ] `npm run test:vitest` — jirnexxi (server MCP, autoCombo, cache)
+- [ ] `npm run test:coverage` — il-limitu 60/60/60/60 huwa ssodisfat (dikjarazzjonijiet/linji/funzjonijiet/fergħat)
+- [ ] `npm run test:integration` — jirnexxi (jekk il-bidliet jaffettwaw id-DB / handlers)
+- [ ] `npm run test:combo:matrix` — jirnexxi (matriċi tal-istrateġiji combo: tipprova b’mod deterministiku d-deċiżjonijiet tal-għażla tad-19-il strateġija pubblika tar-routing; ħaddmu meta tibdel ir-routing combo, ir-riżoluzzjoni tal-istrateġija, jew il-loġika ta’ fallback)
+- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **fakultattiv/manwali** (smoke test ikkontrollat b’gate fuq upstream reali; jikseb snapshot ta’ DB li jinqara biss mill-VPS `root@192.168.0.15`; jaċċessa providers reali u jiswa krediti; qatt ma jitħaddem fis-CI; jinqabeż mingħajr problemi meta l-gate ma jkunx preżenti)
+- [ ] `npm run test:combo:live:vps` — **fakultattiv/manwali** (smoke test live tal-VPS tal-Fażi 3: 7 xenarji HTTP kontra s-server live `.15` permezz ta’ Node ESM sempliċi; jeħtieġ `ssh root@192.168.0.15`; joħloq/iħassar biss combos `__live_test__*`; jaċċessa providers reali; qatt ma jitħaddem fis-CI)
+- [ ] `npm run test:e2e` — jirnexxi (bidliet fl-UI)
+- [ ] `npm run test:protocols:e2e` — jirnexxi (bidliet f’MCP/A2A)
+- [ ] `npm run test:ecosystem` — jirnexxi
 
 ### Hooks (Ivvalidati minn Husky)
 
 Il-hooks ta’ Husky jinsabu f’`.husky/` u jitħaddmu awtomatikament waqt operazzjonijiet ta’ git.
 
 - **pre-commit:** `npx lint-staged + node scripts/check/check-docs-sync.mjs + npm run check:any-budget:t11`
-- **pre-push:** kontrolli deterministiċi rapidi — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (attivati 2026-06-13). Jeskludu apposta `test:unit` (bil-mod; kopert mill-job `test-unit` tas-CI).
-  - Ħaddem `npm run test:unit` manwalment qabel tagħmel push tal-fergħat tar-rilaxx.
+- **pre-push:** gates veloċi u deterministiċi — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (attivati 2026-06-13). Jeskludu intenzjonalment `test:unit` (bil-mod; kopert mill-job `test-unit` tas-CI).
+  - Ħaddem `npm run test:unit` manwalment qabel timbotta l-fergħat tar-rilaxx.
 
-Jekk hook ifalli: irranġa l-problema sottostanti, taqbiżhiex b’`--no-verify`.
+Jekk hook ifalli: sewwi l-problema sottostanti, taqbiżhiex b’`--no-verify`.
 
 ### Commits Konvenzjonali
 
@@ -175,45 +175,45 @@ Bidliet inkompatibbli: żid footer `BREAKING CHANGE:` jew `!` wara l-ambitu (eż
 
 ### Dokumentazzjoni
 
-- [ ] `npm run check:docs-sync` jgħaddi (jitħaddem awtomatikament minn pre-commit)
-- [ ] `npm run check:docs-all` jgħaddi (komprensiv: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
-- [ ] `npm run check:env-doc-sync` joħroġ b’0 — il-kuntratt tal-varjabbli tal-ambjent bejn il-kodiċi ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` huwa intatt
-- [ ] `npm run check:doc-links` joħroġ b’0 — ebda referenza markdown interna miksura wara r-ristrutturar
-- [ ] `docs/architecture/ARCHITECTURE.md` ġie rieżaminat għal devjazzjonijiet fil-ħżin/runtime
-- [ ] `docs/guides/TROUBLESHOOTING.md` ġie rieżaminat għal devjazzjonijiet fil-varjabbli tal-ambjent u fl-operat
+- [ ] `npm run check:docs-sync` jirnexxi (jitħaddem awtomatikament minn pre-commit)
+- [ ] `npm run check:docs-all` jirnexxi (ġenerali: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
+- [ ] `npm run check:env-doc-sync` joħroġ b’0 — il-kuntratt tal-env bejn il-kodiċi ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` huwa intatt
+- [ ] `npm run check:doc-links` joħroġ b’0 — ma hemm l-ebda referenza interna miksura tal-markdown wara r-ristrutturar
+- [ ] `docs/architecture/ARCHITECTURE.md` ġie rivedut għal diskrepanzi fil-ħżin/runtime
+- [ ] `docs/guides/TROUBLESHOOTING.md` ġie rivedut għal diskrepanzi fil-varjabbli tal-env u fl-operat
 - [ ] Jekk `.env.example` inbidel: `docs/reference/ENVIRONMENT.md` ġie aġġornat
-- [ ] Jekk il-karatteristika l-ġdida għandha UI: `docs/guides/USER_GUIDE.md` isemmiha
-- [ ] Jekk il-karatteristika l-ġdida għandha API: `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml` ġew aġġornati
-- [ ] Jekk il-karatteristika l-ġdida hija modulu: jeżisti `docs/<MODULE>.md` iddedikat
-- [ ] Jekk hija bidla li tikser il-kompatibbiltà: `docs/guides/TROUBLESHOOTING.md` għandu nota dwar il-migrazzjoni
+- [ ] Jekk karatteristika ġdida għandha UI: `docs/guides/USER_GUIDE.md` isemmiha
+- [ ] Jekk karatteristika ġdida għandha API: `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml` ġew aġġornati
+- [ ] Jekk karatteristika ġdida hija modulu: jeżisti `docs/<MODULE>.md` iddedikat
+- [ ] Jekk hemm bidla inkompatibbli: `docs/guides/TROUBLESHOOTING.md` għandu nota dwar il-migrazzjoni
 
 ### i18n
 
-- [ ] `npm run i18n:check` joħroġ b’0 — l-istat tat-traduzzjoni (`.i18n-state.json`) huwa sinkronizzat mad-dokumentazzjoni sors (ebda sors b’devjazzjonijiet fil-modalità stretta; twissija fil-modalità ta’ twissija hija aċċettabbli għal irtokki tad-dokumentazzjoni fl-aħħar minuta, iżda għandu jkun 0 qabel l-ittikkettar)
-- [ ] `npm run i18n:check-ui-coverage` joħroġ b’0 — kull lokalizzazzjoni tal-UI tilħaq jew taqbeż il-livell minimu ta’ kopertura ta’ 80%
-- [ ] `npm run i18n:sync-ui:dry` jirrapporta 0 ċwievet neqsin fil-42 lokalizzazzjoni kollha
-- [ ] Jekk id-dokumentazzjoni sors bl-Ingliż inbidlet, ħaddem `npm run i18n:run` (jeħtieġ `OMNIROUTE_TRANSLATION_API_KEY` f’`.env`) qabel l-ittikkettar
-- [ ] Il-kontribuzzjonijiet tat-traduzzjoni jistgħu jiġu posposti għar-rilaxx li jmiss jekk ikunu minuri (żomm rekord f’CHANGELOG)
+- [ ] `npm run i18n:check` joħroġ b’0 — l-istat tat-traduzzjoni (`.i18n-state.json`) huwa sinkronizzat mad-dokumenti sors (l-ebda sors b’diskrepanzi fil-modalità stretta; avviż fil-modalità ta’ twissija huwa aċċettabbli għal irtokki tad-dokumentazzjoni fl-aħħar minuta, iżda għandu jkun 0 qabel it-tagging)
+- [ ] `npm run i18n:check-ui-coverage` joħroġ b’0 — kull locale tal-UI jilħaq jew jaqbeż il-livell minimu ta’ kopertura ta’ 80%
+- [ ] `npm run i18n:sync-ui:dry` jirrapporta 0 keys neqsin fis-66 locale fil-mira kollha (kull locale ħlief is-sors `en`)
+- [ ] Jekk id-dokumenti sors bl-Ingliż inbidlu, ħaddem `npm run i18n:run` (jeħtieġ `OMNIROUTE_TRANSLATION_API_KEY` f’`.env`) qabel it-tagging
+- [ ] Il-kontribuzzjonijiet tat-traduzzjoni jistgħu jiġu posposti għar-rilaxx li jmiss jekk ikunu minuri (irreġistrahom fiċ-CHANGELOG)
 
 ### Migrazzjonijiet tad-Database
 
 - [ ] Jekk `src/lib/db/migrations/` għandu fajls ġodda:
   - [ ] Kull migrazzjoni hija idempotenti (`CREATE TABLE IF NOT EXISTS`, eċċ.)
-  - [ ] Il-migrazzjonijiet huma mgeżwra fi tranżazzjonijiet
-  - [ ] Numerati b’mod korrett (mingħajr lakuni fis-sekwenza)
+  - [ ] Il-migrazzjonijiet huma inkapsulati fi transactions
+  - [ ] Innumerati b’mod korrett (mingħajr lakuni fis-sekwenza)
 - [ ] Ittestja fuq installazzjoni ġdida: ħassar `~/.omniroute/omniroute.db` u ħaddem `npm run dev`
 - [ ] Ittestja fuq installazzjoni eżistenti: agħmel backup tad-DB, ħaddem il-migrazzjoni, ivverifika l-iskema
-- [ ] Il-fajls WAL (`-wal`, `-shm`) jiġu ġestiti b’mod korrett jekk il-migrazzjoni terġa’ tikteb it-tabelli
+- [ ] Il-fajls WAL (`-wal`, `-shm`) jiġu ġestiti b’mod korrett jekk il-migrazzjoni tikteb mill-ġdid it-tabelli
 
 ### Katalgu tal-Fornituri (ivvalidat b’Zod)
 
-- [ ] L-iskema Zod ta’ `src/shared/constants/providers.ts` hija valida waqt it-tagħbija
-  - [ ] Il-fornituri kollha għandhom l-oqsma meħtieġa (`id`, `label`, `kind`, eċċ.)
+- [ ] L-iskema Zod f’`src/shared/constants/providers.ts` tkun valida waqt it-tagħbija
+  - [ ] Il-fornituri kollha jkollhom l-oqsma meħtieġa (`id`, `label`, `kind`, eċċ.)
   - [ ] `freeNote` ipprovdut għal fornituri bla ħlas ġodda
-  - [ ] Il-fornituri OAuth għandhom `oauthConfig` irreġistrat f’`src/lib/oauth/constants/oauth.ts`
-- [ ] Jekk żdied fornitur ġdid: eżekutur korrispondenti f’`open-sse/executors/`
+  - [ ] Il-fornituri OAuth ikollhom `oauthConfig` irreġistrat f’`src/lib/oauth/constants/oauth.ts`
+- [ ] Jekk jiżdied fornitur ġdid: executor korrispondenti f’`open-sse/executors/`
 - [ ] Jekk il-format mhuwiex OpenAI: traduttur f’`open-sse/translator/`
-- [ ] Il-mudelli huma rreġistrati f’`open-sse/config/providerRegistry.ts`
+- [ ] Il-mudelli rreġistrati f’`open-sse/config/providerRegistry.ts`
 - [ ] It-testijiet tal-unità f’`tests/unit/` ikopru l-klassifikazzjoni u r-routing tal-fornituri
 
 ### Desktop (Electron)
@@ -221,24 +221,24 @@ Bidliet inkompatibbli: żid footer `BREAKING CHANGE:` jew `!` wara l-ambitu (eż
 Jekk `electron/` inbidel:
 
 - [ ] `npm run electron:smoke:packaged` jgħaddi
-- [ ] Il-builds ġew ittestjati għal mill-inqas wieħed minn `:win`, `:mac`, `:linux`
-- [ ] Iċ-ċertifikati tal-iffirmar tal-kodiċi mhumiex skaduti (jekk qed isir iffirmar)
-- [ ] Il-verżjoni f’`electron/package.json` taqbel ma’ dik fil-`package.json` ewlieni
-- [ ] Il-pointer tal-kanal tal-aġġornament awtomatiku ġie aġġornat jekk ir-rilaxx sejjer għal `stable`
+- [ ] Il-builds jiġu ttestjati għal mill-inqas wieħed minn `:win`, `:mac`, `:linux`
+- [ ] Iċ-ċertifikati tal-iffirmar tal-kodiċi ma jkunux skadew (jekk qed isir iffirmar)
+- [ ] Il-verżjoni f’`electron/package.json` taqbel ma’ dik f’`package.json` tal-għerq
+- [ ] Il-pointer tal-kanal tal-aġġornament awtomatiku jiġi aġġornat jekk ir-rilaxx ikun lejn `stable`
 
 ### Tqassim tal-Build
 
 Ir-repożitorju juża tliet direttorji distinti tal-output — qatt tħawwadhom:
 
-| Direttorju | Skop                                                                     | Traċċat?        |
-| ---------- | ------------------------------------------------------------------------ | --------------- |
-| `src/`     | Sors tal-applikazzjoni (TypeScript / TSX)                                | Iva             |
-| `.build/`  | Fajls intermedji tal-build — output ta’ `next build` (`distDir`)         | Le (gitignored) |
-| `dist/`    | Bundle npm lest għad-distribuzzjoni — immuntat minn `assembleStandalone` | Le (gitignored) |
+| Direttorju | Għan                                                                      | Intraċċat?            |
+| ---------- | ------------------------------------------------------------------------- | --------------------- |
+| `src/`     | Sors tal-applikazzjoni (TypeScript / TSX)                                 | Iva                   |
+| `.build/`  | Fajls intermedji tal-build — output ta’ `next build` (`distDir`)          | Le (injorat minn git) |
+| `dist/`    | Bundle npm lest għad-distribuzzjoni — assemblat minn `assembleStandalone` | Le (injorat minn git) |
 
 > **Nota għall-operatur:** id-direttorju tal-immaġni fuq il-VPS remot jibqa’ `/usr/lib/node_modules/omniroute/app/`.
-> Inbidel biss l-output tal-build **fir-repożitorju** (`app/` → `dist/`). Il-ħiliet tad-deploy jagħmlu rsync
-> tal-kontenut ta’ `dist/` fid-direttorju remot `app/` — mhu meħtieġ ebda tibdil fil-path tal-VPS.
+> Kien biss l-output tal-build **fir-repożitorju** li tmexxa (`app/` → `dist/`). Il-ħiliet tad-deploy jużaw rsync
+> biex jittrasferixxu l-kontenut ta’ `dist/` fid-direttorju remot `app/` — ma hemm bżonn l-ebda bidla fil-path tal-VPS.
 
 **Fluss ta’ build wieħed:**
 
@@ -250,70 +250,70 @@ npm run build:release
   └─ jikteb dist/BUILD_SHA       (sentinella ta’ HEAD)
 ```
 
-Tħaddimx `npm run build` segwit minn `npm run build:cli` separat għad-deploy — uża
-`npm run build:release`, li jwettaq build mill-ġdid nadif + sentinella bi kmand wieħed.
+TĦADDEMX `npm run build` segwit minn `npm run build:cli` separat għad-deploy — uża
+`npm run build:release`, li jwettaq build mill-ġdid nadif u joħloq is-sentinella bi kmand wieħed.
 
 ### Validazzjoni tal-Artifatt
 
 - [ ] `npm run build:release` jirnexxi u `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] `npm run check:pack-artifact` ikun nadif — ebda `app.__qa_backup`, `scripts/scratch`, `package-lock.json`, jew residwu lokali ieħor
+- [ ] `npm run check:pack-artifact` ikun nadif — l-ebda `app.__qa_backup`, `scripts/scratch`, `package-lock.json`, jew fdal lokali ieħor
 - [ ] `dist/server.js` jeżisti wara l-build
-- [ ] Test smoke lokali fakultattiv tar-runtime ippakkjat: `npm run dev:candidate -- validate` wara `npm run dev:candidate -- build` jixgħel it-tarball ippakkjat fuq `DATA_DIR` iżolat u jiċċekkja `/api/health` + `/v1/models` (ara [It-Triq Ideali għall-Kontribuzzjoni](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
+- [ ] Test smoke lokali u fakultattiv tar-runtime ippakkjat: `npm run dev:candidate -- validate` wara li `npm run dev:candidate -- build` jistartja t-tarball ippakkjat fuq `DATA_DIR` iżolat u jiċċekkja `/api/health` + `/v1/models` (ara [It-Triq Rakkomandata għall-Kontribuzzjoni](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
 
-### Ittikkettar u Rilaxx
+### Tagging u Rilaxx
 
 - [ ] Ħaddem `/generate-release-cc` (ħila ta’ Claude Code):
-  - Joħloq it-tikketta `vX.Y.Z`
-  - Jippubblika t-tikketta u l-branch
+  - Joħloq it-tag `vX.Y.Z`
+  - Jippushja t-tag u l-branch
   - Jiftaħ GitHub Release bil-kontenut taċ-changelog
   - Jehmeż l-installaturi ta’ Electron (jekk inbnew)
 - [ ] Jew manwalment:
   ```bash
-  git tag -a vX.Y.Z -m "Rilaxx vX.Y.Z"
+  git tag -a vX.Y.Z -m "Release vX.Y.Z"
   git push origin vX.Y.Z
   gh release create vX.Y.Z --notes-from-tag
   ```
 
 ### Deploy
 
-Il-ħiliet tad-deploy jużaw il-fluss ħafif ta’ rsync — mingħajr `npm pack`, mingħajr `npm i -g`:
+Il-ħiliet tad-deploy jużaw il-fluss ħafif ta’ rsync — mingħajr `npm pack` u mingħajr `npm i -g`:
 
-- [ ] Uża s-skill ta' deployment li taqbel mal-mira:
+- [ ] Uża l-ħila tad-deploy li taqbel mal-mira:
   - `/deploy-vps-local-cc` — VPS lokali (192.168.0.15)
-  - `/deploy-vps-akamai-cc` — VPS ta' Akamai (69.164.221.35)
+  - `/deploy-vps-akamai-cc` — VPS ta’ Akamai (69.164.221.35)
   - `/deploy-vps-both-cc` — it-tnejn
-- [ ] Qabel id-deployment, ikkonferma li `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] Il-build irid jitħaddem fejn `node_modules` huwa reali (iċ-checkout ewlieni jew worktree li fih sar `npm ci` — MHUX worktree b'symlink)
-- [ ] Agħmel smoke test tal-istanza li ġiet deployed:
-  - Iftaħ `/dashboard/health` → iċċekkja li l-verżjoni taqbel mar-release
-  - Ħaddem talba lil `/v1/chat/completions` kontra provider magħruf
+- [ ] Qabel id-deploy, ikkonferma li `dist/BUILD_SHA` == `git rev-parse --short HEAD`
+- [ ] Il-build irid jitħaddem fejn `node_modules` ikun reali (il-checkout prinċipali jew worktree li fih ikun tħaddem `npm ci` — MHUX worktree b’symlink)
+- [ ] Agħmel test smoke tal-istanza skjerata:
+  - Iftaħ `/dashboard/health` → iċċekkja li s-sekwenza tal-verżjoni taqbel mar-rilaxx
+  - Ħaddem talba lil `/v1/chat/completions` kontra fornitur magħruf
   - Ivverifika li `/api/monitoring/health` jirritorna circuit breakers `CLOSED`
   - Ikkonferma li t-trasporti MCP jirrispondu (`/mcp` HTTP, `/mcp-sse` SSE)
 
-### Wara r-release
+### Wara r-rilaxx
 
-- [ ] Ħaddem `/capture-release-evidences-cc` (skill ta' Claude Code)
-  - Jiġbor screenshots/reġistrazzjonijiet WebP tal-karatteristiċi l-ġodda
-  - Jehmeżhom man-noti tar-release / mal-post tal-blog
-- [ ] Aġġorna GitHub Discussions / Discord bit-tħabbira tar-release
+- [ ] Ħaddem `/capture-release-evidences-cc` (ħila ta’ Claude Code)
+  - Jiġbor screenshots/reġistrazzjonijiet WebP tal-karatteristiċi ġodda
+  - Jehmiżhom man-noti tar-rilaxx / mal-post tal-blog
+- [ ] Aġġorna GitHub Discussions / Discord bit-tħabbira tar-rilaxx
 - [ ] Iftaħ milestone għall-verżjoni li jmiss
-- [ ] Jekk ikun kritiku: ippinja d-diskussjoni jew ippubblika f'`news.json` għal banner fl-app
+- [ ] Jekk ikun kritiku: ippinja d-diskussjoni jew ippubblika f’`news.json` għall-banner fl-applikazzjoni
 
-### Kontroll qabel it-tnedija pubblika ta' Radar
+### Gate tat-tnedija pubblika ta’ Radar
 
-It-tħabbira ta' Radar hija intenzjonalment ikkommittjata b'`active: false`. L-attivazzjoni hija bidla separata
-wara li tiġi pprovduta evidenza għal kull punt hawn taħt:
+It-tħabbira ta’ Radar hija intenzjonalment ikkommittjata b’`active: false`. L-attivazzjoni hija bidla separata
+wara li tingħata evidenza għal kull punt hawn taħt:
 
-- [ ] Il-PRs stacked kollha ta' Radar ġew merged u s-CI tar-release-tip huwa aħdar
-- [ ] Agħmel deployment u smoke test tar-rotot OSS ta' Radar b'`RADAR_ENABLED` għadu mitfi b'mod awtomatiku
-- [ ] Agħmel smoke test ta' `GET /planos`, `/termos`, `/privacidade`, u `/reembolso` fuq il-host speċifikat ta' Radar
-- [ ] Irreġistra l-identità/il-kuntatt/l-indirizz tal-operatur u r-rieżami legali approvat mis-sid fis-servizz privat
+- [ ] Il-PRs kollha ta’ Radar f’munzell jiġu merged u s-CI tal-punt finali tar-rilaxx ikun aħdar
+- [ ] Agħmel deploy u test smoke tar-rotot OSS ta’ Radar b’`RADAR_ENABLED` xorta mitfi b’mod predefinit
+- [ ] Agħmel test smoke ta’ `GET /planos`, `/termos`, `/privacidade`, u `/reembolso` fuq il-host speċifikat ta’ Radar
+- [ ] Irreġistra l-identità/kuntatt/indirizz tal-operatur u r-reviżjoni legali approvata mis-sid fis-servizz privat
 - [ ] Ittestja Stripe Checkout u l-webhook iffirmat fil-modalità tat-test biss
-- [ ] Ittestja konsenja waħda kriptata ta' email transazzjonali bil-mittent/domain approvat
-- [ ] Agħti prova tar-restawr minn backup u ta' run waħda ta' riċerka ssorveljata b'limitu ta' baġit
-- [ ] Approva l-politika ta' rieżami ta' BRL/PIX qabel taċċetta evidenza ta' donazzjoni
-- [ ] Ippermetti Checkout pubbliku biss wara li jitlestew il-kontrolli preċedenti, imbagħad attiva l-ID il-ġdid ta' `news.json`
-- [ ] Ivverifika li l-banner tal-Home juża test lokalizzat u li ID ġdid jerġa' jidher wara li ID eqdem jiġi miċħud
+- [ ] Ittestja konsenja waħda kriptata ta’ email tranżazzjonali bil-mittent/dominju approvat
+- [ ] Agħti prova tar-restawr minn backup u ta’ sessjoni waħda ta’ riċerka sorveljata b’limitu ta’ baġit
+- [ ] Approva l-politika ta’ reviżjoni BRL/PIX qabel ma taċċetta evidenza ta’ donazzjoni
+- [ ] Attiva Checkout pubbliku biss wara l-gates preċedenti, imbagħad attiva l-ID il-ġdida ta’ `news.json`
+- [ ] Ivverifika li l-banner tal-Home juża test lokalizzat u li ID ġdida terġa’ tidher wara li ID eqdem tiġi mwarrba
 
 ## Test rapidu tas-Servizzi Inkorporati (v3.8.4+)
 

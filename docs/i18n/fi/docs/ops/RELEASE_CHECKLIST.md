@@ -115,105 +115,105 @@ automaattisesti ilman tunnistetta.
 ### Ennen julkaisua
 
 - [ ] Kaikki tähän julkaisuun kohdistetut PR:t on yhdistetty haaraan `release/vX.Y.0`
-- [ ] Kaikki tämän version avoimet Linear-/issue-kohteet on suljettu tai siirretty seuraavaan välitavoitteeseen
-- [ ] CI on vihreä haarassa `release/vX.Y.0`
+- [ ] Kaikki tämän version avoimet Linear-/ongelmakohteet on suljettu tai siirretty seuraavaan välitavoitteeseen
+- [ ] CI on vihreänä haarassa `release/vX.Y.0`
 - [ ] Koodissa ei ole `TODO(release)`-merkintöjä: `grep -r "TODO(release)" src/ open-sse/`
-- [ ] Docker-perusimage on ajan tasalla (tällä hetkellä `node:24.15.0-trixie-slim`)
+- [ ] Docker-peruskuva on ajan tasalla (tällä hetkellä `node:24.15.0-trixie-slim`)
 
 ### Versio ja muutosloki
 
-- [ ] Suorita `/version-bump-cc <patch|minor|major>` (Claude Code -toiminto)
-  - Päivittää versiot tiedostoissa `package.json`, `electron/package.json`
-  - Luo tiedoston `CHANGELOG.md` uudelleen viimeisimmän tunnisteen jälkeisistä git-commiteista
-  - Päivittää README.md-tunnukset
+- [ ] Suorita `/version-bump-cc <patch|minor|major>` (Claude Code -taito)
+  - Päivittää versiot tiedostoissa `package.json` ja `electron/package.json`
+  - Luo tiedoston `CHANGELOG.md` uudelleen edellisen tunnisteen jälkeisistä git-commiteista
+  - Päivittää tiedoston README.md merkit
 - [ ] Tarkista CHANGELOG.md manuaalisesti ja siisti commit-viestit tarvittaessa
 - [ ] Varmista, että tiedoston `CHANGELOG.md` uusin semver-osio vastaa tiedoston `package.json` versiota
 - [ ] Säilytä `## [Unreleased]` muutoslokin ensimmäisenä osiona tulevaa työtä varten
-- [ ] Päivitä `docs/openapi.yaml` → `info.version`-arvon on vastattava tiedoston `package.json` versiota
+- [ ] Päivitä `docs/openapi.yaml` → arvon `info.version` on vastattava tiedoston `package.json` versiota
 
 ### Koodin laatu
 
 - [ ] `npm run lint` — 0 virhettä (varoitukset ovat ennestään olemassa)
 - [ ] `npm run typecheck:core` — puhdas
 - [ ] `npm run typecheck:noimplicit:core` — puhdas (tiukka)
-- [ ] `npm run check:cycles:ratchet` — `cycles ≤ metrics.cycles.value` (`quality-baseline.json`; `check:cycles`: `cycles > 0 → exit 1`, #15281)
-- [ ] `npm run check:any-budget:t11` — budjetin rajoissa
+- [ ] `npm run check:cycles:ratchet` — jäädytetyn `metrics.cycles`-ylärajan puitteissa (pelkkä `check:cycles` päättyy koodilla 1 minkä tahansa syklin löytyessä, #15281)
+- [ ] `npm run check:any-budget:t11` — budjetin puitteissa
 - [ ] `npm run check:route-validation:t06` — puhdas
-- [ ] `npm run check:node-runtime` — tuetun suoritusympäristön vähimmäisversio täyttyy (`>=22.22.2 <23`, `>=24.0.0 <27`, tiedoston `src/shared/utils/nodeRuntimeSupport.ts` arvon `SUPPORTED_NODE_RANGE` mukaisesti; yhdenmukainen tiedoston `package.json` `engines`-arvon kanssa)
+- [ ] `npm run check:node-runtime` — tuetun suoritusympäristön vähimmäisvaatimus täyttyy (`>=22.22.2 <23`, `>=24.0.0 <27`, tiedoston `src/shared/utils/nodeRuntimeSupport.ts` arvon `SUPPORTED_NODE_RANGE` mukaisesti; linjassa tiedoston `package.json` `engines`-arvon kanssa)
 
 ### Testaus
 
 - [ ] `npm run test:unit` — läpäisee
 - [ ] `npm run test:vitest` — läpäisee (MCP-palvelin, autoCombo, välimuisti)
-- [ ] `npm run test:coverage` — raja 60/60/60/60 täyttyy (lauseet/rivit/funktiot/haarat)
-- [ ] `npm run test:integration` — läpäisee (jos muutokset koskevat tietokantaa / käsittelijöitä)
-- [ ] `npm run test:combo:matrix` — läpäisee (yhdistelmästrategioiden matriisi: todistaa kaikkien 19 julkisen reititysstrategian valintapäätökset deterministisesti; suorita, kun muutokset koskevat yhdistelmäreititystä, strategian ratkaisua tai varalogiikkaa)
-- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **valinnainen/manuaalinen** (ehdollinen smoke-testi todellista ylävirtaa vasten; hakee vain luku -tilassa olevan tietokantavedoksen VPS-palvelimelta `root@192.168.0.15`; käyttää todellisia palveluntarjoajia ja kuluttaa krediittejä; ei koskaan suoriudu CI:ssä; ohitetaan siististi ilman ehtoa)
-- [ ] `npm run test:combo:live:vps` — **valinnainen/manuaalinen** (vaiheen 3 VPS-live-smoke-testi: 7 HTTP-skenaariota live-palvelinta `.15` vasten tavallisella Node ESM:llä; vaatii komennon `ssh root@192.168.0.15`; luo ja poistaa vain `__live_test__*`-yhdistelmiä; käyttää todellisia palveluntarjoajia; ei koskaan suoriudu CI:ssä)
+- [ ] `npm run test:coverage` — 60/60/60/60-raja täyttyy (lauseet/rivit/funktiot/haarat)
+- [ ] `npm run test:integration` — läpäisee (jos muutokset koskevat tietokantaa tai käsittelijöitä)
+- [ ] `npm run test:combo:matrix` — läpäisee (yhdistelmästrategioiden matriisi: todistaa deterministisesti kaikkien 19 julkisen reititysstrategian valintapäätökset; suorita, kun muutokset koskevat yhdistelmäreititystä, strategian ratkaisua tai varalogiikkaa)
+- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **valinnainen/manuaalinen** (ehdollinen savutesti todellisia ylävirran palveluja vasten; hakee vain luku -tilassa olevan tietokantavedoksen VPS-palvelimelta `root@192.168.0.15`; käyttää todellisia palveluntarjoajia ja kuluttaa krediittejä; ei koskaan suoriudu CI:ssä; ohitetaan siististi ilman ehtoa)
+- [ ] `npm run test:combo:live:vps` — **valinnainen/manuaalinen** (vaiheen 3 VPS-savukoe: 7 HTTP-skenaariota toimivaa `.15`-palvelinta vasten pelkällä Node ESM:llä; edellyttää `ssh root@192.168.0.15`; luo ja poistaa vain `__live_test__*`-yhdistelmiä; käyttää todellisia palveluntarjoajia; ei koskaan suoriudu CI:ssä)
 - [ ] `npm run test:e2e` — läpäisee (käyttöliittymämuutokset)
 - [ ] `npm run test:protocols:e2e` — läpäisee (MCP-/A2A-muutokset)
 - [ ] `npm run test:ecosystem` — läpäisee
 
-### Hookit (Huskyn validoimat)
+### Koukut (Huskyn validoimat)
 
-Husky-hookit sijaitsevat hakemistossa `.husky/` ja suoritetaan automaattisesti git-toimintojen yhteydessä.
+Husky-koukut sijaitsevat hakemistossa `.husky/` ja suoritetaan automaattisesti git-toimintojen yhteydessä.
 
 - **pre-commit:** `npx lint-staged + node scripts/check/check-docs-sync.mjs + npm run check:any-budget:t11`
 - **pre-push:** nopeat deterministiset tarkistukset — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (otettu käyttöön 2026-06-13). Jättää tarkoituksella pois komennon `test:unit` (hidas; CI:n `test-unit`-työ kattaa sen).
-  - Suorita `npm run test:unit` manuaalisesti ennen release-haarojen työntämistä.
+  - Suorita `npm run test:unit` manuaalisesti ennen julkaisuhaarojen lähettämistä.
 
-Jos hook epäonnistuu: korjaa varsinainen ongelma, älä ohita sitä valitsimella `--no-verify`.
+Jos koukku epäonnistuu: korjaa taustalla oleva ongelma, älä ohita sitä valitsimella `--no-verify`.
 
-### Conventional Commits
+### Conventional Commits -käytäntö
 
-Kaikkien julkaisuun päätyvien committien on noudatettava muotoa `type(scope): subject`.
+Kaikkien julkaisuun sisältyvien commitien on noudatettava muotoa `type(scope): subject`.
 
 **Sallitut tyypit:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `ci`
 
-**Sallitut kohdealueet:** `db`, `sse`, `oauth`, `dashboard`, `api`, `cli`, `docker`, `ci`, `mcp`, `a2a`, `memory`, `skills`, `cloud-agent`, `guardrails`, `compression`, `auto-combo`, `resilience`, `providers`, `executors`, `translator`, `domain`, `authz`
+**Sallitut vaikutusalueet:** `db`, `sse`, `oauth`, `dashboard`, `api`, `cli`, `docker`, `ci`, `mcp`, `a2a`, `memory`, `skills`, `cloud-agent`, `guardrails`, `compression`, `auto-combo`, `resilience`, `providers`, `executors`, `translator`, `domain`, `authz`
 
-Rikkovat muutokset: lisää `BREAKING CHANGE:`-alatunniste tai `!` kohdealueen jälkeen (esim. `feat(api)!: drop /v0`).
+Rikkovat muutokset: lisää alatunniste `BREAKING CHANGE:` tai merkki `!` vaikutusalueen jälkeen (esim. `feat(api)!: drop /v0`).
 
 ### Dokumentaatio
 
-- [ ] `npm run check:docs-sync` läpäisee tarkistuksen (pre-commit suorittaa sen automaattisesti)
-- [ ] `npm run check:docs-all` läpäisee tarkistuksen (koontitarkistus: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
-- [ ] `npm run check:env-doc-sync` päättyy koodilla 0 — koodin ↔ `.env.example`-tiedoston ↔ `docs/reference/ENVIRONMENT.md`-tiedoston ympäristömuuttujasopimus on eheä
-- [ ] `npm run check:doc-links` päättyy koodilla 0 — uudelleenjärjestelyn jälkeen sisäisiä rikkinäisiä markdown-viittauksia ei ole
-- [ ] `docs/architecture/ARCHITECTURE.md` on tarkistettu tallennustilan ja suoritusympäristön muutosten varalta
-- [ ] `docs/guides/TROUBLESHOOTING.md` on tarkistettu ympäristömuuttujien ja toiminnallisten muutosten varalta
+- [ ] `npm run check:docs-sync` läpäisee (pre-commit suorittaa sen automaattisesti)
+- [ ] `npm run check:docs-all` läpäisee (koontitarkistus: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
+- [ ] `npm run check:env-doc-sync` päättyy koodilla 0 — koodin ↔ `.env.example`-tiedoston ↔ `docs/reference/ENVIRONMENT.md`-tiedoston ympäristösopimus on ehjä
+- [ ] `npm run check:doc-links` päättyy koodilla 0 — uudelleenjärjestelyn jälkeen ei ole rikkinäisiä sisäisiä markdown-viittauksia
+- [ ] `docs/architecture/ARCHITECTURE.md` on tarkistettu tallennus- ja suoritusympäristöpoikkeamien varalta
+- [ ] `docs/guides/TROUBLESHOOTING.md` on tarkistettu ympäristömuuttujien ja toiminnallisten poikkeamien varalta
 - [ ] Jos `.env.example` muuttui: `docs/reference/ENVIRONMENT.md` on päivitetty
 - [ ] Jos uudella ominaisuudella on käyttöliittymä: `docs/guides/USER_GUIDE.md` mainitsee sen
 - [ ] Jos uudella ominaisuudella on API: `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml` on päivitetty
-- [ ] Jos uusi ominaisuus on moduuli: erillinen `docs/<MODULE>.md` on olemassa
-- [ ] Jos kyseessä on rikkova muutos: `docs/guides/TROUBLESHOOTING.md` sisältää siirtymäohjeen
+- [ ] Jos uusi ominaisuus on moduuli: sille on oma `docs/<MODULE>.md`
+- [ ] Jos kyseessä on rikkova muutos: tiedostossa `docs/guides/TROUBLESHOOTING.md` on siirtymäohje
 
 ### i18n
 
-- [ ] `npm run i18n:check` päättyy koodilla 0 — käännösten tila (`.i18n-state.json`) on synkronoitu lähdedokumentaation kanssa (strict-tilassa ei muuttuneita lähteitä; warn-tilan varoitukset ovat hyväksyttäviä viime hetken dokumentaatiokorjauksissa, mutta tuloksen tulisi olla 0 ennen tagin luomista)
-- [ ] `npm run i18n:check-ui-coverage` päättyy koodilla 0 — jokainen käyttöliittymän kieliversio saavuttaa vähintään 80 %:n kattavuusrajan
-- [ ] `npm run i18n:sync-ui:dry` ilmoittaa 0 puuttuvaa avainta kaikissa 42 kieliversiossa
-- [ ] Jos englanninkielinen lähdedokumentaatio muuttui, suorita `npm run i18n:run` (edellyttää, että `OMNIROUTE_TRANSLATION_API_KEY` on määritetty `.env`-tiedostossa) ennen tagin luomista
-- [ ] Vähäiset käännösmuutokset voidaan siirtää seuraavaan julkaisuun (kirjaa ne CHANGELOG-tiedostoon)
+- [ ] `npm run i18n:check` päättyy koodilla 0 — käännösten tila (`.i18n-state.json`) on synkronoitu lähdedokumenttien kanssa (tiukassa tilassa ei ole poikkeavia lähteitä; varoitustilan huomautukset hyväksytään viime hetken dokumenttikorjauksissa, mutta tuloksen pitäisi olla 0 ennen tunnisteen luomista)
+- [ ] `npm run i18n:check-ui-coverage` päättyy koodilla 0 — jokainen käyttöliittymän kielialue saavuttaa vähintään 80 %:n kattavuusrajan
+- [ ] `npm run i18n:sync-ui:dry` ilmoittaa 0 puuttuvaa avainta kaikissa 66 kohdekielialueessa (kaikki muut paitsi lähdekieli `en`)
+- [ ] Jos englanninkieliset lähdedokumentit muuttuivat, suorita `npm run i18n:run` (edellyttää muuttujaa `OMNIROUTE_TRANSLATION_API_KEY` tiedostossa `.env`) ennen tunnisteen luomista
+- [ ] Käännöspanokset voidaan siirtää seuraavaan julkaisuun, jos ne ovat vähäisiä (kirjaa CHANGELOG-tiedostoon)
 
 ### Tietokantamigraatiot
 
 - [ ] Jos hakemistossa `src/lib/db/migrations/` on uusia tiedostoja:
   - [ ] Jokainen migraatio on idempotentti (`CREATE TABLE IF NOT EXISTS` jne.)
   - [ ] Migraatiot on kääritty transaktioihin
-  - [ ] Migraatiot on numeroitu oikein (järjestyksessä ei ole aukkoja)
-- [ ] Testaa uudessa asennuksessa: poista `~/.omniroute/omniroute.db` ja suorita `npm run dev`
-- [ ] Testaa olemassa olevassa asennuksessa: varmuuskopioi tietokanta, suorita migraatio ja tarkista skeema
+  - [ ] Ne on numeroitu oikein (järjestyksessä ei ole aukkoja)
+- [ ] Testaa puhtaalla asennuksella: poista `~/.omniroute/omniroute.db` ja suorita `npm run dev`
+- [ ] Testaa olemassa olevalla asennuksella: varmuuskopioi tietokanta, suorita migraatio ja tarkista skeema
 - [ ] WAL-tiedostoja (`-wal`, `-shm`) käsitellään oikein, jos migraatio kirjoittaa tauluja uudelleen
 
 ### Palveluntarjoajaluettelo (Zod-validoitu)
 
 - [ ] Tiedoston `src/shared/constants/providers.ts` Zod-skeema on kelvollinen lataushetkellä
-  - [ ] Kaikilla palveluntarjoajilla on pakolliset kentät (`id`, `label`, `kind` jne.)
-  - [ ] `freeNote` on määritetty uusille maksuttomille palveluntarjoajille
+  - [ ] Kaikilla palveluntarjoajilla on vaaditut kentät (`id`, `label`, `kind` jne.)
+  - [ ] Uusille maksuttomille palveluntarjoajille on määritetty `freeNote`
   - [ ] OAuth-palveluntarjoajien `oauthConfig` on rekisteröity tiedostossa `src/lib/oauth/constants/oauth.ts`
-- [ ] Jos uusi palveluntarjoaja lisättiin: vastaava suorittaja on hakemistossa `open-sse/executors/`
-- [ ] Jos muoto ei ole OpenAI-yhteensopiva: muunnin on hakemistossa `open-sse/translator/`
+- [ ] Jos uusi palveluntarjoaja on lisätty: vastaava suorittaja hakemistossa `open-sse/executors/`
+- [ ] Jos muoto ei ole OpenAI-yhteensopiva: kääntäjä hakemistossa `open-sse/translator/`
 - [ ] Mallit on rekisteröity tiedostossa `open-sse/config/providerRegistry.ts`
 - [ ] Hakemiston `tests/unit/` yksikkötestit kattavat palveluntarjoajien luokittelun ja reitityksen
 
@@ -221,11 +221,11 @@ Rikkovat muutokset: lisää `BREAKING CHANGE:`-alatunniste tai `!` kohdealueen j
 
 Jos `electron/` muuttui:
 
-- [ ] `npm run electron:smoke:packaged` läpäisee tarkistuksen
+- [ ] `npm run electron:smoke:packaged` onnistuu
 - [ ] Koontiversiot on testattu vähintään yhdelle seuraavista: `:win`, `:mac`, `:linux`
 - [ ] Koodin allekirjoitusvarmenteet eivät ole vanhentuneet (jos allekirjoitusta käytetään)
-- [ ] Tiedoston `electron/package.json` versio vastaa juuritason `package.json`-tiedostoa
-- [ ] Automaattisen päivityskanavan osoitin on päivitetty, jos julkaisu tehdään `stable`-kanavalle
+- [ ] Tiedoston `electron/package.json` versio vastaa juuren `package.json`-tiedostoa
+- [ ] Automaattisen päivityksen kanavaosoitin on päivitetty, jos julkaisu tehdään kanavalle `stable`
 
 ### Koontihakemistot
 
@@ -235,11 +235,11 @@ Tietovarasto käyttää kolmea erillistä tulostehakemistoa — älä koskaan se
 | --------- | -------------------------------------------------------------- | ------------------- |
 | `src/`    | Sovelluksen lähdekoodi (TypeScript / TSX)                      | Kyllä               |
 | `.build/` | Koontivälitulokset — komennon `next build` tuloste (`distDir`) | Ei (gitignored)     |
-| `dist/`   | Julkaistava npm-paketti — `assembleStandalone` kokoaa sen      | Ei (gitignored)     |
+| `dist/`   | Jaeltava npm-paketti — toiminnon `assembleStandalone` kokoama  | Ei (gitignored)     |
 
-> **Ylläpitäjän huomautus:** etä-VPS:n levykuvahakemisto on edelleen `/usr/lib/node_modules/omniroute/app/`.
-> Vain **tietovaraston sisäinen** koontituloste siirrettiin (`app/` → `dist/`). Käyttöönoton taidot rsync-siirtävät
-> `dist/`-hakemiston sisällön etäpalvelimen `app/`-hakemistoon — VPS-polkuja ei tarvitse muuttaa.
+> **Ylläpitäjän huomautus:** VPS-etäkuvan hakemisto on edelleen `/usr/lib/node_modules/omniroute/app/`.
+> Vain tietovaraston **sisäinen** koontituloste siirtyi (`app/` → `dist/`). Käyttöönottotaidot rsync-siirtävät
+> hakemiston `dist/` sisällön etäkoneen `app/`-hakemistoon — VPS-polkuja ei tarvitse muuttaa.
 
 **Yhden koonnin työnkulku:**
 
@@ -247,30 +247,30 @@ Tietovarasto käyttää kolmea erillistä tulostehakemistoa — älä koskaan se
 npm run build:release
   └─ rm -rf .build dist          (puhdistus)
   └─ next build → .build/next/   (välitulokset)
-  └─ assembleStandalone          (kopioi erillisen koonnin + staattiset tiedostot + public-tiedostot + natiivikomponentit → dist/)
-  └─ writes dist/BUILD_SHA       (HEAD-tarkiste)
+  └─ assembleStandalone          (kopioi itsenäisen koonnin + staattiset tiedostot + julkiset tiedostot + natiivikomponentit → dist/)
+  └─ writes dist/BUILD_SHA       (HEAD-tunniste)
 ```
 
-ÄLÄ suorita käyttöönottoa varten komentoa `npm run build` ja sen jälkeen erillistä komentoa `npm run build:cli` — käytä
-komentoa `npm run build:release`, joka tekee puhtaan uudelleenkoonnin ja luo tarkisteen yhdellä komennolla.
+ÄLÄ suorita käyttöönottoa varten ensin komentoa `npm run build` ja sen jälkeen erillistä komentoa `npm run build:cli` — käytä
+komentoa `npm run build:release`, joka tekee puhtaan uudelleenkoonnin ja kirjoittaa tunnisteen yhdellä komennolla.
 
 ### Artefaktin validointi
 
 - [ ] `npm run build:release` onnistuu ja `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] `npm run check:pack-artifact` on puhdas — ei tiedostoja tai hakemistoja `app.__qa_backup`, `scripts/scratch`, `package-lock.json` eikä muita paikallisia jäämiä
+- [ ] `npm run check:pack-artifact` on puhdas — ei hakemistoja `app.__qa_backup` tai `scripts/scratch`, tiedostoa `package-lock.json` eikä muita paikallisia jäänteitä
 - [ ] `dist/server.js` on olemassa koonnin jälkeen
-- [ ] Valinnainen paikallinen paketoidun suoritusympäristön smoke-testi: komento `npm run dev:candidate -- validate` komennon `npm run dev:candidate -- build` jälkeen käynnistää pakatun tarball-arkiston eristetyllä `DATA_DIR`-hakemistolla ja tarkistaa `/api/health` + `/v1/models` (katso [Osallistumisen suositeltu työnkulku](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
+- [ ] Valinnainen paikallisen paketoidun suoritusympäristön savutesti: `npm run dev:candidate -- validate` komennon `npm run dev:candidate -- build` jälkeen käynnistää pakatun tarball-paketin eristetyllä `DATA_DIR`-hakemistolla ja tarkistaa päätepisteet `/api/health` sekä `/v1/models` (katso [osallistumisen suositeltu työnkulku](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
 
-### Tagin luominen ja julkaisu
+### Tunnisteet ja julkaisu
 
 - [ ] Suorita `/generate-release-cc` (Claude Code -taito):
-  - Luo tagin `vX.Y.Z`
-  - Työntää tagin ja haaran etäpalvelimeen
-  - Luo GitHub-julkaisun, jonka sisältönä on muutosloki
+  - Luo tunnisteen `vX.Y.Z`
+  - Työntää tunnisteen ja haaran
+  - Avaa GitHub-julkaisun muutoslokin sisältävällä kuvauksella
   - Liittää Electron-asennusohjelmat (jos ne on koottu)
 - [ ] Tai tee vaiheet manuaalisesti:
   ```bash
-  git tag -a vX.Y.Z -m "Julkaisu vX.Y.Z"
+  git tag -a vX.Y.Z -m "Release vX.Y.Z"
   git push origin vX.Y.Z
   gh release create vX.Y.Z --notes-from-tag
   ```
@@ -279,42 +279,42 @@ komentoa `npm run build:release`, joka tekee puhtaan uudelleenkoonnin ja luo tar
 
 Käyttöönottotaidot käyttävät kevyttä rsync-työnkulkua — ei komentoa `npm pack` eikä komentoa `npm i -g`:
 
-- [ ] Käytä kohdetta vastaavaa käyttöönotto-taitoa:
+- [ ] Käytä kohdetta vastaavaa käyttöönottotaitoa:
   - `/deploy-vps-local-cc` — paikallinen VPS (192.168.0.15)
   - `/deploy-vps-akamai-cc` — Akamai VPS (69.164.221.35)
   - `/deploy-vps-both-cc` — molemmat
 - [ ] Varmista ennen käyttöönottoa, että `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] Koonti on suoritettava ympäristössä, jossa `node_modules` on todellinen (pääasiallinen checkout tai työpuu, jossa on suoritettu `npm ci` — EI symbolisesti linkitetty työpuu)
+- [ ] Koonti on suoritettava ympäristössä, jossa `node_modules` on oikea hakemisto (pääasiallinen uloskuittaus tai `npm ci` -komennolla valmisteltu worktree — EI symbolisella linkillä toteutettu worktree)
 - [ ] Savutestaa käyttöönotettu instanssi:
-  - Avaa `/dashboard/health` → tarkista, että versiotunniste vastaa julkaisua
-  - Suorita `/v1/chat/completions`-pyyntö tunnettua palveluntarjoajaa vasten
-  - Varmista, että `/api/monitoring/health` palauttaa tilassa `CLOSED` olevat katkaisijat
+  - Avaa `/dashboard/health` → tarkista, että version merkkijono vastaa julkaisua
+  - Suorita `/v1/chat/completions`-pyyntö tunnetulle palveluntarjoajalle
+  - Varmista, että `/api/monitoring/health` palauttaa `CLOSED`-tilassa olevat katkaisijat
   - Varmista, että MCP-siirtotavat vastaavat (`/mcp` HTTP, `/mcp-sse` SSE)
 
 ### Julkaisun jälkeen
 
 - [ ] Suorita `/capture-release-evidences-cc` (Claude Code -taito)
-  - Tallentaa uusista ominaisuuksista WebP-kuvakaappauksia/-tallenteita
+  - Tallentaa WebP-kuvakaappauksia/-tallenteita uusista ominaisuuksista
   - Liittää ne julkaisutietoihin/blogikirjoitukseen
 - [ ] Päivitä GitHub Discussions / Discord julkaisutiedotteella
-- [ ] Avaa virstanpylväs seuraavaa versiota varten
-- [ ] Jos julkaisu on kriittinen: kiinnitä keskustelu tai julkaise tiedote tiedostossa `news.json` sovelluksen sisäistä banneria varten
+- [ ] Avaa välitavoite seuraavalle versiolle
+- [ ] Jos kyseessä on kriittinen julkaisu: kiinnitä keskustelu tai julkaise tiedostossa `news.json` sovelluksen sisäistä banneria varten
 
-### Radarin julkisen julkaisun tarkistuspiste
+### Radarin julkisen julkaisun portti
 
-Radarin ilmoitus on tarkoituksella commitoitu asetuksella `active: false`. Aktivointi tehdään erillisenä
-muutoksena sen jälkeen, kun jokaisesta alla olevasta kohdasta on esitetty näyttö:
+Radar-ilmoitus on tarkoituksella commitoitu asetuksella `active: false`. Aktivointi tehdään erillisenä
+muutoksena sen jälkeen, kun kaikista alla olevista kohdista on näyttö:
 
-- [ ] Kaikki pinotut Radarin PR:t on yhdistetty ja julkaisuhaaran kärjen CI on vihreä
-- [ ] Ota avoimen lähdekoodin Radarin reitit käyttöön ja savutestaa ne siten, että `RADAR_ENABLED` on edelleen oletusarvoisesti pois käytöstä
-- [ ] Savutestaa `GET /planos`, `/termos`, `/privacidade` ja `/reembolso` nimetyllä Radar-isännällä
-- [ ] Tallenna operaattorin henkilöllisyys/yhteystiedot/osoite ja omistajan hyväksymä oikeudellinen tarkastus yksityiseen palveluun
+- [ ] Kaikki pinotut Radar-PR:t on yhdistetty ja julkaisukärjen CI on vihreä
+- [ ] Ota avoimen lähdekoodin Radar-reitit käyttöön ja savutestaa ne siten, että `RADAR_ENABLED` on edelleen oletusarvoisesti pois käytöstä
+- [ ] Savutestaa `GET /planos`, `/termos`, `/privacidade` ja `/reembolso` määritetyllä Radar-isäntäkoneella
+- [ ] Tallenna ylläpitäjän henkilöllisyys/yhteystiedot/osoite sekä omistajan hyväksymä oikeudellinen tarkastus yksityiseen palveluun
 - [ ] Testaa Stripe Checkout ja allekirjoitettu webhook vain testitilassa
 - [ ] Testaa yhden salatun tapahtumasähköpostin toimitus hyväksytyllä lähettäjällä/verkkotunnuksella
-- [ ] Todista varmuuskopion palautus ja yksi valvottu, budjetiltaan rajattu tutkimusajo
+- [ ] Todista varmuuskopion palautus sekä yksi valvottu ja budjetiltaan rajattu tutkimusajo
 - [ ] Hyväksy BRL/PIX-tarkastuskäytäntö ennen lahjoitustodisteiden vastaanottamista
-- [ ] Ota julkinen Checkout käyttöön vasta edeltävien tarkistuspisteiden jälkeen ja aktivoi sitten uusi `news.json`-ID
-- [ ] Varmista, että etusivun banneri käyttää lokalisoitua tekstiä ja että uusi ID tulee uudelleen näkyviin, kun vanhempi ID on hylätty
+- [ ] Ota julkinen Checkout käyttöön vasta edeltävien porttien jälkeen ja aktivoi sitten uusi `news.json`-tunnus
+- [ ] Varmista, että etusivun banneri käyttää lokalisoitua tekstiä ja että uusi tunnus tulee uudelleen näkyviin vanhemman tunnuksen hylkäämisen jälkeen
 
 ## Upotettujen palveluiden savutesti (v3.8.4+)
 

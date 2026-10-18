@@ -114,206 +114,207 @@ E2E matrix സ്വയമേവ ഒഴിവാക്കും.
 
 ### റിലീസിന് മുമ്പ്
 
-- [ ] ഈ റിലീസിനെ ലക്ഷ്യമാക്കിയുള്ള എല്ലാ PR-കളും `release/vX.Y.0`-ലേക്ക് merge ചെയ്തിട്ടുണ്ട്
-- [ ] ഈ version-നുള്ള തുറന്നിരിക്കുന്ന എല്ലാ Linear/issue ഇനങ്ങളും അടച്ചിട്ടുണ്ട് അല്ലെങ്കിൽ അടുത്ത milestone-ലേക്ക് മാറ്റിയിട്ടുണ്ട്
-- [ ] `release/vX.Y.0` branch-ലെ CI വിജയകരമാണ്
-- [ ] code-ൽ `TODO(release)` markers ഇല്ല: `grep -r "TODO(release)" src/ open-sse/`
-- [ ] Docker base image കാലികമാണ് (നിലവിൽ `node:24.15.0-trixie-slim`)
+- [ ] ഈ റിലീസിനായി ലക്ഷ്യമിട്ട എല്ലാ PR-കളും `release/vX.Y.0`-ലേക്ക് ലയിപ്പിച്ചിട്ടുണ്ട്
+- [ ] ഈ പതിപ്പിനായുള്ള എല്ലാ തുറന്ന Linear/issue ഇനങ്ങളും അടച്ചിട്ടുണ്ട് അല്ലെങ്കിൽ അടുത്ത നാഴികക്കല്ലിലേക്ക് മാറ്റിയിട്ടുണ്ട്
+- [ ] `release/vX.Y.0` ബ്രാഞ്ചിൽ CI വിജയകരമാണ്
+- [ ] കോഡിൽ `TODO(release)` മാർക്കറുകളൊന്നുമില്ല: `grep -r "TODO(release)" src/ open-sse/`
+- [ ] Docker അടിസ്ഥാന ഇമേജ് കാലികമാണ് (നിലവിൽ `node:24.15.0-trixie-slim`)
 
-### Version & Changelog
+### പതിപ്പും മാറ്റങ്ങളുടെ രേഖയും
 
-- [ ] `/version-bump-cc <patch|minor|major>` പ്രവർത്തിപ്പിക്കുക (Claude Code skill)
-  - `package.json`, `electron/package.json` എന്നിവയുടെ version ഉയർത്തുന്നു
-  - അവസാന tag-ന് ശേഷമുള്ള git commit-ുകളിൽ നിന്ന് `CHANGELOG.md` വീണ്ടും സൃഷ്ടിക്കുന്നു
-  - README.md badges അപ്ഡേറ്റ് ചെയ്യുന്നു
-- [ ] CHANGELOG.md സ്വമേധയാ പരിശോധിച്ച് ആവശ്യമെങ്കിൽ commit messages വൃത്തിയാക്കുക
-- [ ] `CHANGELOG.md`-ലെ ഏറ്റവും പുതിയ semver section, `package.json` version-ന് തുല്യമാണെന്ന് ഉറപ്പാക്കുക
-- [ ] വരാനിരിക്കുന്ന പ്രവർത്തനങ്ങൾക്കായി `## [Unreleased]` ആദ്യ changelog section ആയി നിലനിർത്തുക
-- [ ] `docs/openapi.yaml` അപ്ഡേറ്റ് ചെയ്യുക → `info.version`, `package.json` version-ന് തുല്യമായിരിക്കണം
+- [ ] `/version-bump-cc <patch|minor|major>` പ്രവർത്തിപ്പിക്കുക (Claude Code സ്കിൽ)
+  - `package.json`, `electron/package.json` എന്നിവയുടെ പതിപ്പ് ഉയർത്തുന്നു
+  - അവസാന ടാഗിന് ശേഷമുള്ള git കമ്മിറ്റുകളിൽനിന്ന് `CHANGELOG.md` പുനർനിർമ്മിക്കുന്നു
+  - README.md ബാഡ്ജുകൾ പുതുക്കുന്നു
+- [ ] CHANGELOG.md സ്വയം പരിശോധിക്കുകയും ആവശ്യമെങ്കിൽ commit സന്ദേശങ്ങൾ വൃത്തിയാക്കുകയും ചെയ്യുക
+- [ ] `CHANGELOG.md`-ലെ ഏറ്റവും പുതിയ semver വിഭാഗം `package.json` പതിപ്പിന് തുല്യമാണെന്ന് ഉറപ്പാക്കുക
+- [ ] വരാനിരിക്കുന്ന പ്രവർത്തനങ്ങൾക്കായി `## [Unreleased]` ആദ്യ changelog വിഭാഗമായി നിലനിർത്തുക
+- [ ] `docs/openapi.yaml` പുതുക്കുക → `info.version`, `package.json` പതിപ്പിന് തുല്യമായിരിക്കണം
 
 ### കോഡ് ഗുണനിലവാരം
 
-- [ ] `npm run lint` — 0 errors (warnings മുമ്പേ നിലവിലുള്ളവയാണ്)
+- [ ] `npm run lint` — 0 പിശകുകൾ (മുന്നറിയിപ്പുകൾ നേരത്തേ നിലവിലുള്ളവയാണ്)
 - [ ] `npm run typecheck:core` — പ്രശ്നങ്ങളില്ല
-- [ ] `npm run typecheck:noimplicit:core` — പ്രശ്നങ്ങളില്ല (strict)
-- [ ] `npm run check:cycles:ratchet` — `cycles ≤ metrics.cycles.value` (`quality-baseline.json`; `check:cycles`: `cycles > 0 → exit 1`, #15281)
-- [ ] `npm run check:any-budget:t11` — budget-നുള്ളിൽ
+- [ ] `npm run typecheck:noimplicit:core` — പ്രശ്നങ്ങളില്ല (കർശനം)
+- [ ] `npm run check:cycles:ratchet` — നിശ്ചയിച്ച `metrics.cycles` പരിധിക്കുള്ളിൽ (`check:cycles` മാത്രം പ്രവർത്തിപ്പിക്കുമ്പോൾ ഏതെങ്കിലും cycle ഉണ്ടായാൽ exit 1 നൽകും, #15281)
+- [ ] `npm run check:any-budget:t11` — ബജറ്റിനുള്ളിൽ
 - [ ] `npm run check:route-validation:t06` — പ്രശ്നങ്ങളില്ല
-- [ ] `npm run check:node-runtime` — പിന്തുണയ്ക്കുന്ന runtime-ന്റെ കുറഞ്ഞ പരിധി പാലിക്കുന്നു (`>=22.22.2 <23`, `>=24.0.0 <27`, `src/shared/utils/nodeRuntimeSupport.ts`-ലെ `SUPPORTED_NODE_RANGE` അനുസരിച്ച്; `package.json`-ലെ `engines`-മായി യോജിപ്പിച്ചിരിക്കുന്നു)
+- [ ] `npm run check:node-runtime` — പിന്തുണയ്ക്കുന്ന ഏറ്റവും കുറഞ്ഞ runtime പരിധി പാലിച്ചിരിക്കുന്നു (`>=22.22.2 <23`, `>=24.0.0 <27`, `src/shared/utils/nodeRuntimeSupport.ts`-ലെ `SUPPORTED_NODE_RANGE` പ്രകാരം; `package.json`-ലെ `engines`-മായി വിന്യസിച്ചിരിക്കുന്നു)
 
 ### പരിശോധന
 
 - [ ] `npm run test:unit` — വിജയിക്കുന്നു
 - [ ] `npm run test:vitest` — വിജയിക്കുന്നു (MCP server, autoCombo, cache)
-- [ ] `npm run test:coverage` — gate 60/60/60/60 പാലിക്കുന്നു (statements/lines/functions/branches)
+- [ ] `npm run test:coverage` — 60/60/60/60 പരിധി പാലിച്ചിരിക്കുന്നു (statements/lines/functions/branches)
 - [ ] `npm run test:integration` — വിജയിക്കുന്നു (മാറ്റങ്ങൾ DB / handlers-നെ ബാധിക്കുന്നുവെങ്കിൽ)
-- [ ] `npm run test:combo:matrix` — വിജയിക്കുന്നു (combo strategy matrix: പൊതുവായ 19 routing strategies-ന്റെയും selection decisions നിർണിതമായി തെളിയിക്കുന്നു; combo routing, strategy resolution, അല്ലെങ്കിൽ fallback logic എന്നിവയിൽ മാറ്റം വരുത്തുമ്പോൾ പ്രവർത്തിപ്പിക്കുക)
-- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **ഐച്ഛികം/മാനുവൽ** (gate ചെയ്ത real-upstream smoke; VPS `root@192.168.0.15`-ൽ നിന്ന് read-only DB snapshot സ്വീകരിക്കുന്നു; യഥാർത്ഥ providers-നെ സമീപിക്കുന്നു, credits ചെലവാകും; CI-യിൽ ഒരിക്കലും പ്രവർത്തിക്കില്ല; gate ഇല്ലെങ്കിൽ പ്രശ്നങ്ങളില്ലാതെ skip ചെയ്യും)
-- [ ] `npm run test:combo:live:vps` — **ഐച്ഛികം/മാനുവൽ** (Phase-3 VPS live smoke: സാധാരണ Node ESM വഴി live `.15` server-നെതിരായ 7 HTTP scenarios; `ssh root@192.168.0.15` ആവശ്യമാണ്; `__live_test__*` combos മാത്രം സൃഷ്ടിക്കുകയും ഇല്ലാതാക്കുകയും ചെയ്യുന്നു; യഥാർത്ഥ providers-നെ സമീപിക്കുന്നു; CI-യിൽ ഒരിക്കലും പ്രവർത്തിക്കില്ല)
-- [ ] `npm run test:e2e` — വിജയിക്കുന്നു (UI changes)
-- [ ] `npm run test:protocols:e2e` — വിജയിക്കുന്നു (MCP/A2A changes)
+- [ ] `npm run test:combo:matrix` — വിജയിക്കുന്നു (combo strategy matrix: പൊതുവായി ലഭ്യമായ 19 routing strategy-കളുടെയും തിരഞ്ഞെടുപ്പ് തീരുമാനങ്ങൾ നിർണായകമായി തെളിയിക്കുന്നു; combo routing, strategy resolution, അല്ലെങ്കിൽ fallback logic എന്നിവയിൽ മാറ്റം വരുത്തുമ്പോൾ പ്രവർത്തിപ്പിക്കുക)
+- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **ഐച്ഛികം/സ്വമേധയാ** (gate ചെയ്ത യഥാർത്ഥ-upstream smoke പരിശോധന; VPS `root@192.168.0.15`-ൽനിന്ന് read-only DB snapshot സ്വീകരിക്കുന്നു; യഥാർത്ഥ providers-നെ സമീപിക്കുകയും credits ചെലവാക്കുകയും ചെയ്യുന്നു; CI-യിൽ ഒരിക്കലും പ്രവർത്തിക്കില്ല; gate ഇല്ലെങ്കിൽ പ്രശ്നങ്ങളില്ലാതെ ഒഴിവാക്കുന്നു)
+- [ ] `npm run test:combo:live:vps` — **ഐച്ഛികം/സ്വമേധയാ** (Phase-3 VPS live smoke: സാധാരണ Node ESM വഴി live `.15` server-നെതിരായ 7 HTTP സാഹചര്യങ്ങൾ; `ssh root@192.168.0.15` ആവശ്യമാണ്; `__live_test__*` combos മാത്രം സൃഷ്ടിക്കുകയും ഇല്ലാതാക്കുകയും ചെയ്യുന്നു; യഥാർത്ഥ providers-നെ സമീപിക്കുന്നു; CI-യിൽ ഒരിക്കലും പ്രവർത്തിക്കില്ല)
+- [ ] `npm run test:e2e` — വിജയിക്കുന്നു (UI മാറ്റങ്ങൾ)
+- [ ] `npm run test:protocols:e2e` — വിജയിക്കുന്നു (MCP/A2A മാറ്റങ്ങൾ)
 - [ ] `npm run test:ecosystem` — വിജയിക്കുന്നു
 
 ### Hooks (Husky സാധൂകരിച്ചത്)
 
-Husky hooks `.husky/`-ൽ സ്ഥിതിചെയ്യുന്നു; git operations നടക്കുമ്പോൾ അവ സ്വയമേവ പ്രവർത്തിക്കും.
+Husky hooks `.husky/`-ലാണ് ഉള്ളത്, git പ്രവർത്തനങ്ങളിൽ അവ സ്വയമേവ പ്രവർത്തിക്കുന്നു.
 
 - **pre-commit:** `npx lint-staged + node scripts/check/check-docs-sync.mjs + npm run check:any-budget:t11`
-- **pre-push:** വേഗമേറിയ നിർണിത gates — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (2026-06-13-ന് സജീവമാക്കി). `test:unit` മനഃപൂർവം ഒഴിവാക്കിയിരിക്കുന്നു (വേഗം കുറവാണ്; CI `test-unit` job ഇത് ഉൾക്കൊള്ളുന്നു).
-  - release branches push ചെയ്യുന്നതിന് മുമ്പ് `npm run test:unit` മാനുവലായി പ്രവർത്തിപ്പിക്കുക.
+- **pre-push:** വേഗത്തിലുള്ള നിർണായക gates — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (2026-06-13-ന് സജീവമാക്കി). മനഃപൂർവം `test:unit` ഒഴിവാക്കുന്നു (വേഗം കുറവാണ്; CI `test-unit` job ഇത് ഉൾക്കൊള്ളുന്നു).
+  - റിലീസ് ബ്രാഞ്ചുകൾ push ചെയ്യുന്നതിന് മുമ്പ് `npm run test:unit` സ്വമേധയാ പ്രവർത്തിപ്പിക്കുക.
 
-ഒരു hook പരാജയപ്പെട്ടാൽ: അടിസ്ഥാന പ്രശ്നം പരിഹരിക്കുക; `--no-verify` ഉപയോഗിച്ച് മറികടക്കരുത്.
+ഒരു hook പരാജയപ്പെട്ടാൽ: അടിസ്ഥാന പ്രശ്നം പരിഹരിക്കുക, `--no-verify` ഉപയോഗിച്ച് മറികടക്കരുത്.
 
-### Conventional Commits
+### പരമ്പരാഗത കമ്മിറ്റുകൾ
 
-റിലീസിൽ ഉൾപ്പെടുന്ന എല്ലാ commit-ുകളും `type(scope): subject` format പിന്തുടരണം.
+റിലീസിൽ ഉൾപ്പെടേണ്ട എല്ലാ commits-ഉം `type(scope): subject` ഫോർമാറ്റ് പാലിക്കണം.
 
-**സാധുവായ types:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `ci`
+**സാധുവായ തരങ്ങൾ:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `ci`
 
 **സാധുവായ scopes:** `db`, `sse`, `oauth`, `dashboard`, `api`, `cli`, `docker`, `ci`, `mcp`, `a2a`, `memory`, `skills`, `cloud-agent`, `guardrails`, `compression`, `auto-combo`, `resilience`, `providers`, `executors`, `translator`, `domain`, `authz`
 
-Breaking changes: `BREAKING CHANGE:` footer ചേർക്കുക അല്ലെങ്കിൽ scope-ന് ശേഷം `!` ചേർക്കുക (ഉദാ. `feat(api)!: drop /v0`).
+പൊരുത്തം തകർക്കുന്ന മാറ്റങ്ങൾ: `BREAKING CHANGE:` footer ചേർക്കുക അല്ലെങ്കിൽ scope-ന് ശേഷം `!` ചേർക്കുക (ഉദാ. `feat(api)!: drop /v0`).
 
 ### ഡോക്യുമെന്റേഷൻ
 
-- [ ] `npm run check:docs-sync` വിജയിക്കുന്നു (pre-commit വഴി സ്വയമേവ പ്രവർത്തിപ്പിക്കുന്നു)
-- [ ] `npm run check:docs-all` വിജയിക്കുന്നു (സമഗ്ര പരിശോധന: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
-- [ ] `npm run check:env-doc-sync` 0-ൽ പുറത്തുകടക്കുന്നു — കോഡ് ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` env കരാർ കേടുപാടില്ലാതെ നിലനിൽക്കുന്നു
-- [ ] `npm run check:doc-links` 0-ൽ പുറത്തുകടക്കുന്നു — പുനഃക്രമീകരണത്തിനുശേഷം തകരാറിലായ ആന്തരിക markdown റഫറൻസുകളൊന്നുമില്ല
-- [ ] സ്റ്റോറേജ്/റൺടൈം വ്യതിയാനങ്ങൾക്കായി `docs/architecture/ARCHITECTURE.md` അവലോകനം ചെയ്തു
-- [ ] env var-കളിലെയും പ്രവർത്തനരീതിയിലെയും വ്യതിയാനങ്ങൾക്കായി `docs/guides/TROUBLESHOOTING.md` അവലോകനം ചെയ്തു
-- [ ] `.env.example` മാറിയിട്ടുണ്ടെങ്കിൽ: `docs/reference/ENVIRONMENT.md` അപ്ഡേറ്റ് ചെയ്തു
-- [ ] പുതിയ ഫീച്ചറിന് UI ഉണ്ടെങ്കിൽ: `docs/guides/USER_GUIDE.md`-ൽ അതിനെക്കുറിച്ച് പരാമർശിക്കുന്നു
-- [ ] പുതിയ ഫീച്ചറിന് API ഉണ്ടെങ്കിൽ: `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml` അപ്ഡേറ്റ് ചെയ്തു
-- [ ] പുതിയ ഫീച്ചർ ഒരു മൊഡ്യൂൾ ആണെങ്കിൽ: അതിനായി പ്രത്യേക `docs/<MODULE>.md` നിലവിലുണ്ട്
-- [ ] പിന്നോട്ടുള്ള അനുയോജ്യത തകർക്കുന്ന മാറ്റമാണെങ്കിൽ: `docs/guides/TROUBLESHOOTING.md`-ൽ മൈഗ്രേഷൻ കുറിപ്പുണ്ട്
+- [ ] `npm run check:docs-sync` വിജയിക്കുന്നു (pre-commit സ്വയമേവ പ്രവർത്തിപ്പിക്കുന്നു)
+- [ ] `npm run check:docs-all` വിജയിക്കുന്നു (umbrella: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
+- [ ] `npm run check:env-doc-sync` exit 0 നൽകുന്നു — code ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` env contract കേടുപാടുകളില്ലാതെ നിലനിൽക്കുന്നു
+- [ ] `npm run check:doc-links` exit 0 നൽകുന്നു — പുനഃസംഘടനയ്ക്കുശേഷം തകർന്ന ആഭ്യന്തര markdown references ഇല്ല
+- [ ] storage/runtime വ്യതിയാനങ്ങൾക്കായി `docs/architecture/ARCHITECTURE.md` പരിശോധിച്ചിട്ടുണ്ട്
+- [ ] env var-കളിലെയും പ്രവർത്തനപരമായ കാര്യങ്ങളിലെയും വ്യതിയാനങ്ങൾക്കായി `docs/guides/TROUBLESHOOTING.md` പരിശോധിച്ചിട്ടുണ്ട്
+- [ ] `.env.example` മാറിയിട്ടുണ്ടെങ്കിൽ: `docs/reference/ENVIRONMENT.md` പുതുക്കിയിട്ടുണ്ട്
+- [ ] പുതിയ feature-ന് UI ഉണ്ടെങ്കിൽ: `docs/guides/USER_GUIDE.md` അതിനെക്കുറിച്ച് പരാമർശിക്കുന്നു
+- [ ] പുതിയ feature-ന് API ഉണ്ടെങ്കിൽ: `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml` പുതുക്കിയിട്ടുണ്ട്
+- [ ] പുതിയ feature ഒരു module ആണെങ്കിൽ: അതിനായി പ്രത്യേക `docs/<MODULE>.md` നിലവിലുണ്ട്
+- [ ] പൊരുത്തം തകർക്കുന്ന മാറ്റമാണെങ്കിൽ: `docs/guides/TROUBLESHOOTING.md`-ൽ migration കുറിപ്പ് ഉൾപ്പെടുത്തിയിട്ടുണ്ട്
 
 ### i18n
 
-- [ ] `npm run i18n:check` 0-ൽ പുറത്തുകടക്കുന്നു — വിവർത്തന നില (`.i18n-state.json`) ഉറവിട ഡോക്യുമെന്റുകളുമായി സമന്വയത്തിലാണ് (strict mode-ൽ വ്യതിചലിച്ച ഉറവിടങ്ങളില്ല; അവസാന നിമിഷ ഡോക്യുമെന്റ് തിരുത്തലുകൾക്ക് warn-mode മുന്നറിയിപ്പ് സ്വീകാര്യമാണ്, എന്നാൽ ടാഗ് ചെയ്യുന്നതിന് മുമ്പ് ഇത് 0 ആയിരിക്കണം)
-- [ ] `npm run i18n:check-ui-coverage` 0-ൽ പുറത്തുകടക്കുന്നു — എല്ലാ UI locale-കളും 80% കവറേജ് പരിധിയിലോ അതിനു മുകളിലോ ആണ്
-- [ ] `npm run i18n:sync-ui:dry` എല്ലാ 42 locale-കളിലുമായി നഷ്ടപ്പെട്ട key-കൾ 0 ആണെന്ന് റിപ്പോർട്ട് ചെയ്യുന്നു
-- [ ] ഉറവിട ഇംഗ്ലീഷ് ഡോക്യുമെന്റുകൾ മാറിയിട്ടുണ്ടെങ്കിൽ, ടാഗ് ചെയ്യുന്നതിന് മുമ്പ് `npm run i18n:run` പ്രവർത്തിപ്പിക്കുക (`.env`-ൽ `OMNIROUTE_TRANSLATION_API_KEY` ആവശ്യമാണ്)
+- [ ] `npm run i18n:check` exit 0 നൽകുന്നു — translation state (`.i18n-state.json`) source docs-മായി സമന്വയത്തിലാണ് (strict mode-ൽ വ്യതിചലിച്ച sources ഇല്ല; അവസാന നിമിഷത്തെ doc തിരുത്തലുകൾക്ക് warn-mode നിർദേശം സ്വീകാര്യമാണ്, എന്നാൽ tagging-ന് മുമ്പ് ഇത് 0 ആയിരിക്കണം)
+- [ ] `npm run i18n:check-ui-coverage` exit 0 നൽകുന്നു — എല്ലാ UI locale-കളും 80% coverage പരിധിയിലോ അതിന് മുകളിലോ ആണ്
+- [ ] `npm run i18n:sync-ui:dry` എല്ലാ 66 target locale-കളിലും 0 missing keys റിപ്പോർട്ട് ചെയ്യുന്നു (`en` source ഒഴികെയുള്ള എല്ലാ locale-കളും)
+- [ ] source English docs മാറിയിട്ടുണ്ടെങ്കിൽ, tagging-ന് മുമ്പ് `npm run i18n:run` പ്രവർത്തിപ്പിക്കുക (`.env`-ൽ `OMNIROUTE_TRANSLATION_API_KEY` ആവശ്യമാണ്)
 - [ ] ചെറിയ മാറ്റങ്ങളാണെങ്കിൽ വിവർത്തന സംഭാവനകൾ അടുത്ത റിലീസിലേക്ക് മാറ്റിവയ്ക്കാം (CHANGELOG-ൽ രേഖപ്പെടുത്തുക)
 
 ### ഡാറ്റാബേസ് മൈഗ്രേഷനുകൾ
 
-- [ ] `src/lib/db/migrations/`-ൽ പുതിയ ഫയലുകൾ ഉണ്ടെങ്കിൽ:
-  - [ ] ഓരോ മൈഗ്രേഷനും idempotent ആണ് (`CREATE TABLE IF NOT EXISTS` മുതലായവ)
-  - [ ] മൈഗ്രേഷനുകൾ transaction-കളിൽ പൊതിഞ്ഞിരിക്കുന്നു
-  - [ ] ശരിയായി നമ്പർ ചെയ്തിരിക്കുന്നു (ക്രമത്തിൽ വിടവുകളില്ല)
-- [ ] പുതിയ ഇൻസ്റ്റാളേഷനിൽ പരിശോധിക്കുക: `~/.omniroute/omniroute.db` ഇല്ലാതാക്കി `npm run dev` പ്രവർത്തിപ്പിക്കുക
-- [ ] നിലവിലുള്ള ഇൻസ്റ്റാളേഷനിൽ പരിശോധിക്കുക: DB ബാക്കപ്പ് ചെയ്യുക, മൈഗ്രേഷൻ പ്രവർത്തിപ്പിക്കുക, schema പരിശോധിച്ചുറപ്പിക്കുക
-- [ ] മൈഗ്രേഷൻ table-കൾ വീണ്ടും എഴുതുന്നുവെങ്കിൽ WAL ഫയലുകൾ (`-wal`, `-shm`) ശരിയായി കൈകാര്യം ചെയ്തിരിക്കുന്നു
+- [ ] `src/lib/db/migrations/`-ൽ പുതിയ files ഉണ്ടെങ്കിൽ:
+  - [ ] ഓരോ migration-ഉം idempotent ആണ് (`CREATE TABLE IF NOT EXISTS`, തുടങ്ങിയവ)
+  - [ ] Migrations transactions-ൽ പൊതിഞ്ഞിരിക്കുന്നു
+  - [ ] ശരിയായി നമ്പർ നൽകിയിരിക്കുന്നു (ക്രമത്തിൽ വിടവുകളില്ല)
+- [ ] പുതിയ installation-ൽ പരിശോധിക്കുക: `~/.omniroute/omniroute.db` ഇല്ലാതാക്കി `npm run dev` പ്രവർത്തിപ്പിക്കുക
+- [ ] നിലവിലുള്ള installation-ൽ പരിശോധിക്കുക: DB backup എടുക്കുക, migration പ്രവർത്തിപ്പിക്കുക, schema പരിശോധിക്കുക
+- [ ] migration tables മാറ്റിയെഴുതുന്നുവെങ്കിൽ WAL files (`-wal`, `-shm`) ശരിയായി കൈകാര്യം ചെയ്തിരിക്കുന്നു
 
-### പ്രൊവൈഡർ കാറ്റലോഗ് (Zod ഉപയോഗിച്ച് സാധൂകരിച്ചത്)
+### ദാതാക്കളുടെ കാറ്റലോഗ് (Zod ഉപയോഗിച്ച് സാധൂകരിച്ചത്)
 
-- [ ] `src/shared/constants/providers.ts` Zod schema ലോഡ് ചെയ്യുന്ന സമയത്ത് സാധുവാണ്
-  - [ ] എല്ലാ പ്രൊവൈഡറുകൾക്കും ആവശ്യമായ field-കൾ (`id`, `label`, `kind` മുതലായവ) ഉണ്ട്
-  - [ ] പുതിയ സൗജന്യ പ്രൊവൈഡറുകൾക്കായി `freeNote` നൽകിയിട്ടുണ്ട്
-  - [ ] OAuth പ്രൊവൈഡറുകൾക്ക് `src/lib/oauth/constants/oauth.ts`-ൽ `oauthConfig` രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട്
-- [ ] പുതിയ പ്രൊവൈഡർ ചേർത്തിട്ടുണ്ടെങ്കിൽ: അതിനനുസരിച്ചുള്ള executor `open-sse/executors/`-ൽ ഉണ്ട്
-- [ ] OpenAI അല്ലാത്ത ഫോർമാറ്റാണെങ്കിൽ: translator `open-sse/translator/`-ൽ ഉണ്ട്
+- [ ] `src/shared/constants/providers.ts`-ലെ Zod സ്കീമ ലോഡ് ചെയ്യുന്ന സമയത്ത് സാധുവാണ്
+  - [ ] എല്ലാ ദാതാക്കൾക്കും ആവശ്യമായ ഫീൽഡുകൾ (`id`, `label`, `kind` മുതലായവ) ഉണ്ട്
+  - [ ] പുതിയ സൗജന്യ ദാതാക്കൾക്ക് `freeNote` നൽകിയിട്ടുണ്ട്
+  - [ ] OAuth ദാതാക്കളുടെ `oauthConfig`, `src/lib/oauth/constants/oauth.ts`-ൽ രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട്
+- [ ] പുതിയ ദാതാവിനെ ചേർത്തിട്ടുണ്ടെങ്കിൽ: `open-sse/executors/`-ൽ അതിനനുസരിച്ചുള്ള എക്സിക്യൂട്ടർ ഉണ്ട്
+- [ ] OpenAI ഇതര ഫോർമാറ്റാണെങ്കിൽ: `open-sse/translator/`-ൽ ട്രാൻസ്ലേറ്റർ ഉണ്ട്
 - [ ] മോഡലുകൾ `open-sse/config/providerRegistry.ts`-ൽ രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട്
-- [ ] `tests/unit/`-ലെ unit test-കൾ പ്രൊവൈഡർ വർഗ്ഗീകരണവും റൂട്ടിംഗും ഉൾക്കൊള്ളുന്നു
+- [ ] `tests/unit/`-ലെ യൂണിറ്റ് ടെസ്റ്റുകൾ ദാതാക്കളുടെ വർഗ്ഗീകരണവും റൂട്ടിംഗും ഉൾക്കൊള്ളുന്നു
 
 ### ഡെസ്ക്ടോപ്പ് (Electron)
 
 `electron/` മാറിയിട്ടുണ്ടെങ്കിൽ:
 
 - [ ] `npm run electron:smoke:packaged` വിജയിക്കുന്നു
-- [ ] `:win`, `:mac`, `:linux` എന്നിവയിൽ കുറഞ്ഞത് ഒന്നിനെങ്കിലും വേണ്ടിയുള്ള build-കൾ പരിശോധിച്ചു
-- [ ] കോഡ് signing certificate-കളുടെ കാലാവധി കഴിഞ്ഞിട്ടില്ല (signing നടത്തുന്നുവെങ്കിൽ)
-- [ ] `electron/package.json` പതിപ്പ് root `package.json`-ലെ പതിപ്പുമായി പൊരുത്തപ്പെടുന്നു
-- [ ] `stable`-ലേക്ക് റിലീസ് ചെയ്യുന്നുവെങ്കിൽ auto-update channel pointer അപ്ഡേറ്റ് ചെയ്തു
+- [ ] `:win`, `:mac`, `:linux` എന്നിവയിൽ കുറഞ്ഞത് ഒന്നിനെങ്കിലും ബിൽഡുകൾ പരീക്ഷിച്ചിട്ടുണ്ട്
+- [ ] കോഡ് സൈനിംഗ് സർട്ടിഫിക്കറ്റുകളുടെ കാലാവധി കഴിഞ്ഞിട്ടില്ല (സൈൻ ചെയ്യുന്നുണ്ടെങ്കിൽ)
+- [ ] `electron/package.json` പതിപ്പ് റൂട്ട് `package.json`-ലെ പതിപ്പുമായി പൊരുത്തപ്പെടുന്നു
+- [ ] `stable`-ലേക്ക് റിലീസ് ചെയ്യുകയാണെങ്കിൽ ഓട്ടോ-അപ്ഡേറ്റ് ചാനൽ പോയിന്റർ അപ്ഡേറ്റ് ചെയ്തിട്ടുണ്ട്
 
-### Build ലേഔട്ട്
+### ബിൽഡ് ലേഔട്ട്
 
-റിപ്പോസിറ്ററി മൂന്ന് വ്യത്യസ്ത output directory-കൾ ഉപയോഗിക്കുന്നു — അവ ഒരിക്കലും പരസ്പരം കലർത്തരുത്:
+റെപ്പോസിറ്ററി വ്യത്യസ്തമായ മൂന്ന് ഔട്ട്പുട്ട് ഡയറക്ടറികൾ ഉപയോഗിക്കുന്നു — അവ ഒരിക്കലും പരസ്പരം കലർത്തരുത്:
 
-| Directory | ഉദ്ദേശ്യം                                                                        | ട്രാക്ക് ചെയ്യുന്നുണ്ടോ? |
-| --------- | -------------------------------------------------------------------------------- | ------------------------ |
-| `src/`    | ആപ്ലിക്കേഷൻ ഉറവിടം (TypeScript / TSX)                                            | ഉണ്ട്                    |
-| `.build/` | Build intermediate-കൾ — `next build` output (`distDir`)                          | ഇല്ല (gitignored)        |
-| `dist/`   | വിതരണം ചെയ്യാവുന്ന npm bundle — `assembleStandalone` ഉപയോഗിച്ച് കൂട്ടിച്ചേർത്തത് | ഇല്ല (gitignored)        |
+| ഡയറക്ടറി  | ഉദ്ദേശ്യം                                                                      | ട്രാക്ക് ചെയ്യുന്നുണ്ടോ?          |
+| --------- | ------------------------------------------------------------------------------ | --------------------------------- |
+| `src/`    | ആപ്ലിക്കേഷൻ സോഴ്സ് (TypeScript / TSX)                                          | ഉണ്ട്                             |
+| `.build/` | ബിൽഡ് ഇടനില ഫയലുകൾ — `next build` ഔട്ട്പുട്ട് (`distDir`)                      | ഇല്ല (gitignore ചെയ്തിരിക്കുന്നു) |
+| `dist/`   | വിതരണം ചെയ്യാവുന്ന npm ബണ്ടിൽ — `assembleStandalone` ഉപയോഗിച്ച് അസംബിൾ ചെയ്തത് | ഇല്ല (gitignore ചെയ്തിരിക്കുന്നു) |
 
-> **ഓപ്പറേറ്റർ കുറിപ്പ്:** റിമോട്ട് VPS image directory `/usr/lib/node_modules/omniroute/app/` ആയി തുടരുന്നു.
-> **റിപ്പോസിറ്ററിക്കുള്ളിലെ** build output മാത്രമാണ് മാറിയത് (`app/` → `dist/`). Deploy skill-കൾ
-> `dist/`-ലെ ഉള്ളടക്കം റിമോട്ട് `app/` dir-ലേക്ക് rsync ചെയ്യുന്നു — VPS path-ൽ മാറ്റങ്ങളൊന്നും ആവശ്യമില്ല.
+> **ഓപ്പറേറ്റർക്കുള്ള കുറിപ്പ്:** റിമോട്ട് VPS ഇമേജ് ഡയറക്ടറി `/usr/lib/node_modules/omniroute/app/` ആയി തുടരുന്നു.
+> **റെപ്പോയ്ക്കുള്ളിലെ** ബിൽഡ് ഔട്ട്പുട്ട് മാത്രമാണ് മാറിയത് (`app/` → `dist/`). ഡിപ്ലോയ് സ്കില്ലുകൾ
+> `dist/`-ലെ ഉള്ളടക്കം റിമോട്ടിലെ `app/` ഡയറക്ടറിയിലേക്ക് rsync ചെയ്യുന്നു — VPS പാതകളിൽ മാറ്റങ്ങളൊന്നും ആവശ്യമില്ല.
 
-**ഒറ്റ-build പ്രവാഹം:**
+**ഒറ്റ-ബിൽഡ് പ്രവാഹം:**
 
 ```
 npm run build:release
-  └─ rm -rf .build dist          (clean)
-  └─ next build → .build/next/   (intermediates)
-  └─ assembleStandalone          (copies standalone + static + public + natives → dist/)
-  └─ writes dist/BUILD_SHA       (HEAD sentinel)
+  └─ rm -rf .build dist          (വൃത്തിയാക്കൽ)
+  └─ next build → .build/next/   (ഇടനില ഫയലുകൾ)
+  └─ assembleStandalone          (standalone + static + public + natives എന്നിവ dist/ എന്നതിലേക്ക് പകർത്തുന്നു)
+  └─ writes dist/BUILD_SHA       (HEAD സെന്റിനൽ)
 ```
 
-Deploy ചെയ്യുന്നതിനായി `npm run build` പ്രവർത്തിപ്പിച്ചതിനുശേഷം വേറിട്ട് `npm run build:cli` പ്രവർത്തിപ്പിക്കരുത് — ഒറ്റ command-ൽ clean rebuild + sentinel ചെയ്യുന്ന
+ഡിപ്ലോയ് ചെയ്യുന്നതിനായി `npm run build` പ്രവർത്തിപ്പിച്ചതിന് ശേഷം പ്രത്യേകം `npm run build:cli` പ്രവർത്തിപ്പിക്കരുത് — ഒറ്റ കമാൻഡിൽ ക്ലീൻ റീബിൽഡും സെന്റിനലും ചെയ്യുന്ന
 `npm run build:release` ഉപയോഗിക്കുക.
 
-### Artifact സാധൂകരണം
+### ആർട്ടിഫാക്റ്റ് സാധൂകരണം
 
 - [ ] `npm run build:release` വിജയിക്കുകയും `dist/BUILD_SHA` == `git rev-parse --short HEAD` ആയിരിക്കുകയും ചെയ്യുന്നു
-- [ ] `npm run check:pack-artifact` ശുദ്ധമാണ് — `app.__qa_backup`, `scripts/scratch`, `package-lock.json`, അല്ലെങ്കിൽ മറ്റ് local residue ഒന്നുമില്ല
-- [ ] build-നുശേഷം `dist/server.js` നിലവിലുണ്ട്
-- [ ] ഐച്ഛികമായ local packaged-runtime smoke പരിശോധന: `npm run dev:candidate -- build`-നുശേഷം `npm run dev:candidate -- validate` പ്രവർത്തിപ്പിക്കുന്നത് വേർതിരിച്ച `DATA_DIR`-ൽ packed tarball boot ചെയ്യുകയും `/api/health` + `/v1/models` പരിശോധിക്കുകയും ചെയ്യുന്നു ([Contribution Golden Path](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop) കാണുക)
+- [ ] `npm run check:pack-artifact` ക്ലീൻ ആണ് — `app.__qa_backup`, `scripts/scratch`, `package-lock.json` അല്ലെങ്കിൽ മറ്റ് ലോക്കൽ അവശിഷ്ടങ്ങൾ ഒന്നുമില്ല
+- [ ] ബിൽഡിന് ശേഷം `dist/server.js` നിലവിലുണ്ട്
+- [ ] ഐച്ഛികമായ ലോക്കൽ പാക്കേജ്ഡ്-റൺടൈം സ്മോക്ക് ടെസ്റ്റ്: `npm run dev:candidate -- build`-ന് ശേഷം `npm run dev:candidate -- validate` പ്രവർത്തിപ്പിക്കുന്നത് ഒറ്റപ്പെട്ട `DATA_DIR`-ൽ പാക്ക് ചെയ്ത tarball ബൂട്ട് ചെയ്യുകയും `/api/health` + `/v1/models` പരിശോധിക്കുകയും ചെയ്യുന്നു ([സംഭാവനയ്ക്കുള്ള ഗോൾഡൻ പാത](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop) കാണുക)
 
 ### ടാഗിംഗും റിലീസും
 
-- [ ] `/generate-release-cc` (Claude Code skill) പ്രവർത്തിപ്പിക്കുക:
-  - `vX.Y.Z` tag സൃഷ്ടിക്കുന്നു
-  - tag-ഉം branch-ഉം push ചെയ്യുന്നു
-  - changelog body സഹിതം GitHub Release തുറക്കുന്നു
-  - Electron installer-കൾ ചേർക്കുന്നു (build ചെയ്തിട്ടുണ്ടെങ്കിൽ)
-- [ ] അല്ലെങ്കിൽ നേരിട്ട്:
+- [ ] `/generate-release-cc` പ്രവർത്തിപ്പിക്കുക (Claude Code സ്കിൽ):
+  - `vX.Y.Z` ടാഗ് സൃഷ്ടിക്കുന്നു
+  - ടാഗും ബ്രാഞ്ചും പുഷ് ചെയ്യുന്നു
+  - ചേഞ്ച്ലോഗ് ബോഡിയോടെ GitHub Release തുറക്കുന്നു
+  - Electron ഇൻസ്റ്റാളറുകൾ അറ്റാച്ച് ചെയ്യുന്നു (ബിൽഡ് ചെയ്തിട്ടുണ്ടെങ്കിൽ)
+- [ ] അല്ലെങ്കിൽ മാനുവലായി:
   ```bash
   git tag -a vX.Y.Z -m "Release vX.Y.Z"
   git push origin vX.Y.Z
   gh release create vX.Y.Z --notes-from-tag
   ```
 
-### Deploy
+### ഡിപ്ലോയ്
 
-Deploy skill-കൾ ലളിതമായ rsync പ്രവാഹമാണ് ഉപയോഗിക്കുന്നത് — `npm pack` ഇല്ല, `npm i -g` ഇല്ല:
+ഡിപ്ലോയ് സ്കില്ലുകൾ ലഘുവായ rsync പ്രവാഹമാണ് ഉപയോഗിക്കുന്നത് — `npm pack` ഇല്ല, `npm i -g` ഇല്ല:
 
-- [ ] ലക്ഷ്യവുമായി പൊരുത്തപ്പെടുന്ന deploy skill ഉപയോഗിക്കുക:
+- [ ] ലക്ഷ്യവുമായി പൊരുത്തപ്പെടുന്ന ഡിപ്ലോയ് സ്കിൽ ഉപയോഗിക്കുക:
   - `/deploy-vps-local-cc` — ലോക്കൽ VPS (192.168.0.15)
   - `/deploy-vps-akamai-cc` — Akamai VPS (69.164.221.35)
   - `/deploy-vps-both-cc` — രണ്ടും
-- [ ] വിന്യസിക്കുന്നതിന് മുമ്പ്, `dist/BUILD_SHA` == `git rev-parse --short HEAD` ആണെന്ന് സ്ഥിരീകരിക്കുക
-- [ ] `node_modules` യഥാർത്ഥമായിരിക്കുന്നിടത്താണ് build പ്രവർത്തിക്കേണ്ടത് (പ്രധാന checkout അല്ലെങ്കിൽ `npm ci` പ്രവർത്തിപ്പിച്ച worktree — symlink ചെയ്ത worktree അല്ല)
-- [ ] വിന്യസിച്ച instance-ൽ smoke test നടത്തുക:
-  - `/dashboard/health` തുറക്കുക → version string release-മായി പൊരുത്തപ്പെടുന്നുണ്ടോയെന്ന് പരിശോധിക്കുക
-  - അറിയപ്പെടുന്ന ഒരു provider-നെതിരെ `/v1/chat/completions` request പ്രവർത്തിപ്പിക്കുക
-  - `/api/monitoring/health` `CLOSED` circuit breakers മടക്കിനൽകുന്നുവെന്ന് പരിശോധിക്കുക
-  - MCP transports പ്രതികരിക്കുന്നുവെന്ന് സ്ഥിരീകരിക്കുക (`/mcp` HTTP, `/mcp-sse` SSE)
+- [ ] ഡിപ്ലോയ് ചെയ്യുന്നതിന് മുമ്പ് `dist/BUILD_SHA` == `git rev-parse --short HEAD` ആണെന്ന് സ്ഥിരീകരിക്കുക
+- [ ] `node_modules` യഥാർത്ഥത്തിലുള്ള ഇടത്താണ് ബിൽഡ് പ്രവർത്തിക്കേണ്ടത് (പ്രധാന checkout അല്ലെങ്കിൽ `npm ci` ചെയ്ത worktree — symlink ചെയ്ത worktree അല്ല)
+- [ ] ഡിപ്ലോയ് ചെയ്ത ഇൻസ്റ്റൻസിൽ സ്മോക്ക് ടെസ്റ്റ് നടത്തുക:
+  - `/dashboard/health` തുറക്കുക → പതിപ്പ് സ്ട്രിംഗ് റിലീസുമായി പൊരുത്തപ്പെടുന്നുവെന്ന് പരിശോധിക്കുക
+  - അറിയപ്പെടുന്ന ഒരു ദാതാവിനെതിരെ `/v1/chat/completions` അഭ്യർത്ഥന പ്രവർത്തിപ്പിക്കുക
+  - `/api/monitoring/health`, `CLOSED` സർക്യൂട്ട് ബ്രേക്കറുകൾ തിരികെ നൽകുന്നുവെന്ന് പരിശോധിക്കുക
+  - MCP ട്രാൻസ്പോർട്ടുകൾ പ്രതികരിക്കുന്നുവെന്ന് സ്ഥിരീകരിക്കുക (`/mcp` HTTP, `/mcp-sse` SSE)
 
 ### റിലീസിന് ശേഷം
 
-- [ ] `/capture-release-evidences-cc` പ്രവർത്തിപ്പിക്കുക (Claude Code skill)
-  - പുതിയ features-ന്റെ WebP screenshots/recordings പകർത്തുന്നു
-  - അവ release notes / blog post-ൽ ചേർക്കുന്നു
-- [ ] release announcement ഉപയോഗിച്ച് GitHub Discussions / Discord അപ്ഡേറ്റ് ചെയ്യുക
-- [ ] അടുത്ത version-നായി milestone തുറക്കുക
-- [ ] നിർണായകമാണെങ്കിൽ: discussion pin ചെയ്യുക അല്ലെങ്കിൽ in-app banner-നായി `news.json`-ൽ പോസ്റ്റ് ചെയ്യുക
+- [ ] `/capture-release-evidences-cc` പ്രവർത്തിപ്പിക്കുക (Claude Code സ്കിൽ)
+  - പുതിയ ഫീച്ചറുകളുടെ WebP സ്ക്രീൻഷോട്ടുകൾ/റെക്കോർഡിംഗുകൾ പകർത്തുന്നു
+  - റിലീസ് കുറിപ്പുകളിലേക്കോ ബ്ലോഗ് പോസ്റ്റിലേക്കോ അറ്റാച്ച് ചെയ്യുന്നു
+- [ ] റിലീസ് പ്രഖ്യാപനത്തോടെ GitHub Discussions / Discord അപ്ഡേറ്റ് ചെയ്യുക
+- [ ] അടുത്ത പതിപ്പിനായി മൈൽസ്റ്റോൺ തുറക്കുക
+- [ ] നിർണായകമാണെങ്കിൽ: ഇൻ-ആപ്പ് ബാനറിനായി ചർച്ച പിൻ ചെയ്യുകയോ `news.json`-ൽ പോസ്റ്റ് ചെയ്യുകയോ ചെയ്യുക
 
-### Radar പൊതു ലോഞ്ച് ഗേറ്റ്
+### Radar പൊതു-ലോഞ്ച് ഗേറ്റ്
 
-Radar announcement മനഃപൂർവം `active: false` എന്ന നിലയിലാണ് commit ചെയ്തിരിക്കുന്നത്. താഴെയുള്ള ഓരോ ഇനത്തിനും തെളിവ് ലഭിച്ചതിന് ശേഷമുള്ള ഒരു പ്രത്യേക മാറ്റമാണ് activation:
+Radar പ്രഖ്യാപനം ഉദ്ദേശ്യപൂർവം `active: false` എന്ന നിലയിലാണ് കമ്മിറ്റ് ചെയ്തിരിക്കുന്നത്. താഴെയുള്ള ഓരോ ഇനത്തിനും തെളിവ് ലഭിച്ചതിന് ശേഷമുള്ള
+പ്രത്യേക മാറ്റമാണ് ആക്ടിവേഷൻ:
 
-- [ ] stack ചെയ്ത എല്ലാ Radar PR-കളും merge ചെയ്തിട്ടുണ്ടെന്നും release-tip CI പച്ചയാണെന്നും ഉറപ്പാക്കുക
-- [ ] `RADAR_ENABLED` ഇപ്പോഴും default ആയി off ആയിരിക്കുമ്പോൾ OSS Radar routes deploy ചെയ്ത് smoke test നടത്തുക
-- [ ] നാമകരണം ചെയ്ത Radar host-ൽ `GET /planos`, `/termos`, `/privacidade`, `/reembolso` എന്നിവ smoke test നടത്തുക
-- [ ] operator identity/contact/address-ഉം owner അംഗീകരിച്ച legal review-ഉം private service-ൽ രേഖപ്പെടുത്തുക
-- [ ] test mode-ൽ മാത്രം Stripe Checkout-ഉം signed webhook-ഉം പരീക്ഷിക്കുക
-- [ ] അംഗീകരിച്ച sender/domain ഉപയോഗിച്ച് encrypted transactional-email delivery ഒന്ന് പരീക്ഷിക്കുക
-- [ ] backup restore-ഉം മേൽനോട്ടത്തോടെയുള്ള, budget പരിധിയുള്ള research run ഒന്നും തെളിയിക്കുക
-- [ ] donation evidence സ്വീകരിക്കുന്നതിന് മുമ്പ് BRL/PIX review policy അംഗീകരിക്കുക
-- [ ] മുമ്പുള്ള gates പൂർത്തിയായതിന് ശേഷം മാത്രം public Checkout പ്രവർത്തനക്ഷമമാക്കുക, തുടർന്ന് പുതിയ `news.json` ID activate ചെയ്യുക
-- [ ] Home banner localized copy ഉപയോഗിക്കുന്നുവെന്നും പഴയ ID dismiss ചെയ്തതിന് ശേഷം പുതിയ ID വീണ്ടും ദൃശ്യമാകുന്നുവെന്നും പരിശോധിക്കുക
+- [ ] സ്റ്റാക്ക് ചെയ്ത എല്ലാ Radar PR-കളും മെർജ് ചെയ്തിട്ടുണ്ട്, കൂടാതെ release-tip CI ഗ്രീൻ ആണ്
+- [ ] `RADAR_ENABLED` ഡിഫോൾട്ടായി ഓഫ് ആയി നിലനിർത്തിക്കൊണ്ട് OSS Radar റൂട്ടുകൾ ഡിപ്ലോയ് ചെയ്ത് സ്മോക്ക് ടെസ്റ്റ് നടത്തുക
+- [ ] നിർദ്ദിഷ്ട Radar ഹോസ്റ്റിൽ `GET /planos`, `/termos`, `/privacidade`, `/reembolso` എന്നിവ സ്മോക്ക് ടെസ്റ്റ് ചെയ്യുക
+- [ ] സ്വകാര്യ സർവീസിൽ ഓപ്പറേറ്ററുടെ തിരിച്ചറിയൽ/ബന്ധപ്പെടാനുള്ള വിവരങ്ങൾ/വിലാസം, ഉടമ അംഗീകരിച്ച നിയമപരമായ അവലോകനം എന്നിവ രേഖപ്പെടുത്തുക
+- [ ] ടെസ്റ്റ് മോഡിൽ മാത്രം Stripe Checkout-ഉം സൈൻ ചെയ്ത webhook-ഉം പരീക്ഷിക്കുക
+- [ ] അംഗീകരിച്ച അയക്കുന്നയാൾ/ഡൊമെയ്ൻ ഉപയോഗിച്ച് എൻക്രിപ്റ്റ് ചെയ്ത ഒരു ട്രാൻസാക്ഷണൽ-ഇമെയിൽ ഡെലിവറി പരീക്ഷിക്കുക
+- [ ] ബാക്കപ്പ് റീസ്റ്റോറും മേൽനോട്ടത്തിലുള്ള, ബജറ്റ് പരിധിയുള്ള ഒരു ഗവേഷണ റണ്ണും വിജയകരമാണെന്ന് തെളിയിക്കുക
+- [ ] സംഭാവനയുടെ തെളിവ് സ്വീകരിക്കുന്നതിന് മുമ്പ് BRL/PIX അവലോകന നയം അംഗീകരിക്കുക
+- [ ] മുകളിലെ ഗേറ്റുകൾ പൂർത്തിയായതിന് ശേഷം മാത്രം പൊതു Checkout പ്രവർത്തനക്ഷമമാക്കുക, തുടർന്ന് പുതിയ `news.json` ID സജീവമാക്കുക
+- [ ] ഹോം ബാനർ പ്രാദേശികവൽക്കരിച്ച കോപ്പി ഉപയോഗിക്കുന്നുവെന്നും പഴയ ID നിരസിച്ചതിന് ശേഷം പുതിയ ID വീണ്ടും ദൃശ്യമാകുന്നുവെന്നും പരിശോധിക്കുക
 
 ## എംബെഡഡ് സർവീസുകളുടെ സ്മോക്ക് പരിശോധന (v3.8.4+)
 

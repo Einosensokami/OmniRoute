@@ -109,210 +109,211 @@ Full run tó tẹ̀lé lórí branch release yóò tún validate coverage/ratche
 Àwọn diff test-only (gbogbo file lábẹ́ `tests/`, kò sí èyíkéyìí lábẹ́ `tests/e2e/`) máa ré matrix E2E
 kọjá laifọwọ́yi, láìsí àmì kankan.
 
-## Àkójọ Ìṣàyẹ̀wò Kíkún
+## Àtòjọ Àyẹ̀wò Kíkún
 
-### Ṣáájú release
+### Ṣáájú ìtújáde
 
-- [ ] Gbogbo PR tí a pinnu fún release yìí ti merge sínú `release/vX.Y.0`
-- [ ] Gbogbo item Linear/issue tó ṣí sílẹ̀ fún version yìí ti close tàbí ti lọ sí milestone tó tẹ̀lé
-- [ ] CI jẹ́ green lórí branch `release/vX.Y.0`
-- [ ] Kò sí marker `TODO(release)` nínú code: `grep -r "TODO(release)" src/ open-sse/`
-- [ ] Docker base image wà lójú ọjọ́ (lọ́wọ́lọ́wọ́ `node:24.15.0-trixie-slim`)
+- [ ] Gbogbo PR tí a fojú sí fún ìtújáde yìí ti jẹ́ dídàpọ̀ mọ́ `release/vX.Y.0`
+- [ ] Gbogbo ohun Linear/issue tó ṣì ṣí fún ẹ̀yà yìí ti jẹ́ pípà tàbí tí a ti sún sí ibi-àfojúsùn tó kàn
+- [ ] CI jẹ́ àṣeyọrí lórí ẹ̀ka `release/vX.Y.0`
+- [ ] Kò sí àmì `TODO(release)` nínú kóòdù: `grep -r "TODO(release)" src/ open-sse/`
+- [ ] Àwòrán ìpìlẹ̀ Docker jẹ́ tuntun (lọ́wọ́lọ́wọ́ `node:24.15.0-trixie-slim`)
 
-### Version & Changelog
+### Ẹ̀yà & Àkọsílẹ̀ Àyípadà
 
-- [ ] Ṣe `/version-bump-cc <patch|minor|major>` (skill Claude Code)
-  - Ó máa bump `package.json`, `electron/package.json`
-  - Ó tún `CHANGELOG.md` ṣe láti inú àwọn commit git láti tag tó kẹ́yìn
-  - Ó ṣe update àwọn badge README.md
-- [ ] Ṣàyẹ̀wò CHANGELOG.md pẹ̀lú ọwọ́, kí o sì tún àwọn message commit ṣe bí ó bá yẹ
-- [ ] Rí i dájú pé section semver tuntun jù lọ nínú `CHANGELOG.md` bá version `package.json` mu
-- [ ] Jẹ́ kí `## [Unreleased]` wà gẹ́gẹ́ bí section changelog àkọ́kọ́ fún iṣẹ́ tó ń bọ̀
-- [ ] Ṣe update `docs/openapi.yaml` → `info.version` gbọdọ̀ dọ́gba pẹ̀lú version `package.json`
+- [ ] Ṣiṣe `/version-bump-cc <patch|minor|major>` (ọgbọ́n Claude Code)
+  - Ó ń gbé ẹ̀yà `package.json`, `electron/package.json` sókè
+  - Ó tún `CHANGELOG.md` ṣe láti inú àwọn ìfaramọ́ git láti àmì tó kọjá
+  - Ó ń ṣe àfikún sí àwọn báàjì README.md
+- [ ] Ṣàyẹ̀wò CHANGELOG.md pẹ̀lú ọwọ́, kí o sì ṣàtúnṣe àwọn ìfiránṣẹ́ ìfaramọ́ bí ó bá yẹ
+- [ ] Rí i dájú pé abala semver tuntun jù lọ nínú `CHANGELOG.md` bá ẹ̀yà `package.json` dọ́gba
+- [ ] Jẹ́ kí `## [Unreleased]` wà gẹ́gẹ́ bí abala àkọ́kọ́ nínú àkọsílẹ̀ àyípadà fún iṣẹ́ tó ń bọ̀
+- [ ] Ṣe àfikún sí `docs/openapi.yaml` → `info.version` gbọdọ̀ bá ẹ̀yà `package.json` dọ́gba
 
-### Dídára Code
+### Didára Kóòdù
 
-- [ ] `npm run lint` — error 0 (àwọn warning ti wà tẹ́lẹ̀)
-- [ ] `npm run typecheck:core` — ó mọ́
-- [ ] `npm run typecheck:noimplicit:core` — ó mọ́ (strict)
-- [ ] `npm run check:cycles:ratchet` — `cycles ≤ metrics.cycles.value` (`quality-baseline.json`; `check:cycles`: `cycles > 0 → exit 1`, #15281)
-- [ ] `npm run check:any-budget:t11` — ó wà láàárín budget
-- [ ] `npm run check:route-validation:t06` — ó mọ́
-- [ ] `npm run check:node-runtime` — runtime floor tí a ṣe support rẹ̀ ti pé (`>=22.22.2 <23`, `>=24.0.0 <27`, gẹ́gẹ́ bí `SUPPORTED_NODE_RANGE` nínú `src/shared/utils/nodeRuntimeSupport.ts`; ó bá `engines` inú `package.json` mu)
+- [ ] `npm run lint` — àṣìṣe 0 (àwọn ìkìlọ̀ ti wà tẹ́lẹ̀)
+- [ ] `npm run typecheck:core` — kò ní àṣìṣe
+- [ ] `npm run typecheck:noimplicit:core` — kò ní àṣìṣe (tó muna)
+- [ ] `npm run check:cycles:ratchet` — wà lábẹ́ òpin `metrics.cycles` tí a ti dì mú (ṣíṣe `check:cycles` lásán máa jáde pẹ̀lú 1 lórí iyípò èyíkéyìí, #15281)
+- [ ] `npm run check:any-budget:t11` — wà lábẹ́ ìwọ̀n
+- [ ] `npm run check:route-validation:t06` — kò ní àṣìṣe
+- [ ] `npm run check:node-runtime` — òpin ìbẹ̀rẹ̀ runtime tí a ń ṣe àtìlẹ́yìn fún ti pé (`>=22.22.2 <23`, `>=24.0.0 <27`, gẹ́gẹ́ bí `SUPPORTED_NODE_RANGE` nínú `src/shared/utils/nodeRuntimeSupport.ts`; ó bá `engines` inú `package.json` mu)
 
 ### Ìdánwò
 
-- [ ] `npm run test:unit` — pass
-- [ ] `npm run test:vitest` — pass (server MCP, autoCombo, cache)
-- [ ] `npm run test:coverage` — gate 60/60/60/60 ti pé (statements/lines/functions/branches)
-- [ ] `npm run test:integration` — pass (bí àwọn ìyípadà bá kan DB / handlers)
-- [ ] `npm run test:combo:matrix` — pass (matrix strategy combo: ó fi hàn ní ọ̀nà deterministic pé àwọn ìpinnu selection gbogbo strategy routing public 19 péye; ṣe é nígbà tí o bá kan combo routing, strategy resolution, tàbí fallback logic)
-- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **àṣàyàn/manual** (smoke real-upstream tí gate ń ṣàkóso; ó ń gba snapshot DB read-only láti VPS `root@192.168.0.15`; ó ń kan àwọn provider gidi, ó sì ń ná credit; kò ṣiṣẹ́ nínú CI láéláé; ó máa skip lọ́nà tó mọ́ láìsí gate náà)
-- [ ] `npm run test:combo:live:vps` — **àṣàyàn/manual** (smoke live VPS Phase-3: scenario HTTP 7 lòdì sí server `.15` tó live nípasẹ̀ Node ESM lasán; ó nílò `ssh root@192.168.0.15`; ó ṣẹ̀dá/pa àwọn combo `__live_test__*` nìkan; ó ń kan àwọn provider gidi; kò ṣiṣẹ́ nínú CI láéláé)
-- [ ] `npm run test:e2e` — pass (àwọn ìyípadà UI)
-- [ ] `npm run test:protocols:e2e` — pass (àwọn ìyípadà MCP/A2A)
-- [ ] `npm run test:ecosystem` — pass
+- [ ] `npm run test:unit` — kọjá
+- [ ] `npm run test:vitest` — kọjá (sáfà MCP, autoCombo, cache)
+- [ ] `npm run test:coverage` — ìlànà 60/60/60/60 pé (àwọn gbólóhùn/ìlà/ìṣe/ẹ̀ka)
+- [ ] `npm run test:integration` — kọjá (bí àwọn àyípadà bá kan DB / àwọn handler)
+- [ ] `npm run test:combo:matrix` — kọjá (matrix ìlànà combo: ó fi hàn ní ọ̀nà tí kò yípadà pé àwọn ìpinnu yíyan gbogbo ọgbọ́n routing gbangba 19 ń ṣiṣẹ́; ṣe é nígbà tí o bá ń kan combo routing, ìyanjú ọgbọ́n, tàbí lójíìkì fallback)
+- [ ] `RUN_COMBO_LIVE=1 npm run test:combo:live` — **àṣàyàn/pẹ̀lú ọwọ́** (ìdánwò smoke pẹ̀lú upstream gidi tí a dá dúró lẹ́yìn àṣẹ; ó ń gba ẹ̀dà àkókò DB tí a lè kà nìkan láti VPS `root@192.168.0.15`; ó ń kan àwọn olupèsè gidi, ó sì ń ná kirẹditi; kì í ṣiṣẹ́ nínú CI láé; ó máa fo kọjá láìsí ìṣòro bí àṣẹ náà kò bá sí)
+- [ ] `npm run test:combo:live:vps` — **àṣàyàn/pẹ̀lú ọwọ́** (ìdánwò smoke VPS alààyè Ìpele-3: àwọn ìṣẹ̀lẹ̀ HTTP 7 lòdì sí sáfà `.15` alààyè nípasẹ̀ Node ESM lásán; ó nílò `ssh root@192.168.0.15`; ó ṣẹ̀dá/pa àwọn combo `__live_test__*` nìkan; ó ń kan àwọn olupèsè gidi; kì í ṣiṣẹ́ nínú CI láé)
+- [ ] `npm run test:e2e` — kọjá (àwọn àyípadà UI)
+- [ ] `npm run test:protocols:e2e` — kọjá (àwọn àyípadà MCP/A2A)
+- [ ] `npm run test:ecosystem` — kọjá
 
-### Hooks (Husky ti validate)
+### Àwọn Hook (Husky ti fọwọ́sí)
 
-Àwọn hook Husky wà nínú `.husky/`, wọ́n sì ń ṣiṣẹ́ laifọwọ́yi lórí àwọn operation git.
+Àwọn hook Husky wà nínú `.husky/`, wọ́n sì ń ṣiṣẹ́ fúnra wọn lórí àwọn iṣẹ́ git.
 
 - **pre-commit:** `npx lint-staged + node scripts/check/check-docs-sync.mjs + npm run check:any-budget:t11`
-- **pre-push:** àwọn gate deterministic tó yára — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (a mú un ṣiṣẹ́ ní 2026-06-13). A mọ̀ọ́mọ̀ yọ `test:unit` kúrò (ó lọ́ra; job CI `test-unit` ló ń bójú tó o).
-  - Ṣe `npm run test:unit` pẹ̀lú ọwọ́ ṣáájú kí o tó push àwọn branch release.
+- **pre-push:** àwọn ìdènà tó yára tí àbájáde wọn kò yípadà — `npm run check:any-budget:t11 && npm run check:tracked-artifacts` (mú ṣiṣẹ́ ní 2026-06-13). A mọ̀ọ́mọ̀ yọ `test:unit` kúrò (ó lọ́ra; iṣẹ́ CI `test-unit` ń bójú tó o).
+  - Ṣiṣe `npm run test:unit` pẹ̀lú ọwọ́ kí o tó push àwọn ẹ̀ka ìtújáde.
 
-Bí hook kan bá fail: tún ìṣòro tó fa á ṣe, má ṣe bypass rẹ̀ pẹ̀lú `--no-verify`.
+Bí hook kan bá kùnà: ṣàtúnṣe ìṣòro ìpìlẹ̀ náà, má ṣe forí rẹ̀ kọjá pẹ̀lú `--no-verify`.
 
-### Conventional Commits
+### Àwọn Ìfaramọ́ Àdéhùn
 
-Gbogbo commit tó máa wọ release gbọdọ̀ tẹ̀lé format `type(scope): subject`.
+Gbogbo ìfaramọ́ tí a pinnu fún ìtújáde gbọdọ̀ tẹ̀lé fọ́ọ̀mù `type(scope): subject`.
 
-**Àwọn type tó wúlò:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `ci`
+**Àwọn irú tó fẹsẹ̀ múlẹ̀:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `ci`
 
-**Àwọn scope tó wúlò:** `db`, `sse`, `oauth`, `dashboard`, `api`, `cli`, `docker`, `ci`, `mcp`, `a2a`, `memory`, `skills`, `cloud-agent`, `guardrails`, `compression`, `auto-combo`, `resilience`, `providers`, `executors`, `translator`, `domain`, `authz`
+**Àwọn scope tó fẹsẹ̀ múlẹ̀:** `db`, `sse`, `oauth`, `dashboard`, `api`, `cli`, `docker`, `ci`, `mcp`, `a2a`, `memory`, `skills`, `cloud-agent`, `guardrails`, `compression`, `auto-combo`, `resilience`, `providers`, `executors`, `translator`, `domain`, `authz`
 
-Àwọn ìyípadà tó ń fọ́ compatibility: fi footer `BREAKING CHANGE:` kún un tàbí `!` lẹ́yìn scope (fún àpẹẹrẹ `feat(api)!: drop /v0`).
+Àwọn àyípadà tó ń ba ìbámu tẹ́lẹ̀ jẹ́: fi footer `BREAKING CHANGE:` kún un tàbí `!` lẹ́yìn scope (fún àpẹẹrẹ `feat(api)!: drop /v0`).
 
-### Àkọsílẹ̀ Ìlànà
+### Ìwé Àlàyé
 
-- [ ] `npm run check:docs-sync` kọjá (pre-commit máa ń ṣiṣẹ́ ẹ laifọwọyi)
-- [ ] `npm run check:docs-all` kọjá (àkójọpọ̀: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
+- [ ] `npm run check:docs-sync` kọjá (pre-commit máa ń ṣiṣẹ́ é fúnra rẹ̀)
+- [ ] `npm run check:docs-all` kọjá (àpapọ̀: docs-sync + docs-counts + env-doc-sync + deprecated-versions + doc-links)
 - [ ] `npm run check:env-doc-sync` jáde pẹ̀lú 0 — àdéhùn env láàárín kóòdù ↔ `.env.example` ↔ `docs/reference/ENVIRONMENT.md` ṣì péye
-- [ ] `npm run check:doc-links` jáde pẹ̀lú 0 — kò sí ìtọ́kasí markdown inú tí ó bàjẹ́ lẹ́yìn àtúntò
-- [ ] A ti ṣàyẹ̀wò `docs/architecture/ARCHITECTURE.md` fún ìyapa ibi ìpamọ́/runtime
-- [ ] A ti ṣàyẹ̀wò `docs/guides/TROUBLESHOOTING.md` fún ìyapa env var àti ìṣiṣẹ́
-- [ ] Tí `.env.example` bá yí padà: a ti ṣe àfikún sí `docs/reference/ENVIRONMENT.md`
-- [ ] Tí ẹ̀yà tuntun bá ní UI: `docs/guides/USER_GUIDE.md` mẹ́nu kàn án
-- [ ] Tí ẹ̀yà tuntun bá ní API: a ti ṣe àfikún sí `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml`
-- [ ] Tí ẹ̀yà tuntun bá jẹ́ module: `docs/<MODULE>.md` tí a yà sọ́tọ̀ fún un wà
-- [ ] Tí ó bá jẹ́ àyípadà tí kò bá ohun àtijọ́ mu: `docs/guides/TROUBLESHOOTING.md` ní àkọsílẹ̀ ìṣíkiri
+- [ ] `npm run check:doc-links` jáde pẹ̀lú 0 — kò sí ìtọ́kasí markdown inú tó bàjẹ́ lẹ́yìn àtúntò
+- [ ] A ti ṣàyẹ̀wò `docs/architecture/ARCHITECTURE.md` fún ìyapa ibi-ìpamọ́/runtime
+- [ ] A ti ṣàyẹ̀wò `docs/guides/TROUBLESHOOTING.md` fún ìyapa env var àti iṣẹ́ ìṣàkóso
+- [ ] Bí `.env.example` bá yípadà: a ti ṣe àfikún sí `docs/reference/ENVIRONMENT.md`
+- [ ] Bí ẹ̀yà tuntun bá ní UI: `docs/guides/USER_GUIDE.md` mẹ́nuba rẹ̀
+- [ ] Bí ẹ̀yà tuntun bá ní API: a ti ṣe àfikún sí `docs/reference/API_REFERENCE.md` + `docs/openapi.yaml`
+- [ ] Bí ẹ̀yà tuntun bá jẹ́ module: `docs/<MODULE>.md` tirẹ̀ wà
+- [ ] Bí ó bá jẹ́ àyípadà tó ń ba ìbámu tẹ́lẹ̀ jẹ́: `docs/guides/TROUBLESHOOTING.md` ní àkọsílẹ̀ ìṣílọ
 
 ### i18n
 
-- [ ] `npm run i18n:check` jáde pẹ̀lú 0 — ipò ìtumọ̀ (`.i18n-state.json`) bá àwọn docs orísun mu (kò sí àwọn orísun tí ó yapa ní strict mode; ìkìlọ̀ warn-mode jẹ́ ìmọ̀ràn tí a lè gbà fún àwọn àtúnṣe docs ní ìṣẹ́jú tó gbẹ̀yìn, ṣùgbọ́n ó yẹ kí ó jẹ́ 0 kí a tó fi tag sí i)
-- [ ] `npm run i18n:check-ui-coverage` jáde pẹ̀lú 0 — gbogbo locale UI wà ní tàbí lókè ààlà àgbáyé 80%
-- [ ] `npm run i18n:sync-ui:dry` jabo pé àwọn key 0 ni ó ṣòfò káàkiri gbogbo locale 42
-- [ ] Tí àwọn docs Gẹ̀ẹ́sì orísun bá yí padà, ṣiṣẹ́ `npm run i18n:run` (ó nílò `OMNIROUTE_TRANSLATION_API_KEY` nínú `.env`) kí a tó fi tag sí i
-- [ ] A lè sún àwọn àfikún ìtumọ̀ sí release tó kàn tí wọ́n bá kéré (tọ́pa rẹ̀ nínú CHANGELOG)
+- [ ] `npm run i18n:check` jáde pẹ̀lú 0 — ipò ìtumọ̀ (`.i18n-state.json`) bá àwọn ìwé àlàyé orísun mu (kò sí àwọn orísun tó yà kúrò nínú ipò tó muna; ìmọ̀ràn warn-mode ṣeé gbà fún àtúnṣe ìwé ní ìṣẹ́jú tó kẹ́yìn, ṣùgbọ́n ó yẹ kí ó jẹ́ 0 kí a tó fi àmì sí i)
+- [ ] `npm run i18n:check-ui-coverage` jáde pẹ̀lú 0 — gbogbo locale UI wà ní tàbí lókè òpin coverage 80%
+- [ ] `npm run i18n:sync-ui:dry` jẹ́rìí pé kò sí key tó sọnù nínú gbogbo àwọn locale àfojúsùn 66 (gbogbo locale àyàfi orísun `en`)
+- [ ] Bí àwọn ìwé àlàyé Gẹ̀ẹ́sì orísun bá yípadà, ṣiṣẹ́ `npm run i18n:run` (ó nílò `OMNIROUTE_TRANSLATION_API_KEY` nínú `.env`) kí o tó fi àmì sí i
+- [ ] A lè sún àwọn àfikún ìtumọ̀ sí ìtújáde tó kàn bí wọ́n bá kéré (tọ́pinpin wọn nínú CHANGELOG)
 
-### Àwọn Ìṣíkiri Database
+### Àwọn Ìṣílọ Database
 
-- [ ] Tí `src/lib/db/migrations/` bá ní àwọn fáìlì tuntun:
-  - [ ] Ìṣíkiri kọ̀ọ̀kan jẹ́ idempotent (`CREATE TABLE IF NOT EXISTS`, àti bẹ́ẹ̀ bẹ́ẹ̀ lọ)
-  - [ ] A fi transactions yí àwọn ìṣíkiri ká
-  - [ ] A fi nọ́ńbà sí wọn lọ́nà tó tọ́ (kò sí àlàfo nínú tẹ̀léńtẹ̀lé)
-- [ ] Dán an wò lórí ìfisórí tuntun: pa `~/.omniroute/omniroute.db` rẹ́, kí o sì ṣiṣẹ́ `npm run dev`
-- [ ] Dán an wò lórí ìfisórí tó ti wà: ṣe backup DB, ṣiṣẹ́ ìṣíkiri, kí o sì jẹ́rìí schema
-- [ ] A bójú tó àwọn fáìlì WAL (`-wal`, `-shm`) lọ́nà tó tọ́ tí ìṣíkiri bá tún àwọn table kọ
+- [ ] Bí `src/lib/db/migrations/` bá ní àwọn fáìlì tuntun:
+  - [ ] Ìṣílọ kọ̀ọ̀kan jẹ́ idempotent (`CREATE TABLE IF NOT EXISTS`, àti bẹ́ẹ̀ bẹ́ẹ̀ lọ.)
+  - [ ] A fi àwọn transaction yí àwọn ìṣílọ ká
+  - [ ] A fún wọn ní nọ́ńbà tó tọ́ (kò sí àlàfo nínú tẹ̀léńtẹ̀lé)
+- [ ] Dán an wò lórí ìfìgbékalẹ̀ tuntun: pa `~/.omniroute/omniroute.db` rẹ́ kí o sì ṣiṣẹ́ `npm run dev`
+- [ ] Dán an wò lórí ìfìgbékalẹ̀ tó ti wà: ṣe àfẹ́yìntì DB, ṣiṣẹ́ ìṣílọ náà, kí o sì ṣàrídájú schema
+- [ ] A bójú tó àwọn fáìlì WAL (`-wal`, `-shm`) lọ́nà tó tọ́ bí ìṣílọ bá tún àwọn table kọ
 
-### Àkójọ Provider (Tí Zod fìdí rẹ̀ múlẹ̀)
+### Àkójọ Olùpèsè (tí Zod fìdí rẹ̀ múlẹ̀)
 
-- [ ] Schema Zod `src/shared/constants/providers.ts` péye ní àkókò ìkójọpọ̀
-  - [ ] Gbogbo providers ní àwọn field tí a nílò (`id`, `label`, `kind`, àti bẹ́ẹ̀ bẹ́ẹ̀ lọ)
-  - [ ] A pèsè `freeNote` fún àwọn free providers tuntun
-  - [ ] Àwọn OAuth providers ní `oauthConfig` tí a forúkọsílẹ̀ nínú `src/lib/oauth/constants/oauth.ts`
-- [ ] Tí a bá fi provider tuntun kún un: executor tó bá a mu wà nínú `open-sse/executors/`
-- [ ] Tí format náà kò bá jẹ́ OpenAI: translator wà nínú `open-sse/translator/`
+- [ ] Àtẹ̀jáde Zod inú `src/shared/constants/providers.ts` wúlò ní àkókò ìkójọpọ̀
+  - [ ] Gbogbo àwọn olùpèsè ní àwọn ààyè tí a béèrè (`id`, `label`, `kind`, àti bẹ́ẹ̀ bẹ́ẹ̀ lọ)
+  - [ ] A pèsè `freeNote` fún àwọn olùpèsè ọ̀fẹ́ tuntun
+  - [ ] Àwọn olùpèsè OAuth ní `oauthConfig` tí a forúkọsílẹ̀ nínú `src/lib/oauth/constants/oauth.ts`
+- [ ] Bí a bá ṣàfikún olùpèsè tuntun: executor tó bá a mu wà nínú `open-sse/executors/`
+- [ ] Bí kì í bá ṣe ìgúnlẹ̀ OpenAI: translator wà nínú `open-sse/translator/`
 - [ ] A forúkọsílẹ̀ àwọn model nínú `open-sse/config/providerRegistry.ts`
-- [ ] Àwọn unit test nínú `tests/unit/` bo ìsọ̀rí provider àti routing
+- [ ] Àwọn ìdánwò unit nínú `tests/unit/` bo ìpínsọ̀rí olùpèsè àti routing
 
-### Desktop (Electron)
+### Ojú-iṣẹ́ (Electron)
 
-Tí `electron/` bá yí padà:
+Bí `electron/` bá yí padà:
 
 - [ ] `npm run electron:smoke:packaged` kọjá
-- [ ] A ti dán àwọn build wò fún ó kéré tán ọ̀kan lára `:win`, `:mac`, `:linux`
-- [ ] Àwọn cert ìfọwọ́sí kóòdù kò tíì parí (tí a bá ń fọwọ́ sí i)
-- [ ] Version `electron/package.json` bá version `package.json` gbòǹgbò mu
-- [ ] A ti ṣe àfikún sí atọ́ka channel auto-update tí a bá ń ṣe release sí `stable`
+- [ ] A dán àwọn build wò fún ó kéré tán ọ̀kan lára `:win`, `:mac`, `:linux`
+- [ ] Àwọn ìwé-ẹ̀rí ìfọwọ́sí code kò tíì parí (bí a bá ń fọwọ́ sí i)
+- [ ] Version `electron/package.json` bá `package.json` gbòǹgbò mu
+- [ ] A ṣe àfikún atọ́ka channel ìmúdójúìwọ̀n aládàáṣe bí a bá ń tú sí `stable`
 
 ### Ìṣètò Build
 
-Repository náà ń lo àwọn directory àbájáde mẹ́ta ọ̀tọ̀ọ̀tọ̀ — má ṣe dà wọ́n pọ̀ láé:
+Repository náà ń lo directory àbájáde mẹ́ta ọ̀tọ̀ọ̀tọ̀ — ẹ má ṣe dà wọ́n pọ̀ láé:
 
-| Directory | Ète                                                     | A ń tọ́pa rẹ̀?      |
+| Directory | Ète                                                     | Ṣé a ń tọ́pa rẹ̀?   |
 | --------- | ------------------------------------------------------- | ----------------- |
 | `src/`    | Orísun application (TypeScript / TSX)                   | Bẹ́ẹ̀ ni            |
-| `.build/` | Àwọn àárín build — àbájáde `next build` (`distDir`)     | Rárá (gitignored) |
-| `dist/`   | Bundle npm tí a lè pín — tí `assembleStandalone` ṣàkójọ | Rárá (gitignored) |
+| `.build/` | Àwọn àárín-ọ̀nà build — àbájáde `next build` (`distDir`) | Rárá (gitignored) |
+| `dist/`   | Bundle npm tí a lè pín — tí `assembleStandalone` kó jọ  | Rárá (gitignored) |
 
-> **Àkíyèsí fún olùṣiṣẹ́:** directory image VPS jíjìn ṣì jẹ́ `/usr/lib/node_modules/omniroute/app/`.
-> Àbájáde build **in-repo** nìkan ni ó kúrò ní (`app/` → `dist/`). Àwọn ọgbọ́n deploy máa ń lo rsync láti gbé
-> àwọn àkóónú `dist/` sínú dir `app/` jíjìn — kò sí ìyípadà path VPS tí a nílò.
+> **Àkíyèsí fún operator:** directory image VPS jíjìnnà ṣì jẹ́ `/usr/lib/node_modules/omniroute/app/`.
+> Àbájáde build **inú repository** nìkan ló yí padà (`app/` → `dist/`). Àwọn skill deploy ń fi rsync
+> rán àwọn àkóónú `dist/` sínú directory `app/` jíjìnnà — kò sí ìyípadà path VPS tí a nílò.
 
-**Ìṣàn single-build:**
+**Ìṣàn build kan ṣoṣo:**
 
 ```
 npm run build:release
-  └─ rm -rf .build dist          (fọ́ ọ mọ́)
-  └─ next build → .build/next/   (àwọn ohun àárín)
+  └─ rm -rf .build dist          (fọ̀ mọ́)
+  └─ next build → .build/next/   (àwọn àárín-ọ̀nà)
   └─ assembleStandalone          (ń da standalone + static + public + natives kọ sínú dist/)
-  └─ ń kọ dist/BUILD_SHA         (àmì ìṣọ́ HEAD)
+  └─ ń kọ dist/BUILD_SHA         (àmì ààlà HEAD)
 ```
 
-Má ṣe ṣiṣẹ́ `npm run build` tí `npm run build:cli` ọ̀tọ̀ sì tẹ̀ lé e fún deploy — lo
-`npm run build:release`, èyí tí ó ń ṣe àtúnkọ́ tó mọ́ + àmì ìṣọ́ nínú command kan.
+Ẹ MÁ ṢE ṣiṣẹ́ `npm run build` kí ẹ sì tún ṣiṣẹ́ `npm run build:cli` lọ́tọ̀ fún deploy — ẹ lo
+`npm run build:release`, èyí tó ń ṣe build tuntun tó mọ́ + àmì ààlà nínú command kan.
 
-### Ìfọwọ́sí Artifact
+### Ìfìdí Artifact Múlẹ̀
 
 - [ ] `npm run build:release` ṣàṣeyọrí, `dist/BUILD_SHA` sì == `git rev-parse --short HEAD`
-- [ ] `npm run check:pack-artifact` mọ́ — kò sí `app.__qa_backup`, `scripts/scratch`, `package-lock.json`, tàbí ìyókù agbègbè mìíràn
+- [ ] `npm run check:pack-artifact` mọ́ — kò sí `app.__qa_backup`, `scripts/scratch`, `package-lock.json`, tàbí ìyókù local mìíràn
 - [ ] `dist/server.js` wà lẹ́yìn build
-- [ ] Àṣàyàn smoke runtime tí a package sí agbègbè: `npm run dev:candidate -- validate` lẹ́yìn tí `npm run dev:candidate -- build` bá tan tarball tí a package lórí `DATA_DIR` tí a yà sọ́tọ̀, tí ó sì ṣàyẹ̀wò `/api/health` + `/v1/models` (wo [Ọ̀nà Àpẹẹrẹ Ìkópa](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
+- [ ] Smoke ìṣàyẹ̀wò packaged-runtime local tí kò pọn dandan: `npm run dev:candidate -- validate` lẹ́yìn tí `npm run dev:candidate -- build` bá tan tarball tí a pack lórí `DATA_DIR` tó ya sọ́tọ̀, tí ó sì ṣàyẹ̀wò `/api/health` + `/v1/models` (wo [Ọ̀nà Àpẹẹrẹ Ìkópa](CONTRIBUTION_GOLDEN_PATH.md#local-candidate-loop))
 
-### Fífi Tag sí àti Release
+### Fífún Tag & Ìtúsílẹ̀
 
-- [ ] Ṣiṣẹ́ `/generate-release-cc` (ọgbọ́n Claude Code):
+- [ ] Ṣiṣe `/generate-release-cc` (skill Claude Code):
   - Ó ṣẹ̀dá tag `vX.Y.Z`
   - Ó push tag àti branch
   - Ó ṣí GitHub Release pẹ̀lú àkóónú changelog
-  - Ó so àwọn installer Electron mọ́ ọn (tí a bá build wọn)
+  - Ó so àwọn installer Electron mọ́ ọn (bí a bá build wọn)
 - [ ] Tàbí ṣe é lọ́wọ́:
   ```bash
-  git tag -a vX.Y.Z -m "Release vX.Y.Z"
+  git tag -a vX.Y.Z -m "Ìtúsílẹ̀ vX.Y.Z"
   git push origin vX.Y.Z
   gh release create vX.Y.Z --notes-from-tag
   ```
 
 ### Deploy
 
-Àwọn ọgbọ́n deploy ń lo ìṣàn rsync fífẹ́rẹ́ — kò sí `npm pack`, kò sí `npm i -g`:
+Àwọn skill deploy ń lo ìṣàn rsync fẹ́ẹ́rẹ́ — kò sí `npm pack`, kò sí `npm i -g`:
 
-- [ ] Lo ọgbọ́n ìmúṣiṣẹ́ tí ó bá ibi àfojúsùn mu:
-  - `/deploy-vps-local-cc` — VPS agbègbè (192.168.0.15)
+- [ ] Lo skill deploy tó bá ibi àfojúsùn mu:
+  - `/deploy-vps-local-cc` — VPS local (192.168.0.15)
   - `/deploy-vps-akamai-cc` — VPS Akamai (69.164.221.35)
   - `/deploy-vps-both-cc` — méjèèjì
-- [ ] Ṣáájú ìmúṣiṣẹ́, jẹ́rìí pé `dist/BUILD_SHA` == `git rev-parse --short HEAD`
-- [ ] Ìkọ́lé gbọ́dọ̀ ṣiṣẹ́ níbi tí `node_modules` ti jẹ́ ojúlówó (ibi àyẹ̀wò àkọ́kọ́ tàbí worktree tí a ti ṣe `npm ci` sí — KÌ Í ṢE worktree tí a so pẹ̀lú symlink)
-- [ ] Ṣe ìdánwò ẹ̀fin lórí instance tí a ti mú ṣiṣẹ́:
-  - Ṣí `/dashboard/health` → ṣàyẹ̀wò pé ọ̀rọ̀ ẹ̀yà bá ìtújáde mu
-  - Ṣe ìbéèrè `/v1/chat/completions` sí provider tí a mọ̀
-  - Jẹ́rìí pé `/api/monitoring/health` dá àwọn circuit breaker `CLOSED` padà
-  - Jẹ́rìí pé àwọn ìrìnàjò MCP ń dáhùn (`/mcp` HTTP, `/mcp-sse` SSE)
+- [ ] Ṣáájú deploy, fìdí rẹ̀ múlẹ̀ pé `dist/BUILD_SHA` == `git rev-parse --short HEAD`
+- [ ] Build gbọ́dọ̀ ṣiṣẹ́ níbi tí `node_modules` ti jẹ́ ojúlówó (checkout àkọ́kọ́ tàbí worktree tí a ti ṣe `npm ci` sí — KÌ Í ṢE worktree tí symlink so mọ́)
+- [ ] Ṣe smoke ìdánwò instance tí a deploy:
+  - Ṣí `/dashboard/health` → ṣàyẹ̀wò pé ọ̀rọ̀ version bá ìtúsílẹ̀ mu
+  - Ṣiṣe ìbéèrè `/v1/chat/completions` sí olùpèsè tí a mọ̀
+  - Fìdí rẹ̀ múlẹ̀ pé `/api/monitoring/health` dá àwọn circuit breaker `CLOSED` padà
+  - Fìdí rẹ̀ múlẹ̀ pé àwọn transport MCP ń dáhùn (`/mcp` HTTP, `/mcp-sse` SSE)
 
-### Lẹ́yìn ìtújáde
+### Lẹ́yìn ìtúsílẹ̀
 
-- [ ] Ṣe `/capture-release-evidences-cc` (ọgbọ́n Claude Code)
-  - Ó ya àwọn àwòrán ojú-iboju/àwọn àkọsílẹ̀ WebP ti àwọn ẹ̀yà tuntun
-  - Ó so wọ́n mọ́ àlàyé ìtújáde / àkọsílẹ̀ bulọọgi
-- [ ] Ṣe àfikún sí GitHub Discussions / Discord pẹ̀lú ìkéde ìtújáde
-- [ ] Ṣí àmì-ìpele fún ẹ̀yà tó kàn
-- [ ] Tó bá ṣe pàtàkì: lẹ ìjíròrò mọ́ òkè tàbí fi ránṣẹ́ sínú `news.json` fún àsíá inú app
+- [ ] Ṣiṣe `/capture-release-evidences-cc` (skill Claude Code)
+  - Ó ya àwọn screenshot/recording WebP ti àwọn ẹ̀yà tuntun
+  - Ó so wọ́n mọ́ àwọn àkọsílẹ̀ ìtúsílẹ̀ / àpilẹ̀kọ blog
+- [ ] Ṣe àfikún GitHub Discussions / Discord pẹ̀lú ìkéde ìtúsílẹ̀
+- [ ] Ṣí milestone fún version tó kàn
+- [ ] Bí ó bá ṣe pàtàkì gidigidi: pin discussion tàbí fi sí `news.json` fún banner inú app
 
 ### Ẹnubodè ìfilọ́lẹ̀ Radar fún gbogbo ènìyàn
 
-A mọ̀ọ́mọ̀ ṣe commit ìkéde Radar pẹ̀lú `active: false`. Mímú un ṣiṣẹ́ jẹ́ ìyípadà ọ̀tọ̀ lẹ́yìn tí a bá ti fi ẹ̀rí hàn fún gbogbo ohun tó wà nísàlẹ̀:
+A mọ̀ọ́mọ̀ commit ìkéde Radar pẹ̀lú `active: false`. Ṣíṣe é ṣiṣẹ́ jẹ́ ìyípadà ọ̀tọ̀
+lẹ́yìn tí ẹ̀rí bá wà fún gbogbo ohun tó wà nísàlẹ̀:
 
-- [ ] Gbogbo àwọn Radar PR tí a tò sórí ara wọn ti darapọ̀, CI release-tip sì jẹ́ aláwọ̀ ewé
-- [ ] Mú àwọn ipa-ọ̀nà OSS Radar ṣiṣẹ́ kí o sì ṣe ìdánwò ẹ̀fin sí wọn, nígbà tí `RADAR_ENABLED` ṣì wà ní pípa gẹ́gẹ́ bí àìpé
-- [ ] Ṣe ìdánwò ẹ̀fin sí `GET /planos`, `/termos`, `/privacidade`, àti `/reembolso` lórí host Radar tí a dárúkọ
-- [ ] Ṣàkọsílẹ̀ ìdánimọ̀/ìbánisọ̀rọ̀/àdírẹ́sì oniṣẹ́ àti àyẹ̀wò òfin tí olówó fọwọ́ sí nínú iṣẹ́ aládàáni
-- [ ] Dán Stripe Checkout àti webhook tí a fọwọ́ sí wò ní ipò ìdánwò nìkan
-- [ ] Dán ìfiránṣẹ́ ímeèlì ìṣòwò kan tí a paroko wò pẹ̀lú olùránṣẹ́/domain tí a fọwọ́ sí
-- [ ] Fi ẹ̀rí hàn pé àtúnmú backup ṣiṣẹ́, kí o sì ṣe ìṣiṣẹ́ ìwádìí kan lábẹ́ àbójútó, tí a fi òpin ìnáwó sí
-- [ ] Fọwọ́ sí ìlànà àyẹ̀wò BRL/PIX ṣáájú gbígba ẹ̀rí ọrẹ owó
-- [ ] Mú Checkout gbogbogbò ṣiṣẹ́ lẹ́yìn àwọn ẹnubodè tó ṣáájú nìkan, lẹ́yìn náà mú ID tuntun `news.json` ṣiṣẹ́
-- [ ] Jẹ́rìí pé àsíá Home ń lo ẹ̀dà tí a mú bá èdè agbègbè mu àti pé ID tuntun yóò tún farahàn lẹ́yìn tí a bá ti pa ID àtijọ́ tì
+- [ ] Gbogbo àwọn Radar PR tí a tò lórí ara wọn ti merge, CI release-tip sì jẹ́ green
+- [ ] Deploy kí o sì smoke àwọn route OSS Radar pẹ̀lú `RADAR_ENABLED` tí ó ṣì jẹ́ off nípa default
+- [ ] Smoke `GET /planos`, `/termos`, `/privacidade`, àti `/reembolso` lórí host Radar tí a dárúkọ
+- [ ] Ṣàkọsílẹ̀ identity/contact/address operator àti àyẹ̀wò òfin tí owner fọwọ́ sí nínú service private
+- [ ] Dán Stripe Checkout àti webhook tí a fọwọ́ sí wò ní test mode nìkan
+- [ ] Dán ìfiránṣẹ́ transactional-email encrypted kan wò pẹ̀lú sender/domain tí a fọwọ́ sí
+- [ ] Ṣe ẹ̀rí backup restore àti research run kan tí a ṣọ́, tí a sì fi ààlà budget sí
+- [ ] Fọwọ́ sí policy àyẹ̀wò BRL/PIX kí a tó gba ẹ̀rí donation
+- [ ] Mu Checkout fún gbogbo ènìyàn ṣiṣẹ́ lẹ́yìn àwọn ẹnubodè tó ṣáájú nìkan, lẹ́yìn náà sì mu ID `news.json` tuntun ṣiṣẹ́
+- [ ] Fìdí rẹ̀ múlẹ̀ pé banner Home ń lo ẹ̀dà localized àti pé ID tuntun kan tún farahàn lẹ́yìn tí a dismiss ID àgbà kan
 
 ## Ìdánwò smoke fún Àwọn Iṣẹ́ Tí A Fi Sínú Ètò (v3.8.4+)
 
