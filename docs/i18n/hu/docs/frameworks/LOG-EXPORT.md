@@ -17,90 +17,169 @@ egyszerűen hozzáadhatók.
 ## 1. Működés
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (a Naplók lap mezőkészlete)
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+szerver (konfiguráció visszafejtése + ellenőrzése, kurzor egyeztetése)
+  → IPC indítása → elkülönített exportChild operációsrendszer-folyamat
+    → csak olvasható storage.sqlite → megosztott hívásnapló-lekérdezés/-leképezés
+      → aszinkron műtermékbetöltés → célhely prepare()/send()
+        → köteg IPC-n keresztül → szerver menti a kurzort → nyugtázás IPC-n keresztül
+          → következő köteg; kész IPC-üzenet → szerver rögzíti a sikert
 ```
 
-- **Ütemezés** — egyetlen `JobRegistry` cron-feladat, a `log_export`, amelynek alapértelmezett
-  ütemezése `0 * * * *` (óránként, UTC szerint). Regisztrációja a `src/lib/initCloudSync.ts`
-  fájlban történik; az `OMNIROUTE_LOG_EXPORT_CRON` használatával felülbírálható. Minden futás
-  egymás után kiüríti az összes **engedélyezett** célhelyet.
+- **Ütemezés** — egyetlen `JobRegistry` cron-feladat, `log_export`, amelynek alapértelmezett ütemezése `0 * * * *` (óránként,
+  UTC szerint). Regisztrációja a `src/lib/initCloudSync.ts` fájlban történik; az `OMNIROUTE_LOG_EXPORT_CRON` használatával felülírható.
+  Minden futás egymás után kiüríti az összes **engedélyezett** célhelyet.
 - **Kurzor** — az SQLite implicit `call_logs.rowid` értéke, célhelyenként tárolva a
   `log_export_destinations.cursor_row_id` mezőben. A `timestamp` szándékosan nem kurzor: a hívók
-  saját értéket adhatnak meg, ezért egy lassú kérés később is beírható, mint egy később indult,
-  de gyorsabb kérés, és egy időbélyegalapú kurzor kihagyná azt.
-- **Kötegelt feldolgozás** — kérésenként `batch_size` sor (alapértelmezés szerint 500),
-  futásonként pedig `max_rows_per_run` sor (alapértelmezés szerint 10000), hogy egy nagy
-  lemaradás több futás alatt kerüljön feldolgozásra, ahelyett hogy egyetlen futást blokkolna.
-- **Kézbesítés** — a kurzor csak a `send()` sikeres befejeződése után lép tovább. Sikertelen
-  köteg esetén a kurzor változatlan marad, így a következő futás ugyanazokkal a sorokkal próbálkozik
-  újra. A garancia legalább egyszeri kézbesítés és célhelyoldali deduplikáció, nem valódi pontosan
-  egyszeri kézbesítés: a BigQuery minden sort a hívásnapló azonosítójával kulcsol, amelyet a saját
-  deduplikációs időablakán belül a lehetőségekhez mérten vesz figyelembe.
-- **Átfedés elleni védelem** — a cron-futás és a `POST .../run` egyszerre is elindulhat. A rendszer
-  kihagyja a már feldolgozás alatt álló célhelyet, ahelyett hogy kétszer ürítené ki (`skipped: true`
-  a futás eredményében), így egy párhuzamos futás nem küldhet el újra egy köteget, és nem írhatja
-  visszafelé a kurzort.
-- **Helyreállítás törlés után** — ha a `cursor_row_id` értéke a `MAX(rowid)` fölé kerül (a teljes
-  táblát törölték, és a sorazonosítók újraindultak), a futtató 0-ra állítja vissza a kurzort,
-  ahelyett hogy végleg elveszítené a sorok nyomon követését.
+  saját értéket adhatnak meg, így egy lassú kérés egy később indított, de gyorsabb kérés után is
+  bekerülhet, és egy időbélyegalapú kurzor kihagyná azt.
+- **Kötegelés** — kérésenként `batch_size` sor (alapértelmezés szerint 500), futásonként
+  `max_rows_per_run` sor (alapértelmezés szerint 10000), így a nagy várólista több ütemezett futás
+  alatt ürül ki ahelyett, hogy egyetlen futást blokkolna.
+- **Kézbesítés** — a kurzor csak a `send()` sikeres befejeződése után lép tovább. Egy sikertelen
+  köteg a helyén hagyja a kurzort, így a következő futáskor ugyanazokkal a sorokkal történik újabb
+  próbálkozás. A garancia legalább egyszeri kézbesítés céloldali deduplikációval, nem valódi
+  pontosan egyszeri kézbesítés: a BigQuery minden sort a hívásnapló azonosítója alapján kulcsol,
+  amit a saját deduplikációs időablakán belül a lehetőségekhez mérten vesz figyelembe.
+- **Átfedés elleni védelem** — a cron futása és a `POST .../run` egyszerre is elindulhat. A már
+  ürítés alatt álló célhely kimarad ahelyett, hogy kétszer ürülne ki (`skipped: true` a futási
+  eredményben), így egy párhuzamos futás nem küldhet újra egy köteget, és nem írhatja visszafelé
+  a kurzort.
+- **Helyreállítás törlés után** — ha a `cursor_row_id` a `MAX(rowid)` fölé kerül (a teljes táblát
+  törölték, és a sorazonosítók újraindultak), a futtató 0-ra állítja vissza, így nem válik végleg
+  vakká.
 
-### Hasznos adatok (promptok és válaszok)
+### Elkülönített futtató és korlátok
 
-Alapértelmezés szerint az export csak azokat az összegző mezőket tartalmazza, amelyeket a Naplók
-**listája** megjelenít. A **Promptok és válaszok exportálása** (`includeBodies`) bekapcsolásával
-hívásonként azok az adatok is továbbításra kerülnek, amelyeket a Naplók **részletező** panelje mutat:
+Node alatt minden célhelyfutás különálló, rövid életű operációsrendszer-gyermekfolyamatot indít
+(`child_process` IPC-vel, nem `worker_threads` használatával). A törzsek beolvasása, a hasznos
+adat JSON-feldolgozása/-szerializálása, a célhely `prepare()` művelete és a célhely hálózati I/O-ja
+mind ott fut, nem a szerver eseményciklusán. IPC-n keresztül csak a konfiguráció és kis méretű
+folyamatüzenetek haladnak át; az exportált rekordok soha nem térnek vissza a szerverhez. A
+cron-feladat és az azonnali futtatási útvonal ugyanazt a nyilvános eredményt és átfedés elleni
+védelmet tartja meg.
 
-| Mező                             | Tartalma                                                                  |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| `request_body` / `response_body` | A hívás hasznos adatai az irányítópulton megjelenő formában               |
-| `pipeline_route_decision`        | A router által kiválasztott cél és modell                                 |
-| `pipeline_client_request`        | A nyers kérés, pontosan úgy, ahogy az ügyfél elküldte                     |
-| `pipeline_openai_request`        | A belső OpenAI-formátumra történő átalakítás után                         |
-| `pipeline_provider_request`      | A szolgáltató dialektusában, ténylegesen upstream irányba elküldött kérés |
-| `pipeline_provider_response`     | A nyers upstream válasz                                                   |
-| `pipeline_client_response`       | A hívónak visszaadott tartalom                                            |
-| `pipeline_error`                 | Folyamatszintű hibarészletek sikertelen hívás esetén                      |
-| `bodies_truncated`               | Igaz, ha bármelyik fenti mező elérte a `maxBodyBytes` korlátot            |
+A gyermekfolyamat csak olvasható módban nyitja meg a szerver feloldott
+`DATA_DIR/storage.sqlite` adatbázisát a `node:sqlite` használatával, `busy_timeout=5000` és
+`query_only=ON` beállításokkal. Nem importál adatbázis-singleton példányt, és nem végez
+migrációkat, biztonsági mentéseket vagy SQLite-frissítéseket. A hiányzó/sérült műtermékek
+nyilvántartási műveletei (beleértve a sérült műtermékhez tartozó UPDATE műveletet) kizárólag az
+irányítópult részletes nézetének útvonalán maradnak. Mindkét útvonal közös, tiszta részletfeloldót
+használ; az export aszinkron fájlrendszer-olvasásokat, valamint ugyanazt a műtermék → örökölt
+beágyazott adat → örökölt lemezadat → nincs feloldási sorrendet használja. Egy futás pillanatképet
+készít a legnagyobb beszúrási sorazonosítóról, amikor a gyermekfolyamat megnyitja az olvasót; a
+későbbi beszúrások a következő futásra várnak. Ez beszúrási határ, nem hosszú életű SQLite-tranzakció:
+a WAL-írók és az ellenőrzőpontok a hálózati várakozások alatt is szabadon működhetnek. A meglévő
+sorok frissítéseit/törléseit ez a határ nem fagyasztja be.
+
+Minden elfogadott köteg után a gyermekfolyamat nyugtázásra vár. A szerver először menti a kurzort
+az `advanceLogExportCursor` használatával, majd elküldi az `ack` üzenetet; előtte nem indulhat el
+a következő köteg. Küldési hiba, összeomlás vagy időtúllépés esetén a rendszer a köteg kurzorának
+továbbléptetése nélkül rögzíti a hibát. A korábban nyugtázott kötegek véglegesítve maradnak;
+legfeljebb az egyetlen nyugtázatlan köteg küldhető újra. A rendszer csak a `done` üzenet és a
+gyermekfolyamat hibamentes kilépése után rögzít sikert. Hiba esetén a gyermekfolyamatot SIGTERM
+jelzéssel állítja le, 500 ms után SIGKILL jelzésre váltva, majd a futtató megvárja a folyamat
+bezárulását.
+
+| Környezeti változó                            | Alapértelmezés | Rendeltetés                                    |
+| --------------------------------------------- | -------------- | ---------------------------------------------- |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000         | Célhelyenkénti teljes futásidőkorlát           |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024           | A gyermekfolyamat V8 old-space korlátja MB-ban |
+
+Érvénytelen, nem pozitív vagy nem egész értékek esetén az alapértelmezések lépnek érvénybe. A
+halombeállítás nem a teljes RSS korlátja; a nagyon nagy kötegek továbbra is kimeríthetik a
+gyermekfolyamat memóriáját, és biztonságosan meghiúsíthatják a futást. Az alapértelmezett 1024 MB
+elegendő tartalékot hagy az alapértelmezett 500 soros köteg számára, ha az 512 KiB méretű
+műtermékek törzsei is engedélyezve vannak, beleértve a BigQuery bájttömbökre bontott
+JSON-szerializálását is. Ettől egy 10000 soros, törzseket tartalmazó köteg még nem válik
+biztonságossá. A V8-halom kimerülése végrehajtható javaslatot tartalmazó hibát rögzít: csökkentse
+a kötegméretet, vagy növelje az `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` értékét; a kurzor
+az utolsó nyugtázott kötegnél marad. A korábbi beágyazott/lemezen tárolt törzsekre nem vonatkozik
+a modern műtermékkorlát. Az üzemeltetőknek az RSS-t külön kell méretezniük, különösen
+memóriakorlátos konténerekben.
+
+A gyermekfolyamat csak a feloldott `DATA_DIR`, `NODE_ENV`, explicit `TZ` (örökölt fájlnév
+helyi idő szerinti feloldásához), valamint — ha jelen van — az `ELECTRON_RUN_AS_NODE` értékét,
+továbbá a következő kimenő beállításokat örökli:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (és ezek kisbetűs változatai),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Egy globális Undici-diszpécser osztozik a szerver tiszta, környezetalapú proxyfeloldásán és a
+helyi gépek megkerülési szabályain, beleértve a `NO_PROXY` beállítást; nem importálja a
+`proxyFetch.ts` fájlt, sem annak adatbázis-/funkciójelzőit. A proxyauthentikációs adatok ki vannak
+takarva a továbbított kimenetből és a rögzített hibákból. A célhely hitelesítő adatai kizárólag
+egyetlen indítási IPC-üzenetben haladnak, soha nem az argv vagy a környezet részeként; a
+kimenet-/hibatovábbítás előtaggal van ellátva és megtisztítva. A gyermekfolyamat végrehajtási
+argumentumaiban csak az `ExperimentalWarning` van letiltva, hogy a Node SQLite-figyelmeztetése ne
+ismétlődjön meg minden cron-futáskor; a többi figyelmeztetéstípus látható marad.
+
+A célmoduloknak Next.js-/kizárólag szerveroldali függőségek nélkül importálhatóknak kell lenniük. A meglévő
+BigQuery-megvalósítás már megfelel ennek a szerződésnek. A hozzáférési tokenek gyorsítótára csak az adott
+gyermekfolyamat futása alatt él, a futások között nem. A támogatott futtatókörnyezet a Node (`package.json` engines), de a README Bun-
+telepítési szakasza és a `Dockerfile.bun` egy `bun:sqlite`-ot használó éles kompatibilitási útvonalat is
+hirdet (`src/lib/db/core.ts` / adapterek). Bun alatt ezért az exportálások megtartják a korábbi
+folyamaton belüli útvonalat, és egyszeri figyelmeztetést adnak ki: a gyermekfolyamat heap-/időtúllépés-izolációja nem érhető el. Az eseményhurok és az OOM
+izolálásához használjon Node-ot; a Bun itt nem kizárólag fejlesztési célúként van kezelve.
+
+Ha az `includeBodies` engedélyezve van, részesítse előnyben a percenkénti ütemezést, például:
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`, ahelyett, hogy óránkénti hasznosadat-hátralékot halmozna fel.
+A köteg- és sorlimitek továbbra is korlátozzák az egyes futásokat. A folyamatindítás költsége célhelyenként és futásonként jelentkezik;
+ez csekély indítási költséget cserél a szerver eseményhurkának izolációjára, nem pedig a teljes CPU-használat csökkentésére.
+
+### Hasznos adatok (promptok és kiegészítések)
+
+Alapértelmezés szerint az exportálás csak azokat az összegző mezőket tartalmazza, amelyeket a Logs **listája** megjelenít. Az
+**Export prompts and responses** (`includeBodies`) bekapcsolásával ezen felül az is továbbításra kerül, amit a Logs **részletező**
+panelje az egyes hívásokhoz megjelenít:
+
+| Mező                             | Tartalma                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `request_body` / `response_body` | A hívás hasznos adatai a vezérlőpulton megjelenő formában                    |
+| `pipeline_route_decision`        | A router által kiválasztott cél és modell                                    |
+| `pipeline_client_request`        | A nyers kérés pontosan úgy, ahogyan az ügyfél elküldte                       |
+| `pipeline_openai_request`        | A belső OpenAI-formátumra történő átalakítás után                            |
+| `pipeline_provider_request`      | A szolgáltató dialektusában, ténylegesen upstream irányba elküldött formában |
+| `pipeline_provider_response`     | A nyers upstream válasz                                                      |
+| `pipeline_client_response`       | A hívónak visszaadott tartalom                                               |
+| `pipeline_error`                 | Folyamatszintű hibarészletek egy sikertelen híváshoz                         |
+| `bodies_truncated`               | Igaz, ha a fenti mezők bármelyike elérte a `maxBodyBytes` értéket            |
 
 Ez prompttartalom, ezért **alapértelmezés szerint ki van kapcsolva**, és szándékosan célhelyenként
-választható beállítás. Az kerül továbbításra, amit az irányítópult megjelenít, mivel mindkettő a
-`getCallLogById` használatával olvas: a hasznos adatokban található PII-adatok már anonimizálva,
-a titkos értékek pedig kitakarva kerülnek tárolásra, és egy `noLog` API-kulccsal indított hívás
-egyáltalán nem tárol hasznos adatot, így nincs mit exportálni.
+választható. Az kerül továbbításra, amit a vezérlőpult megjelenít, mivel az exportálás és a `getCallLogById` ugyanazt a részletfeloldást
+használja: a hasznos adatok
+már a kiírásukkor személyesadat-mentesítve és titokelfedve vannak, a `noLog` API-kulccsal indított
+hívások pedig egyáltalán nem tárolnak hasznos adatot, így nincs mit exportálni.
 
-A hasznos adatok soronként kerülnek beolvasásra a fájlrendszerbeli melléktermékből, ezért a
-kiegészítés csak az azt kérő célhelyeknél fut le. Az a sor, amelynek mellékterméke hiányzik vagy
-sérült, null értékű hasznos adatokkal exportálja az összegzést, ahelyett hogy meghiúsítaná a
-köteget és megakasztaná a kurzort.
+A rendszer soronként olvassa be a hasznos adatokat a fájlrendszerbeli műtermékből, ezért a hidratálás csak azoknál a célhelyeknél
+fut le, amelyek ezt kérték. Hiányzó vagy sérült műtermék esetén a rendszer null értékű hasznos adatokkal exportálja az összegzést,
+ahelyett, hogy meghiúsítaná a köteget és beragasztaná a kurzort.
 
-A `maxBodyBytes` (alapértelmezés szerint 262144) mezőnként szab korlátot. A hosszabb hasznos
-adatok **csonkolásra kerülnek, nem pedig eldobásra** — egy levágott prompt továbbra is megválaszolja,
-hogy „mi volt a kérés” —, a sor pedig megkapja a `bodies_truncated` jelölést. A darabonként
-streamelt változáskülönbségek nem kerülnek exportálásra; az összeállított válasz már megtalálható
-a `pipeline_provider_response` és a `pipeline_client_response` mezőben.
+A `maxBodyBytes` (alapértelmezett érték: 262144) minden mezőt korlátoz. A hosszabb hasznos adatok **csonkolásra, nem pedig
+eldobásra kerülnek** — egy levágott prompt továbbra is megválaszolja a „mi volt a kérdés?” kérdést —, és a sor
+`bodies_truncated` jelölést kap. A streamelt, darabonkénti delták nem kerülnek exportálásra; az összeállított válasz
+már megtalálható a `pipeline_provider_response` és a `pipeline_client_response` mezőben.
 
 ---
 
 ## 2. Fájlok
 
-| Elem                  | Hely                                         |
-| --------------------- | -------------------------------------------- |
-| Célhely szerződése    | `src/lib/logExport/types.ts`                 |
-| Regiszter             | `src/lib/logExport/registry.ts`              |
-| Titokkezelés          | `src/lib/logExport/secrets.ts`               |
-| Futtató (kurzorhurok) | `src/lib/logExport/runner.ts`                |
-| API-leképezés         | `src/lib/logExport/presenter.ts`             |
-| BigQuery-célhely      | `src/lib/logExport/destinations/bigquery.ts` |
-| Google SA-hitelesítés | `src/lib/logExport/googleServiceAccount.ts`  |
-| Hívásnapló-forrás     | `src/lib/usage/callLogExportSource.ts`       |
-| Perzisztencia         | `src/lib/db/logExportDestinations.ts`        |
-| Cron-feladat          | `src/lib/jobs/logExportJob.ts`               |
-| REST-réteg            | `src/app/api/log-export/`                    |
-| Irányítópult oldala   | `src/app/(dashboard)/dashboard/log-export/`  |
+| Elem                            | Hely                                         |
+| ------------------------------- | -------------------------------------------- |
+| Célrendszer-szerződés           | `src/lib/logExport/types.ts`                 |
+| Regiszter                       | `src/lib/logExport/registry.ts`              |
+| Titokkezelés                    | `src/lib/logExport/secrets.ts`               |
+| Futtató (szülő IPC)             | `src/lib/logExport/runner.ts`                |
+| Folyamat-életciklus             | `src/lib/logExport/childRunner.ts`           |
+| Gyermekfolyamat belépési pontja | `src/lib/logExport/exportChild.ts`           |
+| Csak olvasható megnyitó         | `src/lib/db/logExportReadOnly.ts`            |
+| Megosztott lekérdezés/leképezés | `src/lib/usage/callLogExportQueries.ts`      |
+| Részletfeloldó                  | `src/lib/usage/callLogDetailResolver.ts`     |
+| API-projekció                   | `src/lib/logExport/presenter.ts`             |
+| BigQuery-célrendszer            | `src/lib/logExport/destinations/bigquery.ts` |
+| Google SA-hitelesítés           | `src/lib/logExport/googleServiceAccount.ts`  |
+| Hívásnapló-forrás               | `src/lib/usage/callLogExportSource.ts`       |
+| Perzisztencia                   | `src/lib/db/logExportDestinations.ts`        |
+| Cron-feladat                    | `src/lib/jobs/logExportJob.ts`               |
+| REST-réteg                      | `src/app/api/log-export/`                    |
+| Irányítópult oldala             | `src/app/(dashboard)/dashboard/log-export/`  |
 
 Séma: `src/lib/db/migrations/170_log_export_destinations.sql`.
 

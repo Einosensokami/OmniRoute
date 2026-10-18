@@ -16,63 +16,128 @@
 ## 1. እንዴት እንደሚሠራ
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (የLogs ትር የመስኮች ስብስብ)
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+server (ውቅርን መፍታት + ማረጋገጥ፣ cursorን ማስታረቅ)
+  → IPCን ማስጀመር → የተነጠለ exportChild OS process
+    → ለንባብ-ብቻ storage.sqlite → የጋራ call-log መጠይቅ/ማዛመድ
+      → ያልተመሳሰለ artifact ማሟላት → የመዳረሻ prepare()/send()
+        → የቡድን IPC → server cursorን ያስቀምጣል → የማረጋገጫ IPC
+          → ቀጣዩ ቡድን፤ የማጠናቀቂያ IPC → server ስኬትን ይመዘግባል
 ```
 
-- **የጊዜ ሰሌዳ** — አንድ `JobRegistry` cron ሥራ፣ `log_export`፣ ነባሪው `0 * * * *` (በየሰዓቱ፣
-  UTC) ነው። በ`src/lib/initCloudSync.ts` ውስጥ ይመዘገባል፤ በ`OMNIROUTE_LOG_EXPORT_CRON` ሊቀየር ይችላል።
-  እያንዳንዱ ዙር ሁሉንም **የነቁ** መድረሻዎች በቅደም ተከተል ሙሉ በሙሉ ያስኬዳል።
-- **ጠቋሚ** — የSQLite ስውር `call_logs.rowid`፣ ለእያንዳንዱ መድረሻ በ
-  `log_export_destinations.cursor_row_id` ውስጥ ዘላቂ ሆኖ ይቀመጣል። `timestamp` ሆን ተብሎ እንደ ጠቋሚ አይጠቀምም፦ ጠሪዎች
-  የራሳቸውን እሴት ሊያቀርቡ ስለሚችሉ፣ ዘገምተኛ ጥያቄ ከእሱ በኋላ ከተጀመረ ፈጣን ጥያቄ በኋላ
-  ሊጻፍ ይችላል፤ በጊዜ ማህተም ላይ የተመሠረተ ጠቋሚም ይህን ይዘለዋል።
-- **በጥቅል ማስኬድ** — በእያንዳንዱ ጥያቄ `batch_size` ረድፎች (ነባሪ 500)፣ በእያንዳንዱ ዙር
-  `max_rows_per_run` ረድፎች (ነባሪ 10000) ይስተናገዳሉ፤ በዚህም ትልቅ የተጠራቀመ ሥራ አንድን ዙር ከማገድ ይልቅ በበርካታ ዙሮች ውስጥ ይጠናቀቃል።
-- **ማድረስ** — ጠቋሚው የሚራመደው `send()` በተሳካ ሁኔታ ከተጠናቀቀ በኋላ ብቻ ነው። ያልተሳካ ጥቅል
-  ጠቋሚውን ባለበት ይተወዋል፤ ስለዚህ ተመሳሳይ ረድፎች በሚቀጥለው ዙር እንደገና ይሞከራሉ። የሚሰጠው ዋስትና
-  ቢያንስ-አንድ-ጊዜ ማድረስ ከመድረሻ-ወገን የተባዙ መዝገቦችን ማስወገድ ጋር እንጂ እውነተኛ በትክክል-አንድ-ጊዜ ማድረስ አይደለም፦ BigQuery እያንዳንዱን
-  ረድፍ በጥሪ ምዝግቡ id ይመድባል፤ ይህንንም በራሱ የተባዙ መዝገቦችን ማስወገጃ የጊዜ መስኮት ውስጥ በሚቻለው መጠን ያከብራል።
-- **የመደራረብ መከላከያ** — የcron ዙሩ እና `POST .../run` በአንድ ጊዜ ሊነሱ ይችላሉ። አስቀድሞ
-  እየተስተናገደ ያለ መድረሻ ሁለት ጊዜ ከመስተናገድ ይልቅ ይዘለላል (በዙሩ ውጤት ውስጥ `skipped: true`)፤
-  ስለዚህ በአንድ ጊዜ የሚካሄድ ዙር ጥቅልን እንደገና መላክ ወይም ጠቋሚውን ወደኋላ መጻፍ አይችልም።
-- **ከማጽዳት ማገገም** — `cursor_row_id` ከ`MAX(rowid)` በላይ ከሆነ (ሙሉው ሰንጠረዥ
-  ተጠርጎ እና rowids እንደገና ከጀመሩ)፣ አስኬጁ በቋሚነት ውሂቡን ማየት እንዳይሳነው ወደ 0 ይመለሳል።
+- **መርሐግብር** — አንድ `JobRegistry` cron ሥራ፣ `log_export`፣ ነባሪው `0 * * * *` (በየሰዓቱ፣
+  UTC) ነው። በ`src/lib/initCloudSync.ts` ውስጥ ተመዝግቧል፤ በ`OMNIROUTE_LOG_EXPORT_CRON`
+  ሊቀየር ይችላል። እያንዳንዱ tick ሁሉንም **የነቁ** መዳረሻዎች በቅደም ተከተል ያጠናቅቃል።
+- **Cursor** — የSQLite ስውር `call_logs.rowid`፣ ለእያንዳንዱ መዳረሻ በ
+  `log_export_destinations.cursor_row_id` ውስጥ ይቀመጣል። `timestamp` ሆን ተብሎ cursor አልተደረገም፦ ጥሪ አድራጊዎች
+  የራሳቸውን እሴት ሊያቀርቡ ስለሚችሉ፣ ዘገምተኛ ጥያቄ በኋላ ከተጀመረ ፈጣን ጥያቄ በኋላ
+  ሊጻፍ ይችላል፤ የtimestamp cursor ደግሞ ይህን ይዘለዋል።
+- **በቡድን ማከናወን** — በአንድ ጥያቄ `batch_size` ረድፎች (ነባሪ 500)፣ በአንድ ሂደት
+  `max_rows_per_run` ረድፎች (ነባሪ 10000)፤ በዚህም ትልቅ የተጠራቀመ ሥራ አንድን ሂደት ከማገድ ይልቅ በበርካታ ticks ይጠናቀቃል።
+- **ማድረስ** — cursor የሚራመደው `send()` ከተፈጸመ በኋላ ብቻ ነው። ያልተሳካ ቡድን
+  cursorን በነበረበት ይተወዋል፤ ስለዚህ ተመሳሳይ ረድፎች በሚቀጥለው ሂደት እንደገና ይሞከራሉ። ዋስትናው
+  ቢያንስ-አንድ-ጊዜ ማድረስ እና በመዳረሻው በኩል የተባዙ መዝገቦችን ማስወገድ እንጂ እውነተኛ በትክክል-አንድ-ጊዜ አይደለም፦ BigQuery እያንዳንዱን
+  ረድፍ በcall-log id ይለያል፣ ይህንንም በራሱ የተባዙ መዝገቦች ማስወገጃ ጊዜ መስኮት ውስጥ በሚቻለው መጠን ያከብራል።
+- **የመደራረብ መከላከያ** — cron tick እና `POST .../run` በአንድ ጊዜ ሊነሱ ይችላሉ። አስቀድሞ
+  እየተከናወነ ያለ መዳረሻ ሁለት ጊዜ ከማከናወን ይልቅ ይዘለላል (በሂደቱ ውጤት ውስጥ `skipped: true`)፤
+  ስለዚህ በተመሳሳይ ጊዜ የሚካሄድ ሂደት አንድን ቡድን እንደገና ሊልክ ወይም cursorን ወደኋላ ሊጽፍ አይችልም።
+- **ከማጥፋት ማገገም** — `cursor_row_id` ከ`MAX(rowid)` በላይ ከሆነ (ሙሉው table
+  ተጠርጓል እና rowids እንደገና ጀምረዋል)፣ runner ለዘለቄታው ከማየት እንዳይታወር ወደ 0 ይመልሳል።
 
-### የሚላኩ ይዘቶች (ጥያቄዎች እና ምላሾች)
+### የተነጠለ runner እና ገደቦች
 
-በነባሪነት የሚላከው ውሂብ የLogs **ዝርዝር** የሚያሳያቸውን የማጠቃለያ መስኮች ብቻ ይይዛል።
-**ጥያቄዎችን እና ምላሾችን ላክ** (`includeBodies`)ን ማብራት፣ የLogs **ዝርዝር መረጃ**
-ፓነል ለእያንዳንዱ ጥሪ የሚያሳየውን ይዘት በተጨማሪ ይልካል፦
+በNode ላይ የእያንዳንዱ መዳረሻ ሂደት የተለየ፣ አጭር ዕድሜ ያለው OS child process (`child_process`
+ከIPC ጋር፣ `worker_threads` ሳይሆን) ያስጀምራል። የbody ንባቦች፣ የpayload JSON መተንተን/ማዋቀር፣ የመዳረሻ
+`prepare()` እና የመዳረሻ network I/O ሁሉም እዚያ ይሠራሉ፣ በserver event loop ላይ አይደለም።
+በIPC የሚተላለፉት ውቅር እና አነስተኛ የሂደት መልዕክቶች ብቻ ናቸው፤ ወደ ውጭ የተላኩ መዝገቦች ወደ
+server ፈጽሞ አይመለሱም። cron ሥራው እና Run now route ተመሳሳዩን ይፋዊ ውጤት እና የመደራረብ መከላከያ ይጠብቃሉ።
 
-| መስክ                              | የሚይዘው ነገር                                         |
-| -------------------------------- | ------------------------------------------------- |
-| `request_body` / `response_body` | ዳሽቦርዱ በሚያሳያቸው መልኩ የጥሪው ይዘቶች                       |
-| `pipeline_route_decision`        | ራውተሩ የመረጠው ዒላማ እና ሞዴል                             |
-| `pipeline_client_request`        | ደንበኛው በላከው ትክክለኛ መልክ ያለው ጥሬ ጥያቄ                   |
-| `pipeline_openai_request`        | ወደ ውስጣዊው የOpenAI ቅርጽ ከተተረጎመ በኋላ                   |
-| `pipeline_provider_request`      | በአቅራቢው ዘዬ፣ በትክክል ወደ ላይኛው አገልግሎት እንደተላከው           |
-| `pipeline_provider_response`     | ከላይኛው አገልግሎት የተገኘው ጥሬ ምላሽ                         |
-| `pipeline_client_response`       | ወደ ጠሪው የተመለሰው ይዘት                                 |
-| `pipeline_error`                 | ላልተሳካ ጥሪ የማስኬጃ መስመር-ደረጃ የስህተት ዝርዝር                |
-| `bodies_truncated`               | ከላይ ካሉት መስኮች አንዱ `maxBodyBytes` ላይ ሲደርስ እውነት ይሆናል |
+child የserverን የተፈታ `DATA_DIR/storage.sqlite` በ`node:sqlite` በመጠቀም ለንባብ-ብቻ ይከፍታል፣
+`busy_timeout=5000` እና `query_only=ON` ተዋቅረው። ምንም DB singleton አያስገባም፣ እንዲሁም
+ማንኛውንም migrations፣ backups ወይም SQLite updates አያከናውንም። የጠፋ/የተበላሸ artifact ክትትል (የ
+ተበላሸ-artifact UPDATEን ጨምሮ) በdashboard detail path ውስጥ ብቻ ይቆያል። ሁለቱም paths ጎንዮሽ ውጤት የሌለውን
+detail resolver ይጋራሉ፤ export ያልተመሳሰሉ filesystem readsን እና ተመሳሳዩን artifact → legacy
+inline → legacy disk → none የመፍታት ቅደም ተከተል ይጠቀማል። child readerን ሲከፍት አንድ ሂደት ከፍተኛውን የማስገቢያ rowid
+ቅጽበታዊ ቅጂ ይይዛል፤ በኋላ የሚገቡ መዝገቦች እስከሚቀጥለው ሂደት ይጠብቃሉ። ይህ የማስገቢያ
+ወሰን እንጂ ለረጅም ጊዜ የሚቆይ SQLite transaction አይደለም፦ WAL writers እና checkpoints በ
+network ጥበቃዎች ጊዜ ነፃ ሆነው ይቆያሉ። ያሉ ረድፎች ማዘመን/ማጥፋት በዚህ ወሰን አይታገድም።
 
-ይህ የጥያቄ ይዘት ስለሆነ፣ በነባሪነት **ጠፍቶ ነው**፤ ሆን ተብሎም ለእያንዳንዱ መድረሻ በተናጠል የሚመረጥ ነው።
-የሚላከው ዳሽቦርዱ የሚያሳየው ነው፤ ምክንያቱም ሁለቱም በ`getCallLogById` በኩል ያነባሉ፦ ይዘቶች
-ሲጻፉ አስቀድመው PII ተወግዶላቸዋል እና ሚስጥሮች ተሸፍነውባቸዋል፤ እንዲሁም
-`noLog` API ቁልፍን በመጠቀም የተደረገ ጥሪ ምንም ይዘት አያከማችም፣ ስለዚህ የሚላክ ምንም ነገር የለም።
+ከእያንዳንዱ ተቀባይነት ያገኘ ቡድን በኋላ child ማረጋገጫ ይጠብቃል። server መጀመሪያ
+cursorን በ`advanceLogExportCursor` ያስቀምጣል፣ ከዚያም `ack` ይልካል፤ ከዚያ በፊት ቀጣይ ቡድን አይጀምርም።
+የመላክ ውድቀት፣ crash ወይም timeout የዚያን ቡድን cursor ሳያራምድ ውድቀትን ይመዘግባል። ቀደም ሲል
+የተረጋገጡ ቡድኖች እንደተመዘገቡ ይቆያሉ፤ ቢበዛ ማረጋገጫ ያላገኘው አንድ ቡድን እንደገና ሊላክ ይችላል።
+ስኬት የሚመዘገበው ከ`done` እና ንጹሕ የchild exit በኋላ ብቻ ነው። ውድቀቶች childን
+በSIGTERM ያቋርጣሉ፣ ከ500 ms በኋላ ወደ SIGKILL ያሳድጋሉ፣ እና runner የprocess መዘጋትን ይጠብቃል።
 
-ይዘቶች ከፋይል ስርዓቱ አርቲፋክት በየረድፉ ይነበባሉ፤ ስለዚህ ሙሉ መረጃውን የመጫን ሂደት የሚከናወነው
-ይህን ለጠየቁ መድረሻዎች ብቻ ነው። አርቲፋክቱ የጠፋ ወይም የተበላሸ ረድፍ፣
-ጥቅሉን ከማሳካት እና ጠቋሚውን ከማስቆም ይልቅ፣ ማጠቃለያውን ከnull ይዘቶች ጋር ይልካል።
+| የአካባቢ ተለዋዋጭ                                   | ነባሪ    | ዓላማ                         |
+| --------------------------------------------- | ------ | --------------------------- |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000 | የእያንዳንዱ መዳረሻ የግድግዳ-ሰዓት ገደብ  |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024   | የchild V8 old-space ገደብ በMB |
 
-`maxBodyBytes` (ነባሪ 262144) ለእያንዳንዱ መስክ ከፍተኛ ገደብ ያስቀምጣል። ረዘም ያሉ ይዘቶች
-ከመጣል ይልቅ **ይቆረጣሉ** — የተቆረጠ ጥያቄም ቢሆን “ምን ተጠየቀ” የሚለውን ይመልሳል — እና ረድፉ
-በ`bodies_truncated` ምልክት ይደረግበታል። በዥረት የተላኩ ክፍል-በክፍል ልዩነቶች አይላኩም፤ የተገጣጠመው ምላሽ
-አስቀድሞ በ`pipeline_provider_response` እና `pipeline_client_response` ውስጥ ይገኛል።
+ልክ ያልሆኑ/አዎንታዊ ያልሆኑ/ኢንቲጀር ያልሆኑ እሴቶች ነባሪዎቹን ይጠቀማሉ። የheap ቅንብሩ አጠቃላይ
+የRSS ገደብ አይደለም፤ በጣም ትልልቅ ቡድኖች አሁንም የchild memoryን ሊያሟጥጡ እና ሂደቱን በደህና ሊያሳኩት ይችላሉ።
+የ1024 MB ነባሪ በርተው ያሉ bodiesን ጨምሮ፣ ከBigQuery byte-chunked JSON serialization ጋር፣
+ለነባሪው የ500 ረድፎች ቡድን እና 512 KiB artifacts ተጨማሪ ቦታ ይተዋል። ይህ የ
+10000 ረድፎች bodies ቡድንን ደህንነቱ የተጠበቀ አያደርገውም። የV8 heap መሟጠጥ ሊተገበር የሚችል መፍትሔ ያለውን ውድቀት ይመዘግባል፦ የቡድን
+መጠንን ይቀንሱ ወይም `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`ን ያሳድጉ፤ cursor በመጨረሻ
+ማረጋገጫ ባገኘው ቡድን ላይ ይቆያል። ታሪካዊ inline/disk bodies በዘመናዊው artifact ገደብ አይሸፈኑም።
+ኦፕሬተሮች RSSን በተናጠል በጀት ሊመድቡለት ይገባል፣ በተለይም memory የተገደበባቸው containers ውስጥ።
+
+child የሚወርሰው የተፈታውን `DATA_DIR`፣ `NODE_ENV`፣ በግልጽ የተጠቀሰ `TZ` (የlegacy filename
+local-time resolution)፣ ካለ `ELECTRON_RUN_AS_NODE`፣ እና የሚከተሉትን ወደ ውጭ የመውጫ ግብዓቶች ብቻ ነው፦
+`HTTP_PROXY`፣ `HTTPS_PROXY`፣ `ALL_PROXY`፣ `NO_PROXY` (እና የእነሱ lowercase ቅጾች)፣
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`፣ `NODE_EXTRA_CA_CERTS`፣ `SSL_CERT_FILE`፣ `SSL_CERT_DIR`።
+ዓለም አቀፍ Undici dispatcher የserverን ጎንዮሽ ውጤት የሌለው environment-proxy resolution እና local-host
+bypass ደንቦችን፣ `NO_PROXY`ን ጨምሮ፣ ይጋራል፤ `proxyFetch.ts`ን ወይም የእሱን DB/feature flags አያስገባም።
+የproxy ማረጋገጫ መረጃዎች ከሚተላለፉ ውጤቶች እና ከተመዘገቡ ስህተቶች ውስጥ ይደበቃሉ። የመዳረሻ ማረጋገጫ መረጃዎች
+በአንድ የstart IPC መልዕክት ብቻ ይጓዛሉ፣ በargv ወይም environment በፍጹም አይተላለፉም፤ የoutput/error ማስተላለፍ
+ቅድመ ቅጥያ ይኖረዋል እና ይጸዳል። በእያንዳንዱ cron ሂደት የNodeን SQLite ማስጠንቀቂያ እንዳይደገም በchild exec arguments ውስጥ የሚሰናከለው `ExperimentalWarning` ብቻ ነው፤
+ሌሎች የማስጠንቀቂያ ዓይነቶች እንደሚታዩ ይቆያሉ።
+
+የመድረሻ ሞጁሎች ያለ Next.js/በአገልጋይ-ብቻ የሚገኙ ጥገኝነቶች import ሊደረጉ የሚችሉ መሆን አለባቸው። አሁን ያለው
+የBigQuery ትግበራ ይህን ውል ቀድሞውኑ ያሟላል። የመዳረሻ-token caches የሚቆዩት ለልጅ
+ሂደቱ ብቻ እንጂ በተለያዩ ሂደቶች መካከል አይደለም። Node የሚደገፈው runtime (`package.json` engines) ነው፣ ነገር ግን በREADME ውስጥ ያለው የBun
+መጫኛ ክፍል እና `Dockerfile.bun` እንዲሁም `bun:sqlite` (`src/lib/db/core.ts` / adapters)ን በመጠቀም
+የproduction ተኳኋኝነት መንገድን ያስተዋውቃሉ። ስለዚህ በBun ስር፣ exports የቀድሞውን
+የin-process መንገድ ይዘው ይቆያሉ እና የአንድ ጊዜ ማስጠንቀቂያ ያወጣሉ፦ የልጅ heap/timeout isolation አይገኝም። ለevent-loop እና OOM isolation
+Nodeን ይጠቀሙ፤ Bun እዚህ ለdev-ብቻ ተብሎ አይታይም።
+
+`includeBodies` ሲነቃ፣ የሰዓት የpayload ክምችት ከማከማቸት ይልቅ
+እንደ `OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"` ያለ በደቂቃ ደረጃ የሚሠራ የጊዜ ሰሌዳ ይምረጡ።
+የbatch እና የrow ገደቦች አሁንም እያንዳንዱን ሂደት ይገድባሉ። የprocess startup ወጪ በእያንዳንዱ ሂደት ለእያንዳንዱ መድረሻ ይከፈላል፤
+ይህ አነስተኛ የstartup ወጪን ለserver event-loop isolation ይለውጣል እንጂ አጠቃላይ የCPU አጠቃቀምን አይቀንስም።
+
+### Payloads (prompts እና completions)
+
+በነባሪነት export የሚይዘው የLogs **ዝርዝር** የሚያሳያቸውን የማጠቃለያ መስኮች ብቻ ነው።
+**Prompts እና responsesን export ማድረግ** (`includeBodies`)ን ማብራት በተጨማሪ የLogs **ዝርዝር መረጃ**
+ፓነል ለእያንዳንዱ call የሚያሳየውን ይልካል፦
+
+| መስክ                              | የሚይዘው                                       |
+| -------------------------------- | ------------------------------------------- |
+| `request_body` / `response_body` | dashboard እንደሚያቀርባቸው የcall payloads         |
+| `pipeline_route_decision`        | router የመረጠው target እና model                |
+| `pipeline_client_request`        | client በላከው ትክክለኛ መልክ ያለው raw request       |
+| `pipeline_openai_request`        | ወደ ውስጣዊው OpenAI ቅርጽ ከተተረጎመ በኋላ              |
+| `pipeline_provider_request`      | በprovider dialect ወደ upstream በትክክል እንደተላከው |
+| `pipeline_provider_response`     | የraw upstream response                      |
+| `pipeline_client_response`       | ወደ caller ተመልሶ የተሰጠው                        |
+| `pipeline_error`                 | ላልተሳካ call የpipeline-ደረጃ የስህተት ዝርዝር         |
+| `bodies_truncated`               | ከላይ ካሉት መስኮች አንዱ `maxBodyBytes` ሲደርስ True   |
+
+ይህ የprompt ይዘት ነው፣ ስለዚህ **በነባሪነት የጠፋ** ነው እና ሆን ተብሎ ለእያንዳንዱ መድረሻ የሚደረግ ምርጫ ነው።
+የሚላከው dashboard የሚያሳየው ነው፣ ምክንያቱም export እና `getCallLogById` ተመሳሳይ የዝርዝር መረጃ
+resolution ይጋራሉ፦ payloads
+ሲጻፉ አስቀድመው PII-sanitised እና secret-redacted ተደርገዋል፣ እንዲሁም
+`noLog` API keyን በመጠቀም የተደረገ call ምንም payload አያከማችም፤ ስለዚህ export የሚደረግ ነገር የለም።
+
+Payloads ከfilesystem artifact በእያንዳንዱ row ይነበባሉ፣ ስለዚህ hydration የሚሠራው
+ለጠየቁት መድረሻዎች ብቻ ነው። የጠፋ ወይም የተበላሸ artifact batchን አስተጓጉሎ cursorን
+ከማስቆም ይልቅ ማጠቃለያውን ከnull payloads ጋር export ያደርጋል።
+
+`maxBodyBytes` (ነባሪው 262144) እያንዳንዱን መስክ ይገድባል። ረዘም ያሉ payloads **ከመጣል ይልቅ
+ይቆረጣሉ** — የተቆረጠ prompt አሁንም "ምን ተጠይቆ ነበር" ለሚለው መልስ ይሰጣል — እና rowው
+በ`bodies_truncated` ምልክት ይደረግበታል። ቁራጭ-በ-ቁራጭ የstream የተደረጉ deltas export አይደረጉም፤ የተገጣጠመው response
+ቀድሞውኑ በ`pipeline_provider_response` እና `pipeline_client_response` ውስጥ ይገኛል።
 
 ---
 
@@ -80,20 +145,25 @@ call_logs (SQLite)
 
 | ክፍል             | መገኛ                                          |
 | --------------- | -------------------------------------------- |
-| መድረሻ ኮንትራት      | `src/lib/logExport/types.ts`                 |
+| መዳረሻ ውል         | `src/lib/logExport/types.ts`                 |
 | መዝገብ            | `src/lib/logExport/registry.ts`              |
 | የሚስጥር አያያዝ      | `src/lib/logExport/secrets.ts`               |
-| አስኬጅ (የጠቋሚ ዙር)  | `src/lib/logExport/runner.ts`                |
-| የAPI ውክልና       | `src/lib/logExport/presenter.ts`             |
-| BigQuery መድረሻ   | `src/lib/logExport/destinations/bigquery.ts` |
+| አስኬጅ (ወላጅ IPC)  | `src/lib/logExport/runner.ts`                |
+| የሂደት የሕይወት ዑደት  | `src/lib/logExport/childRunner.ts`           |
+| የልጅ መግቢያ        | `src/lib/logExport/exportChild.ts`           |
+| ለንባብ-ብቻ መክፈቻ    | `src/lib/db/logExportReadOnly.ts`            |
+| የጋራ መጠይቅ/ማዛመድ   | `src/lib/usage/callLogExportQueries.ts`      |
+| የዝርዝር መፍቻ       | `src/lib/usage/callLogDetailResolver.ts`     |
+| የAPI ትንበያ       | `src/lib/logExport/presenter.ts`             |
+| BigQuery መዳረሻ   | `src/lib/logExport/destinations/bigquery.ts` |
 | Google SA ማረጋገጫ | `src/lib/logExport/googleServiceAccount.ts`  |
-| የጥሪ ሎግ ምንጭ      | `src/lib/usage/callLogExportSource.ts`       |
+| የጥሪ-ምዝግብ ምንጭ    | `src/lib/usage/callLogExportSource.ts`       |
 | ቋሚ ማከማቻ         | `src/lib/db/logExportDestinations.ts`        |
-| Cron ሥራ         | `src/lib/jobs/logExportJob.ts`               |
+| Cron ተግባር       | `src/lib/jobs/logExportJob.ts`               |
 | REST ንብርብር      | `src/app/api/log-export/`                    |
-| የዳሽቦርድ ገጽ       | `src/app/(dashboard)/dashboard/log-export/`  |
+| የመቆጣጠሪያ ሰሌዳ ገጽ  | `src/app/(dashboard)/dashboard/log-export/`  |
 
-መርሐግብር፦ `src/lib/db/migrations/170_log_export_destinations.sql`።
+የውሂብ መዋቅር፦ `src/lib/db/migrations/170_log_export_destinations.sql`.
 
 ---
 

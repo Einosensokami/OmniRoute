@@ -16,63 +16,109 @@ pipeline používá registr, takže další cíle lze snadno přidávat.
 ## 1. Jak to funguje
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (sada polí karty Logs)
-      → klient cíle.send(dávka)
-        → advanceLogExportCursor(id, lastRowId, count)
+server (dešifrování + ověření konfigurace, synchronizace kurzoru)
+  → spuštění IPC → izolovaný proces OS exportChild
+    → úložiště storage.sqlite pouze pro čtení → sdílený dotaz/mapování protokolu volání
+      → asynchronní načtení artefaktů → prepare()/send() cíle
+        → dávka přes IPC → server uloží kurzor → potvrzení přes IPC
+          → další dávka; dokončení přes IPC → server zaznamená úspěch
 ```
 
-- **Plán** — jedna cron úloha `JobRegistry`, `log_export`, ve výchozím nastavení `0 * * * *` (každou hodinu,
+- **Plánování** — jedna cronová úloha `JobRegistry`, `log_export`, s výchozí hodnotou `0 * * * *` (každou hodinu,
   UTC). Registrována v `src/lib/initCloudSync.ts`; lze přepsat pomocí `OMNIROUTE_LOG_EXPORT_CRON`.
-  Každé spuštění postupně zpracuje všechny **povolené** cíle.
-- **Kurzor** — implicitní `call_logs.rowid` SQLite, uchovávaný pro každý cíl v
-  `log_export_destinations.cursor_row_id`. `timestamp` záměrně neslouží jako kurzor: volající
-  mohou zadat vlastní hodnotu, takže pomalý požadavek může být zapsán až po rychlejším požadavku, který byl zahájen
+  Při každém spuštění postupně vyprázdní všechny **povolené** cíle.
+- **Kurzor** — implicitní `call_logs.rowid` databáze SQLite, ukládaný pro každý cíl do
+  `log_export_destinations.cursor_row_id`. `timestamp` záměrně není kurzorem: volající
+  mohou zadat vlastní hodnotu, takže pomalý požadavek může být zapsán až po rychlejším, který začal
   později, a kurzor založený na časovém razítku by jej přeskočil.
 - **Dávkování** — `batch_size` řádků na požadavek (výchozí hodnota 500), `max_rows_per_run` řádků na jedno spuštění
   (výchozí hodnota 10000), aby se velký objem nevyřízených dat zpracoval během několika spuštění namísto blokování jediného.
-- **Doručení** — kurzor se posune pouze po dokončení `send()`. Neúspěšná dávka ponechá
-  kurzor na původním místě, takže stejné řádky budou při dalším spuštění odeslány znovu. Zárukou je
-  alespoň jedno doručení společně s deduplikací na straně cíle, nikoli skutečné právě jedno doručení: BigQuery identifikuje každý
-  řádek podle ID protokolu volání, které v rámci svého vlastního deduplikačního okna zohledňuje podle principu maximálního úsilí.
-- **Ochrana proti překryvu** — cron spuštění a `POST .../run` mohou proběhnout současně. Cíl,
-  který se již zpracovává, je přeskočen, aby nebyl zpracován dvakrát (`skipped: true` ve výsledku spuštění),
-  takže souběžné spuštění nemůže dávku znovu odeslat ani posunout kurzor zpět.
+- **Doručení** — kurzor se posune až poté, co se `send()` dokončí. Neúspěšná dávka ponechá
+  kurzor na původním místě, takže stejné řádky budou znovu zpracovány při příštím spuštění. Zárukou je
+  alespoň jedno doručení společně s odstraněním duplicit na straně cíle, nikoli skutečné doručení právě jednou: BigQuery identifikuje každý
+  řádek podle ID protokolu volání, které respektuje na základě maximálního úsilí v rámci vlastního okna pro odstraňování duplicit.
+- **Ochrana proti souběhu** — cronové spuštění a `POST .../run` mohou proběhnout současně. Cíl,
+  který se již vyprazdňuje, je přeskočen, místo aby se vyprazdňoval dvakrát (`skipped: true` ve výsledku spuštění),
+  takže souběžné spuštění nemůže znovu odeslat dávku ani posunout kurzor zpět.
 - **Obnova po vyčištění** — pokud se `cursor_row_id` dostane nad `MAX(rowid)` (celá tabulka byla
-  vyčištěna a číslování ID řádků začalo znovu), prováděcí proces vrátí kurzor na 0, aby natrvalo nepřestal zaznamenávat nové řádky.
+  vyčištěna a číslování rowid začalo znovu), proces vrátí kurzor na 0, aby nezůstal trvale slepý.
+
+### Izolovaný proces a limity
+
+Každé spuštění cíle v Node zahájí samostatný krátkodobý podřízený proces OS (`child_process`
+s IPC, nikoli `worker_threads`). Čtení těl, parsování/serializace datové části JSON, cílová funkce
+`prepare()` i síťová komunikace cíle probíhají v něm, nikoli ve smyčce událostí serveru.
+Přes IPC se přenáší pouze konfigurace a malé zprávy o průběhu; exportované záznamy se nikdy nevracejí
+na server. Cronová úloha a trasa Spustit nyní zachovávají stejný veřejný výsledek a ochranu proti souběhu.
+
+Podřízený proces otevře serverem vyhodnocený soubor `DATA_DIR/storage.sqlite` pouze pro čtení pomocí `node:sqlite`,
+s `busy_timeout=5000` a `query_only=ON`. Neimportuje žádný singleton databáze a neprovádí
+migrace, zálohy ani aktualizace SQLite. Evidence chybějících/poškozených artefaktů (včetně
+operace UPDATE pro poškozený artefakt) zůstává pouze v cestě k podrobnostem ovládacího panelu. Obě cesty sdílejí čistý
+překladač podrobností; export používá asynchronní čtení souborového systému a stejné pořadí vyhodnocení:
+artefakt → starší vložená data → starší data na disku → nic. Spuštění zachytí maximální rowid vložení
+ve chvíli, kdy podřízený proces otevře své připojení pro čtení; pozdější vložení počkají na další spuštění. Jde o hranici
+vložení, nikoli dlouhodobou transakci SQLite: procesy zapisující do WAL a kontrolní body mohou během
+čekání na síť volně pokračovat. Aktualizace/odstranění existujících řádků nejsou touto hranicí zmrazena.
+
+Po každé přijaté dávce podřízený proces čeká na potvrzení. Server nejprve uloží
+kurzor pomocí `advanceLogExportCursor` a poté odešle `ack`; předtím se nespustí žádná další dávka.
+Selhání odeslání, pád nebo překročení časového limitu zaznamená selhání bez posunutí kurzoru pro danou dávku. Dříve
+potvrzené dávky zůstanou uložené; znovu může být odeslána nanejvýš jedna nepotvrzená dávka.
+Úspěch je zaznamenán až po `done` a korektním ukončení podřízeného procesu. Při selháních je podřízený proces
+ukončen signálem SIGTERM, po 500 ms se přejde na SIGKILL a proces zpracování čeká na ukončení procesu.
+
+| Proměnná prostředí                            | Výchozí hodnota | Účel                                             |
+| --------------------------------------------- | --------------- | ------------------------------------------------ |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000          | Časový limit každého cíle podle nástěnných hodin |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024            | Limit staré oblasti V8 podřízeného procesu v MB  |
+
+Neplatné, nekladné nebo neceločíselné hodnoty použijí výchozí nastavení. Nastavení haldy není celkovým
+limitem RSS; velmi velké dávky přesto mohou vyčerpat paměť podřízeného procesu a bezpečně ukončit spuštění s chybou.
+Výchozích 1024 MB ponechává rezervu pro výchozí dávku 500 řádků s artefakty o velikosti 512 KiB a se
+zahrnutými těly, včetně serializace JSON po bajtových blocích v BigQuery. Nezajišťuje bezpečnost
+dávky 10000 řádků s těly. Vyčerpání haldy V8 zaznamená selhání s pokyny k nápravě: snižte velikost dávky
+nebo zvyšte `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`; kurzor zůstane na poslední
+potvrzené dávce. Historická těla vložená přímo nebo uložená na disku nejsou pokryta moderním limitem artefaktů.
+Provozovatelé musí RSS plánovat samostatně, zejména uvnitř kontejnerů s omezenou pamětí.
+
+Podřízený proces zdědí pouze vyhodnocené `DATA_DIR`, `NODE_ENV`, explicitní `TZ` (převod místního času
+ve starších názvech souborů), `ELECTRON_RUN_AS_NODE`, pokud je přítomno, a následující vstupy pro odchozí spojení:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (a jejich varianty malými písmeny),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Globální dispatcher Undici sdílí se serverem čisté vyhodnocení proxy z prostředí a pravidla pro
+obcházení proxy u místních hostitelů, včetně `NO_PROXY`; neimportuje `proxyFetch.ts` ani jeho databázové/příznakové funkce.
+Přihlašovací údaje proxy jsou v předávaném výstupu a zaznamenaných chybách skryty. Přihlašovací údaje cíle
+se přenášejí pouze v jedné spouštěcí zprávě IPC, nikdy prostřednictvím argv ani prostředí; předávaný výstup/chyby mají
+předponu a jsou očištěny. V argumentech spuštění podřízeného procesu je zakázáno pouze `ExperimentalWarning`, aby se
+při každém cronovém spuštění neopakovalo varování Node k SQLite; ostatní typy varování zůstávají viditelné.
+
+Cílové moduly musí být importovatelné bez závislostí na Next.js nebo na komponentách určených pouze pro server. Stávající implementace BigQuery již tento požadavek splňuje. Mezipaměti přístupových tokenů přetrvávají pouze po dobu běhu podřízeného procesu, nikoli mezi jednotlivými běhy. Podporovaným runtime prostředím je Node (`package.json` engines), ale část README věnovaná instalaci Bunu a soubor `Dockerfile.bun` také deklarují produkční cestu kompatibility využívající `bun:sqlite` (`src/lib/db/core.ts` / adaptéry). Při použití Bunu proto exporty zachovávají předchozí cestu v rámci procesu a jednorázově zobrazí upozornění, že izolace haldy a časového limitu podřízeného procesu není k dispozici. Pro izolaci smyčky událostí a stavů OOM použijte Node; Bun zde není považován za prostředí určené pouze pro vývoj.
+
+Když je povoleno `includeBodies`, upřednostněte interval v řádu minut, například
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`, namísto hromadění hodinového objemu dat. Limity dávek a řádků nadále omezují každý běh. Spuštění procesu se provádí pro každý cíl při každém běhu; jde o výměnu malých nákladů na spuštění za izolaci serverové smyčky událostí, nikoli za snížení celkového využití CPU.
 
 ### Datové obsahy (prompty a dokončení)
 
-Ve výchozím nastavení export obsahuje pouze souhrnná pole zobrazená v **seznamu** karty Logs. Zapnutím možnosti
-**Exportovat prompty a odpovědi** (`includeBodies`) se navíc odešle obsah, který panel **podrobností**
-karty Logs zobrazuje pro každé volání:
+Ve výchozím nastavení export obsahuje pouze souhrnná pole, která zobrazuje **seznam** protokolů. Zapnutím možnosti **Exportovat prompty a odpovědi** (`includeBodies`) se navíc odešlou údaje, které pro každé volání zobrazuje panel **podrobností** protokolů:
 
-| Pole                             | Co obsahuje                                               |
-| -------------------------------- | --------------------------------------------------------- |
-| `request_body` / `response_body` | Datové obsahy volání tak, jak je vykresluje řídicí panel  |
-| `pipeline_route_decision`        | Který cíl a model směrovač vybral                         |
-| `pipeline_client_request`        | Nezpracovaný požadavek přesně tak, jak jej klient odeslal |
-| `pipeline_openai_request`        | Po převodu do interního formátu OpenAI                    |
-| `pipeline_provider_request`      | Skutečně odeslaný upstreamu, v dialektu poskytovatele     |
-| `pipeline_provider_response`     | Nezpracovaná odpověď upstreamu                            |
-| `pipeline_client_response`       | Obsah předaný zpět volajícímu                             |
-| `pipeline_error`                 | Podrobnosti o chybě pipeline při neúspěšném volání        |
-| `bodies_truncated`               | Pravda, pokud některé pole výše dosáhlo `maxBodyBytes`    |
+| Pole                             | Co obsahuje                                                        |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `request_body` / `response_body` | Datové obsahy volání v podobě, v jaké je vykresluje řídicí panel   |
+| `pipeline_route_decision`        | Cíl a model, které směrovač vybral                                 |
+| `pipeline_client_request`        | Nezpracovaný požadavek přesně v podobě odeslané klientem           |
+| `pipeline_openai_request`        | Po převodu do interního formátu OpenAI                             |
+| `pipeline_provider_request`      | V podobě skutečně odeslané upstreamu, v dialektu poskytovatele     |
+| `pipeline_provider_response`     | Nezpracovaná odpověď upstreamu                                     |
+| `pipeline_client_response`       | To, co bylo předáno zpět volajícímu                                |
+| `pipeline_error`                 | Podrobnosti o chybě na úrovni pipeline u neúspěšného volání        |
+| `bodies_truncated`               | Pravda, pokud některé z výše uvedených polí dosáhlo `maxBodyBytes` |
 
-Jde o obsah promptů, takže je tato možnost **ve výchozím nastavení vypnutá** a záměrně se volí pro každý cíl zvlášť.
-Odesílá se to, co zobrazuje řídicí panel, protože obě části čtou prostřednictvím `getCallLogById`: datové obsahy jsou
-již při zápisu sanitizovány od osobních údajů a jsou z nich odstraněna tajemství. Volání provedené pomocí
-API klíče s `noLog` navíc neukládá žádný datový obsah, takže není co exportovat.
+Jde o obsah promptů, takže je tato možnost **ve výchozím nastavení vypnutá** a záměrně se volí samostatně pro každý cíl. Odesílá se přesně to, co zobrazuje řídicí panel, protože export a `getCallLogById` používají stejné načítání podrobností: z datových obsahů jsou již při zápisu odstraněny osobní údaje a utajeny citlivé údaje. Volání provedené pomocí API klíče s nastavením `noLog` navíc neukládá žádný datový obsah, takže není co exportovat.
 
-Datové obsahy se pro každý řádek načítají z artefaktu v souborovém systému, takže hydratace probíhá pouze pro cíle,
-které ji požadují. Řádek, jehož artefakt chybí nebo je poškozený, exportuje svůj souhrn s hodnotami null
-v datových obsazích namísto selhání dávky a zablokování kurzoru.
+Datové obsahy se načítají po jednotlivých řádcích z artefaktu v souborovém systému, takže k jejich doplnění dochází pouze u cílů, které si je vyžádaly. Pokud artefakt chybí nebo je poškozený, exportuje se jeho souhrn s prázdnými datovými obsahy namísto selhání dávky a zablokování kurzoru.
 
-`maxBodyBytes` (výchozí hodnota 262144) omezuje velikost každého pole. Delší datové obsahy jsou **zkráceny, nikoli
-zahozeny** — zkrácený prompt stále odpovídá na otázku „co bylo požadováno“ — a řádek je označen pomocí
-`bodies_truncated`. Dílčí rozdíly streamované po jednotlivých blocích se neexportují; sestavená odpověď se
-již nachází v `pipeline_provider_response` a `pipeline_client_response`.
+`maxBodyBytes` (výchozí hodnota 262144) omezuje velikost každého pole. Delší datové obsahy se **zkrátí, nikoli zahodí** — oříznutý prompt stále odpovídá na otázku „co bylo požadováno“ — a řádek se označí pomocí `bodies_truncated`. Dílčí změny streamované po jednotlivých blocích se neexportují; sestavená odpověď je již obsažena v `pipeline_provider_response` a `pipeline_client_response`.
 
 ---
 
@@ -83,7 +129,12 @@ již nachází v `pipeline_provider_response` a `pipeline_client_response`.
 | Kontrakt cíle             | `src/lib/logExport/types.ts`                 |
 | Registr                   | `src/lib/logExport/registry.ts`              |
 | Zpracování tajných údajů  | `src/lib/logExport/secrets.ts`               |
-| Spouštěč (smyčka kurzoru) | `src/lib/logExport/runner.ts`                |
+| Spouštěč (nadřazené IPC)  | `src/lib/logExport/runner.ts`                |
+| Životní cyklus procesu    | `src/lib/logExport/childRunner.ts`           |
+| Vstup podřízeného procesu | `src/lib/logExport/exportChild.ts`           |
+| Otvírač pouze pro čtení   | `src/lib/db/logExportReadOnly.ts`            |
+| Sdílené dotazy/mapování   | `src/lib/usage/callLogExportQueries.ts`      |
+| Překladač podrobností     | `src/lib/usage/callLogDetailResolver.ts`     |
 | Projekce API              | `src/lib/logExport/presenter.ts`             |
 | Cíl BigQuery              | `src/lib/logExport/destinations/bigquery.ts` |
 | Ověřování Google SA       | `src/lib/logExport/googleServiceAccount.ts`  |

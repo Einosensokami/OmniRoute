@@ -16,81 +16,155 @@ Logs ڈیش بورڈ ٹیب درخواستوں کی تاریخ SQLite (`call_log
 ## 1. یہ کیسے کام کرتا ہے
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (Logs ٹیب کے فیلڈز کا مجموعہ)
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+server (کنفیگریشن کو decrypt + validate کرنا، cursor میں مطابقت پیدا کرنا)
+  → IPC شروع کریں → الگ تھلگ exportChild OS process
+    → صرف پڑھنے کے لیے storage.sqlite → مشترکہ call-log query/mapping
+      → غیر ہم وقت artifact hydration → destination prepare()/send()
+        → batch IPC → server cursor محفوظ کرتا ہے → ack IPC
+          → اگلا batch؛ done IPC → server کامیابی ریکارڈ کرتا ہے
 ```
 
-- **شیڈول** — ایک `JobRegistry` cron جاب، `log_export`، جو بطور ڈیفالٹ `0 * * * *` (ہر گھنٹے،
-  UTC) پر چلتی ہے۔ یہ `src/lib/initCloudSync.ts` میں رجسٹرڈ ہے؛ اسے `OMNIROUTE_LOG_EXPORT_CRON` کے ذریعے اوور رائیڈ کیا جا سکتا ہے۔
-  ہر ٹِک ہر **فعال** منزل کو یکے بعد دیگرے مکمل طور پر پراسیس کرتی ہے۔
-- **کرسر** — SQLite کا ضمنی `call_logs.rowid`، جو ہر منزل کے لیے
-  `log_export_destinations.cursor_row_id` میں محفوظ رہتا ہے۔ جان بوجھ کر `timestamp` کو کرسر نہیں بنایا گیا: کالرز
-  اپنی قدر فراہم کر سکتے ہیں، اس لیے ایک سست درخواست کو اس تیز درخواست کے بعد لکھا جا سکتا ہے جو
-  بعد میں شروع ہوئی تھی، اور timestamp کرسر اسے چھوڑ دے گا۔
-- **بیچنگ** — ہر درخواست میں `batch_size` قطاریں (ڈیفالٹ 500)، اور ہر رن میں
-  `max_rows_per_run` قطاریں (ڈیفالٹ 10000)، تاکہ ایک بڑا بیک لاگ کسی ایک رن کو بلاک کرنے کے بجائے کئی ٹِکس میں مکمل ہو۔
-- **ترسیل** — کرسر صرف `send()` کے resolve ہونے کے بعد آگے بڑھتا ہے۔ ناکام بیچ
-  کرسر کو اسی مقام پر چھوڑ دیتا ہے، لہٰذا اگلے رن میں انہی قطاروں کی دوبارہ کوشش کی جاتی ہے۔ ضمانت
-  کم از کم ایک بار ترسیل کے ساتھ منزل کی جانب ڈی ڈپلیکیشن کی ہے، حقیقی exactly-once کی نہیں: BigQuery ہر
-  قطار کو call-log id کے ذریعے کلید دیتا ہے، جسے وہ اپنی ڈی ڈپلیکیشن ونڈو کے اندر best-effort بنیاد پر ملحوظ رکھتا ہے۔
-- **اوورلیپ گارڈ** — cron ٹِک اور `POST .../run` ایک ساتھ چل سکتے ہیں۔ جو منزل
-  پہلے ہی پراسیس ہو رہی ہو، اسے دو بار پراسیس کرنے کے بجائے چھوڑ دیا جاتا ہے (رن کے نتیجے میں `skipped: true`)،
-  لہٰذا ایک متوازی رن نہ تو بیچ کو دوبارہ بھیج سکتا ہے اور نہ کرسر کو پیچھے لکھ سکتا ہے۔
-- **پرج ریکوری** — اگر `cursor_row_id`، `MAX(rowid)` سے زیادہ ہو جائے (پوری ٹیبل
-  پرج ہو گئی ہو اور rowids دوبارہ شروع ہوئے ہوں)، تو رنر مستقل طور پر بے خبر رہنے کے بجائے واپس 0 پر آ جاتا ہے۔
+- **شیڈول** — ایک `JobRegistry` cron job، `log_export`، جو بطور ڈیفالٹ `0 * * * *` (ہر گھنٹے،
+  UTC) پر چلتا ہے۔ یہ `src/lib/initCloudSync.ts` میں رجسٹر ہے؛ اسے `OMNIROUTE_LOG_EXPORT_CRON`
+  کے ذریعے اوور رائیڈ کیا جا سکتا ہے۔ ہر tick تمام **فعال** destinations کو باری باری مکمل طور پر پروسیس کرتا ہے۔
+- **کرسر** — SQLite کا ضمنی `call_logs.rowid`، جو ہر destination کے لیے
+  `log_export_destinations.cursor_row_id` میں محفوظ ہوتا ہے۔ دانستہ طور پر `timestamp` کو cursor
+  نہیں بنایا گیا: callers اپنی قدر فراہم کر سکتے ہیں، اس لیے کوئی سست request بعد میں شروع ہونے
+  والی تیز request کے بعد لکھی جا سکتی ہے، اور timestamp cursor اسے چھوڑ دے گا۔
+- **بیچنگ** — ہر request میں `batch_size` rows (ڈیفالٹ 500)، اور ہر run میں
+  `max_rows_per_run` rows (ڈیفالٹ 10000)، تاکہ بڑا backlog ایک ہی run کو بلاک کرنے کے بجائے
+  متعدد ticks میں مکمل ہو۔
+- **ترسیل** — cursor صرف `send()` کے resolve ہونے کے بعد آگے بڑھتا ہے۔ ناکام batch کی صورت میں
+  cursor اپنی جگہ پر رہتا ہے، لہٰذا اگلے run میں انہی rows کی دوبارہ کوشش کی جاتی ہے۔ ضمانت
+  حقیقی exactly-once کے بجائے at-least-once اور destination-side de-duplication کی ہے: BigQuery ہر
+  row کی key، call-log id سے بناتا ہے، جس کا وہ اپنی dedup window کے اندر best-effort بنیاد پر احترام کرتا ہے۔
+- **اوورلیپ سے تحفظ** — cron tick اور `POST .../run` ایک ساتھ متحرک ہو سکتے ہیں۔ جو destination
+  پہلے ہی پروسیس ہو رہا ہو، اسے دوسری مرتبہ پروسیس کرنے کے بجائے چھوڑ دیا جاتا ہے (run result میں
+  `skipped: true`)، تاکہ concurrent run کسی batch کو دوبارہ نہ بھیج سکے یا cursor کو پیچھے نہ لکھ سکے۔
+- **Purge سے بازیابی** — اگر `cursor_row_id`، `MAX(rowid)` سے زیادہ ہو جائے (پوری table
+  purge ہو چکی ہو اور rowids دوبارہ شروع ہوئے ہوں)، تو runner مستقل طور پر بے خبر رہنے کے بجائے واپس 0 پر آ جاتا ہے۔
 
-### پے لوڈز (پرامپٹس اور تکمیلات)
+### الگ تھلگ runner اور حدود
 
-بطور ڈیفالٹ، ایکسپورٹ صرف وہ خلاصہ فیلڈز لے جاتا ہے جو Logs کی **فہرست** دکھاتی ہے۔ **پرامپٹس اور جوابات ایکسپورٹ کریں** (`includeBodies`) کو فعال کرنے سے اس کے علاوہ وہ معلومات بھی بھیجی جاتی ہیں جو Logs کا **تفصیلی**
-پین ہر کال کے لیے دکھاتا ہے:
+Node پر ہر destination run ایک الگ، مختصر مدت کا OS child process (`child_process`
+بمع IPC، نہ کہ `worker_threads`) شروع کرتا ہے۔ Body reads، payload JSON parsing/serialization،
+destination `prepare()` اور destination network I/O، سب server کے event loop کے بجائے وہاں چلتے ہیں۔
+cron job اور Run now route وہی public result اور overlap guard برقرار رکھتے ہیں۔
 
-| فیلڈ                             | اس میں کیا ہوتا ہے                                            |
-| -------------------------------- | ------------------------------------------------------------- |
-| `request_body` / `response_body` | کال کے پے لوڈز، جیسے ڈیش بورڈ انہیں دکھاتا ہے                 |
-| `pipeline_route_decision`        | روٹر نے کون سا ہدف اور ماڈل منتخب کیا                         |
-| `pipeline_client_request`        | اصل درخواست، بالکل اسی طرح جیسے کلائنٹ نے بھیجی               |
-| `pipeline_openai_request`        | اندرونی OpenAI ساخت میں ترجمے کے بعد                          |
-| `pipeline_provider_request`      | جیسا حقیقتاً upstream بھیجا گیا، provider dialect میں         |
-| `pipeline_provider_response`     | خام upstream جواب                                             |
-| `pipeline_client_response`       | جو کالر کو واپس دیا گیا                                       |
-| `pipeline_error`                 | ناکام کال کے لیے پائپ لائن سطح کی خرابی کی تفصیل              |
-| `bodies_truncated`               | True، جب اوپر دیا گیا کوئی فیلڈ `maxBodyBytes` کی حد تک پہنچے |
+child، server کی resolve کردہ `DATA_DIR/storage.sqlite` کو `node:sqlite` کے ذریعے صرف پڑھنے کے لیے
+کھولتا ہے، جس میں `busy_timeout=5000` اور `query_only=ON` ہوتے ہیں۔ یہ کوئی DB singleton import
+نہیں کرتا اور نہ migrations، backups یا SQLite updates انجام دیتا ہے۔ گم شدہ/خراب artifact کی
+bookkeeping (بشمول corrupt-artifact UPDATE) صرف dashboard detail path میں رہتی ہے۔ دونوں paths
+ایک خالص detail resolver کا اشتراک کرتے ہیں؛ export غیر ہم وقت filesystem reads اور وہی
+artifact → legacy inline → legacy disk → none resolution ترتیب استعمال کرتا ہے۔ جب child اپنا
+reader کھولتا ہے تو run زیادہ سے زیادہ insertion rowid کا snapshot لیتا ہے؛ بعد کی insertions
+اگلے run کا انتظار کرتی ہیں۔ یہ insertion boundary ہے، طویل مدت کا SQLite transaction نہیں:
+network waits کے دوران WAL writers اور checkpoints آزاد رہتے ہیں۔ موجودہ rows کی updates/deletions
+اس boundary سے منجمد نہیں ہوتیں۔
 
-یہ پرامپٹ کا مواد ہے، اس لیے یہ بطور ڈیفالٹ **غیر فعال** ہوتا ہے اور جان بوجھ کر ہر منزل کے لیے الگ انتخاب ہے۔
-جو کچھ بھیجا جاتا ہے وہی ڈیش بورڈ دکھاتا ہے، کیونکہ دونوں `getCallLogById` کے ذریعے پڑھتے ہیں: پے لوڈز کو
-لکھتے وقت ہی PII سے صاف اور رازوں سے منقح کر دیا جاتا ہے، اور `noLog` API کلید کے ساتھ کی گئی کال
-کوئی پے لوڈ محفوظ ہی نہیں کرتی، اس لیے ایکسپورٹ کرنے کے لیے کچھ نہیں ہوتا۔
+ہر قبول شدہ batch کے بعد child acknowledgement کا انتظار کرتا ہے۔ server پہلے
+`advanceLogExportCursor` کے ذریعے cursor محفوظ کرتا ہے، پھر `ack` بھیجتا ہے؛ اس سے پہلے کوئی
+اگلا batch شروع نہیں ہوتا۔ send failure، crash یا timeout اس batch کو آگے بڑھائے بغیر failure
+ریکارڈ کرتا ہے۔ پہلے acknowledge کیے گئے batches committed رہتے ہیں؛ زیادہ سے زیادہ صرف ایک
+غیر acknowledge شدہ batch دوبارہ بھیجا جا سکتا ہے۔ کامیابی صرف `done` اور child کے صاف exit
+کے بعد ریکارڈ ہوتی ہے۔ failures پر child کو SIGTERM سے terminate کیا جاتا ہے، 500 ms کے بعد
+SIGKILL تک بڑھایا جاتا ہے، اور runner process کے بند ہونے کا انتظار کرتا ہے۔
 
-پے لوڈز ہر قطار کے لیے فائل سسٹم آرٹیفیکٹ سے پڑھے جاتے ہیں، اس لیے hydration صرف انہی منزلوں کے لیے چلتی ہے
-جنہوں نے اس کی درخواست کی ہو۔ جس قطار کا آرٹیفیکٹ غائب یا خراب ہو، اس کا خلاصہ null
-پے لوڈز کے ساتھ ایکسپورٹ ہوتا ہے، بجائے اس کے کہ بیچ ناکام ہو اور کرسر وہیں پھنس جائے۔
+| Environment variable                          | ڈیفالٹ | مقصد                                |
+| --------------------------------------------- | ------ | ----------------------------------- |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000 | ہر destination کے لیے wall-clock حد |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024   | MB میں child V8 old-space حد        |
 
-`maxBodyBytes` (ڈیفالٹ 262144) ہر فیلڈ کی حد مقرر کرتا ہے۔ طویل پے لوڈز کو حذف کرنے کے بجائے **مختصر کیا جاتا ہے**
-— ایک کٹا ہوا پرامپٹ پھر بھی "کیا پوچھا گیا تھا" کا جواب دیتا ہے — اور قطار کو
-`bodies_truncated` کے ساتھ نشان زد کیا جاتا ہے۔ chunk-by-chunk اسٹریم کیے گئے deltas ایکسپورٹ نہیں ہوتے؛ مکمل جوڑا گیا جواب
-پہلے ہی `pipeline_provider_response` اور `pipeline_client_response` میں موجود ہوتا ہے۔
+غیر درست/غیر مثبت/غیر صحیح عددی اقدار کے لیے ڈیفالٹس استعمال ہوتے ہیں۔ heap setting مجموعی
+RSS حد نہیں ہے؛ بہت بڑے batches پھر بھی child memory ختم کر سکتے ہیں اور run محفوظ طریقے سے
+ناکام ہو سکتا ہے۔ 1024 MB کا ڈیفالٹ، bodies فعال ہونے کے ساتھ 512 KiB artifacts کے ڈیفالٹ
+500-row batch کے لیے اضافی گنجائش چھوڑتا ہے، جس میں BigQuery کی byte-chunked JSON serialization
+بھی شامل ہے۔ یہ 10000-row bodies batch کو محفوظ نہیں بناتا۔ V8 heap exhaustion قابلِ عمل failure
+ریکارڈ کرتا ہے: batch size کم کریں یا `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` بڑھائیں؛
+cursor آخری acknowledge شدہ batch پر برقرار رہتا ہے۔ تاریخی inline/disk bodies جدید artifact
+cap کے تحت نہیں آتیں۔ آپریٹرز کو خصوصاً memory-limited containers میں RSS کے لیے الگ بجٹ رکھنا چاہیے۔
+
+child صرف resolve شدہ `DATA_DIR`، `NODE_ENV`، صریح `TZ` (legacy filename کی
+local-time resolution)، موجود ہونے پر `ELECTRON_RUN_AS_NODE`، اور درج ذیل outbound inputs وراثت
+میں لیتا ہے: `HTTP_PROXY`، `HTTPS_PROXY`، `ALL_PROXY`، `NO_PROXY` (اور ان کی lowercase صورتیں)،
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`، `NODE_EXTRA_CA_CERTS`، `SSL_CERT_FILE`، `SSL_CERT_DIR`۔
+ایک global Undici dispatcher، server کی خالص environment-proxy resolution اور local-host bypass
+rules، بشمول `NO_PROXY`، کا اشتراک کرتا ہے؛ یہ `proxyFetch.ts` یا اس کے DB/feature flags کو import
+نہیں کرتا۔ Proxy credentials کو forwarded output اور ریکارڈ شدہ errors سے redact کر دیا جاتا ہے۔
+Destination credentials صرف ایک start IPC message میں منتقل ہوتے ہیں، کبھی argv یا environment
+میں نہیں؛ output/error forwarding کو prefix کیا جاتا ہے اور صاف کیا جاتا ہے۔ child exec arguments
+میں صرف `ExperimentalWarning` کو disable کیا جاتا ہے تاکہ ہر cron run پر Node کی SQLite warning
+دہرائی نہ جائے؛ دیگر warning types نظر آتی رہتی ہیں۔
+
+منزل کے ماڈیولز کو Next.js/server-only انحصارات کے بغیر import کیے جانے کے قابل ہونا چاہیے۔ موجودہ
+BigQuery نفاذ پہلے ہی اس معاہدے کو پورا کرتا ہے۔ Access-token caches صرف child
+run تک برقرار رہتے ہیں، مختلف runs کے درمیان نہیں۔ Node معاونت یافتہ runtime ہے (`package.json` engines)، لیکن README کا Bun
+تنصیب کا سیکشن اور `Dockerfile.bun` بھی `bun:sqlite` (`src/lib/db/core.ts` / adapters) استعمال کرتے ہوئے
+production compatibility کا ایک راستہ پیش کرتے ہیں۔ لہٰذا Bun کے تحت exports سابقہ
+in-process راستہ برقرار رکھتے ہیں اور ایک مرتبہ انتباہ جاری کرتے ہیں: child heap/timeout isolation دستیاب نہیں ہے۔ event-loop
+اور OOM isolation کے لیے Node استعمال کریں؛ یہاں Bun کو صرف dev کے لیے مخصوص نہیں سمجھا جاتا۔
+
+جب `includeBodies` فعال ہو، تو فی گھنٹہ payload backlog جمع کرنے کے بجائے منٹ کی سطح کی cadence کو ترجیح دیں، مثلاً
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`۔
+Batch اور row limits اب بھی ہر run کو محدود رکھتے ہیں۔ Process startup کی لاگت ہر منزل کے لیے، ہر run میں ادا ہوتی ہے؛
+یہ معمولی startup لاگت کے بدلے server event-loop isolation فراہم کرتا ہے، نہ کہ مجموعی CPU استعمال میں کمی۔
+
+### Payloads (prompts اور completions)
+
+بطور ڈیفالٹ export میں صرف وہ summary fields شامل ہوتے ہیں جو Logs کی **list** دکھاتی ہے۔ **Export prompts and responses**
+(`includeBodies`) کو فعال کرنے سے ہر call کے لیے وہ معلومات بھی بھیجی جاتی ہیں جو Logs کا **detail**
+pane دکھاتا ہے:
+
+| Field                            | اس میں کیا ہوتا ہے                                               |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `request_body` / `response_body` | Call payloads، بالکل اسی طرح جیسے dashboard انہیں render کرتا ہے |
+| `pipeline_route_decision`        | Router نے کون سا target اور model منتخب کیا                      |
+| `pipeline_client_request`        | خام request، بالکل اسی طرح جیسے client نے اسے بھیجا              |
+| `pipeline_openai_request`        | اندرونی OpenAI شکل میں ترجمے کے بعد                              |
+| `pipeline_provider_request`      | جیسا حقیقتاً upstream بھیجا گیا، provider dialect میں            |
+| `pipeline_provider_response`     | خام upstream response                                            |
+| `pipeline_client_response`       | جو caller کو واپس دیا گیا                                        |
+| `pipeline_error`                 | ناکام call کے لیے pipeline-level error کی تفصیل                  |
+| `bodies_truncated`               | True جب اوپر دی گئی کوئی field `maxBodyBytes` کی حد تک پہنچ جائے |
+
+یہ prompt content ہے، اس لیے یہ **بطور ڈیفالٹ بند** ہوتا ہے اور دانستہ طور پر ہر منزل کے لیے علیحدہ انتخاب ہے۔
+جو کچھ بھیجا جاتا ہے وہی dashboard دکھاتا ہے، کیونکہ export اور `getCallLogById` ایک ہی detail
+resolution استعمال کرتے ہیں: payloads کو لکھتے وقت ہی
+PII سے پاک اور secrets سے redacted کر دیا جاتا ہے، اور `noLog` API key کے ساتھ کی گئی call کوئی payload محفوظ ہی نہیں کرتی،
+لہٰذا export کرنے کے لیے کچھ موجود نہیں ہوتا۔
+
+Payloads کو ہر row کے لیے filesystem artifact سے پڑھا جاتا ہے، اس لیے hydration صرف ان منزلوں کے لیے چلتی ہے
+جنہوں نے اس کی درخواست کی ہو۔ کوئی غائب یا خراب artifact، batch کو ناکام کرنے اور cursor کو پھنسانے کے بجائے،
+اپنی summary کو null payloads کے ساتھ export کرتا ہے۔
+
+`maxBodyBytes` (ڈیفالٹ 262144) ہر field کو محدود کرتا ہے۔ طویل payloads کو **حذف کرنے کے بجائے truncate کیا جاتا ہے**
+— ایک کٹا ہوا prompt پھر بھی اس سوال کا جواب دیتا ہے کہ "کیا پوچھا گیا تھا" — اور row کو
+`bodies_truncated` کے ساتھ نشان زد کیا جاتا ہے۔ Chunk-by-chunk stream کیے گئے deltas export نہیں ہوتے؛ assembled response پہلے ہی
+`pipeline_provider_response` اور `pipeline_client_response` میں موجود ہوتا ہے۔
 
 ---
 
 ## 2. فائلیں
 
-| حصہ             | مقام                                         |
-| --------------- | -------------------------------------------- |
-| منزل کا کنٹریکٹ | `src/lib/logExport/types.ts`                 |
-| رجسٹری          | `src/lib/logExport/registry.ts`              |
-| رازوں کا نظم    | `src/lib/logExport/secrets.ts`               |
-| رنر (کرسر لوپ)  | `src/lib/logExport/runner.ts`                |
-| API پروجیکشن    | `src/lib/logExport/presenter.ts`             |
-| BigQuery منزل   | `src/lib/logExport/destinations/bigquery.ts` |
-| Google SA توثیق | `src/lib/logExport/googleServiceAccount.ts`  |
-| کال لاگ ماخذ    | `src/lib/usage/callLogExportSource.ts`       |
-| مستقل ذخیرہ     | `src/lib/db/logExportDestinations.ts`        |
-| Cron جاب        | `src/lib/jobs/logExportJob.ts`               |
-| REST تہہ        | `src/app/api/log-export/`                    |
-| ڈیش بورڈ صفحہ   | `src/app/(dashboard)/dashboard/log-export/`  |
+| جزو                  | مقام                                         |
+| -------------------- | -------------------------------------------- |
+| منزل کا کنٹریکٹ      | `src/lib/logExport/types.ts`                 |
+| رجسٹری               | `src/lib/logExport/registry.ts`              |
+| رازوں کی ہینڈلنگ     | `src/lib/logExport/secrets.ts`               |
+| رنر (پیرنٹ IPC)      | `src/lib/logExport/runner.ts`                |
+| پراسیس لائف سائیکل   | `src/lib/logExport/childRunner.ts`           |
+| چائلڈ انٹری          | `src/lib/logExport/exportChild.ts`           |
+| صرف پڑھنے والا اوپنر | `src/lib/db/logExportReadOnly.ts`            |
+| مشترکہ کوئری/میپنگ   | `src/lib/usage/callLogExportQueries.ts`      |
+| تفصیل ریزالور        | `src/lib/usage/callLogDetailResolver.ts`     |
+| API پروجیکشن         | `src/lib/logExport/presenter.ts`             |
+| BigQuery منزل        | `src/lib/logExport/destinations/bigquery.ts` |
+| Google SA تصدیق      | `src/lib/logExport/googleServiceAccount.ts`  |
+| کال لاگ ماخذ         | `src/lib/usage/callLogExportSource.ts`       |
+| مستقل ذخیرہ          | `src/lib/db/logExportDestinations.ts`        |
+| Cron جاب             | `src/lib/jobs/logExportJob.ts`               |
+| REST تہہ             | `src/app/api/log-export/`                    |
+| ڈیش بورڈ صفحہ        | `src/app/(dashboard)/dashboard/log-export/`  |
 
 اسکیما: `src/lib/db/migrations/170_log_export_destinations.sql`۔
 

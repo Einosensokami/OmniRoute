@@ -16,82 +16,145 @@ pipeline ahụ bụ registry, ya mere enwere ike ịgbakwunye ebe njedebe ndị 
 ## 1. Otu o si arụ ọrụ
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (nchịkọta field nke taabụ Logs)
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+server (wepụ izo ezo + nyochaa nhazi, mekọrịta cursor)
+  → malite IPC → usoro OS exportChild dịpụrụ iche
+    → storage.sqlite nke a na-agụ naanị → ajụjụ/mmegharị call-log a na-ekekọrịta
+      → hydration artifact asynchronous → destination prepare()/send()
+        → IPC n'ìgwè → server na-echekwa cursor → IPC ack
+          → ìgwè na-esote; IPC done → server na-edekọ ihe ịga nke ọma
 ```
 
-- **Usoro oge** — otu ọrụ cron `JobRegistry`, `log_export`, nke ndabara ya bụ `0 * * * *` (kwa elekere,
-  UTC). Edebanyere ya na `src/lib/initCloudSync.ts`; enwere ike iji `OMNIROUTE_LOG_EXPORT_CRON` dochie ya.
-  N’oge tick ọ bụla, ọ na-ekpochapụ data niile dị na ebe njedebe **agbanyere**, otu na-esochi ibe ya.
-- **Cursor** — `call_logs.rowid` nke SQLite na-emepụta n’onwe ya, nke echekwara maka ebe njedebe ọ bụla na
-  `log_export_destinations.cursor_row_id`. A naghị eji `timestamp` mee cursor n’ụma: ndị na-akpọ
-  nwere ike ịnye uru nke ha, ya mere enwere ike ide arịrịọ dị nwayọ mgbe nke dị ọsọ nke malitere
-  mgbe e mesịrị gachara, cursor timestamp ga-awụfekwa ya.
-- **Nkewa n’ìgwè** — ahịrị `batch_size` kwa arịrịọ (ndabara bụ 500), ahịrị `max_rows_per_run` kwa ọsọ
-  (ndabara bụ 10000), ka nnukwu data fọdụrụ wee kpochapụ n’ime ọtụtụ tick kama igbochi otu.
-- **Nnyefe** — cursor na-aga n’ihu naanị mgbe `send()` mechara nke ọma. Batch dara ada na-ahapụ
-  cursor ebe ọ nọ, ka e wee nwalee otu ahịrị ndị ahụ ọzọ n’ọsọ na-esote. Nkwa ahụ bụ
-  nnyefe opekata mpe otu ugboro tinyere iwepụ ndekọ oyiri n’akụkụ ebe njedebe, ọ bụghị nnyefe kpọmkwem otu ugboro n’ezie: BigQuery na-eji id nke call-log
-  mee key nke ahịrị ọ bụla, nke ọ na-agbaso dịka o nwere ike n’ime windo dedup nke ya.
-- **Nchedo megide ndakọrịta** — tick cron na `POST .../run` nwere ike ịmalite n’otu oge. A na-awụfe ebe njedebe
-  a na-ekpochapụrịrị kama ikpochapụ ya ugboro abụọ (`skipped: true` n’ime nsonaazụ ọsọ),
-  ya mere ọsọ na-eme n’otu oge enweghị ike izipụ batch ọzọ ma ọ bụ dee cursor laghachi azụ.
-- **Mgbake mgbe mkpochapụ gasịrị** — ọ bụrụ na `cursor_row_id` adị elu karịa `MAX(rowid)` (e kpochapụrụ
-  tebụl ahụ dum ma rowid maliteghachi), runner ga-alaghachi na 0 kama ịghara ịhụ data ọzọ ruo mgbe ebighị ebi.
+- **Nhazi oge** — otu cron job `JobRegistry`, `log_export`, nke ndabara ya bụ `0 * * * *` (kwa elekere,
+  UTC). Edebanyere ya na `src/lib/initCloudSync.ts`; enwere ike iji `OMNIROUTE_LOG_EXPORT_CRON`
+  dochie ya. Tick ọ bụla na-ebupụ data gaa na destination ọ bụla **agbanyere**, otu na-esochi ibe ya.
+- **Cursor** — `call_logs.rowid` implicit nke SQLite, nke a na-echekwa maka destination ọ bụla na
+  `log_export_destinations.cursor_row_id`. E kpachapụrụ anya ghara iji `timestamp` dịka cursor: ndị na-akpọ
+  nwere ike ịnye uru nke ha, ya mere enwere ike ide arịrịọ dị nwayọ mgbe nke dị ngwa nke malitere
+  mgbe e mesịrị gasịrị, cursor timestamp ga-awụlikwa ya.
+- **Ịchịkọta n'ìgwè** — ahịrị `batch_size` n'otu arịrịọ (ndabara 500), ahịrị `max_rows_per_run` n'otu run
+  (ndabara 10000) ka nnukwu data fọdụrụ wee pụọ n'ọtụtụ tick kama igbochi otu tick.
+- **Nnyefe** — cursor na-aga n'ihu naanị mgbe `send()` rụchara. Batch dara ada na-ahapụ
+  cursor ebe ọ nọ, ka e wee nwaa otu ahịrị ndị ahụ ọzọ na run na-esote. Nkwa ahụ bụ
+  opekata mpe otu ugboro tinyere iwepụ oyiri n'akụkụ destination, ọ bụghị kpọmkwem otu ugboro n'ezie: BigQuery na-eji
+  id call-log mee key nke ahịrị ọ bụla, nke ọ na-asọpụrụ dịka o nwere ike n'ime windo iwepụ oyiri nke ya.
+- **Nchedo megide ịdakọta** — cron tick na `POST .../run` nwere ike ịmalite n'otu oge. A na-awụli destination
+  a na-ebupụrịrị data ya kama ime ya ugboro abụọ (`skipped: true` na nsonaazụ run),
+  ka run abụọ na-aga n'otu oge ghara izighachi batch ma ọ bụ dee cursor laghachi azụ.
+- **Mgbake mgbe purge gasịrị** — ọ bụrụ na `cursor_row_id` adị n'elu `MAX(rowid)` (e kpochapụrụ
+  table ahụ niile ma rowid malitegharịa), runner ahụ na-eweghachi ya na 0 kama ikpu ìsì kpamkpam.
 
-### Payload (prompts na completions)
+### Runner dịpụrụ iche na oke ya
 
-Na ndabara, mbupụ ahụ na-eburu naanị field nchịkọta ndị ndepụta Logs na-egosi. Ịgbanye
-**Mbupụ prompts na nzaghachi** (`includeBodies`) na-ezipụkwa ihe panel **nkọwa** Logs
-na-egosi maka oku ọ bụla:
+Run ọ bụla nke destination na Node na-amalite usoro OS child dị iche, nke na-adị obere oge (`child_process`
+nwere IPC, ọ bụghị `worker_threads`). Ịgụ body, parsing/serialization JSON payload, destination
+`prepare()` na network I/O nke destination na-emecha ebe ahụ, ọ bụghị na event loop nke server.
+Naanị nhazi na obere ozi ọganihu na-agafe IPC; ndekọ ndị e bupụrụ anaghị alaghachi
+na server. Cron job na ụzọ Run now na-edobe otu nsonaazụ ọha na nchedo megide ịdakọta.
 
-| Field                            | Ihe ọ na-edobe                                      |
-| -------------------------------- | --------------------------------------------------- |
-| `request_body` / `response_body` | Payload oku dịka dashboard si egosipụta ha          |
-| `pipeline_route_decision`        | Target na model nke router họọrọ                    |
-| `pipeline_client_request`        | Arịrịọ raw kpọmkwem dịka client zigara ya           |
-| `pipeline_openai_request`        | Mgbe a tụgharịrị ya gaa n’ụdị OpenAI nke ime        |
-| `pipeline_provider_request`      | Dịka e zigara ya upstream n’ezie, n’ụdị provider    |
-| `pipeline_provider_response`     | Nzaghachi raw sitere upstream                       |
-| `pipeline_client_response`       | Ihe e weghachiri nye onye kpọrọ oku                 |
-| `pipeline_error`                 | Nkọwa njehie ọkwa pipeline maka oku dara ada        |
-| `bodies_truncated`               | True mgbe field ọ bụla dị n’elu ruru `maxBodyBytes` |
+Child ahụ na-emepe `DATA_DIR/storage.sqlite` nke server doziri dịka nke a na-agụ naanị site na `node:sqlite`,
+nwere `busy_timeout=5000` na `query_only=ON`. Ọ naghị import singleton DB ọ bụla ma ọ naghị eme
+migration, backup ma ọ bụ update SQLite. Ndebanye artifact na-efu/nke mebiri emebi (gụnyere
+UPDATE artifact mebiri emebi) ka dị naanị n'ụzọ nkọwa dashboard. Ụzọ abụọ ahụ na-ekekọrịta
+resolver nkọwa dị ọcha; export na-eji ọgụgụ filesystem asynchronous na usoro mkpebi otu artifact →
+legacy inline → legacy disk → none. Run na-edekọ rowid ntinye kachasị elu mgbe child meghere reader ya;
+ntinye ndị mechara na-echere run na-esote. Nke a bụ oke ntinye, ọ bụghị transaction SQLite na-adịte aka:
+ndị na-ede WAL na checkpoint ka nwere onwe ha n'oge nchere network. Oke a anaghị eme ka
+update/nhichapụ nke ahịrị ndị dịbu adị kwụsị.
 
-Nke a bụ ọdịnaya prompt, ya mere ọ **gbanyụrụ na ndabara**, ma bụrụkwa nhọrọ a na-eme ụma maka ebe njedebe ọ bụla.
-Ihe a na-ezipụ bụ ihe dashboard na-egosi, n’ihi na ha abụọ na-agụ site na `getCallLogById`: payload
-abụlarị ndị e wepụrụ PII na nzuzo na ha mgbe a na-ede ha, oku e jiri
-API key `noLog` mee anaghị echekwa payload ọ bụla ma ọlị, ya mere ọ dịghị ihe a ga-ebupụ.
+Mgbe batch ọ bụla a nabatara gasịrị, child na-eche nkwenye. Server na-ebu ụzọ jiri
+`advanceLogExportCursor` chekwaa cursor, wee zipụ `ack`; batch na-esote anaghị amalite tupu nke ahụ emee.
+Ọdịda send, crash ma ọ bụ timeout na-edekọ ọdịda na-enweghị ịkwalite batch ahụ. Batch ndị
+a kwenyeburu na ha ka dị committed; ọ kachasị naanị otu batch a na-akwadobeghị ka enwere ike izighachi.
+A na-edekọ ihe ịga nke ọma naanị mgbe `done` gasịrị na child pụtara n'enweghị nsogbu. Mgbe ọdịda mere,
+a na-eji SIGTERM kwụsị child, wee bulie ya gaa SIGKILL mgbe 500 ms gasịrị, runner ahụ na-echekwa ka usoro mechie.
 
-A na-agụ payload n’ahịrị n’ahịrị site na artifact dị na filesystem, ya mere hydration na-arụ ọrụ naanị maka ebe njedebe
-ndị rịọrọ ya. Ahịrị nke artifact ya furu efu ma ọ bụ mebiri emebi na-ebupụ nchịkọta ya na payload null
-kama ime ka batch daa ma mee ka cursor ghara ịga n’ihu.
+| Environment variable                          | Ndagbara | Ebumnuche                             |
+| --------------------------------------------- | -------- | ------------------------------------- |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000   | Oke wall-clock nke destination ọ bụla |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024     | Oke old-space V8 nke child na MB      |
 
-`maxBodyBytes` (ndabara bụ 262144) na-amachi field ọ bụla. A na-**ebipụ payload ndị toro ogologo kama
-ịhapụ ha** — prompt e bipụrụ ka na-aza “gịnị ka a jụrụ” — a na-etinyekwa
-`bodies_truncated` n’ahịrị ahụ. A naghị ebupụ delta ndị e stream n’otu chunk n’otu chunk; nzaghachi agbakọtara
-adịlarị na `pipeline_provider_response` na `pipeline_client_response`.
+Uru ndị na-adịghị irè/nke na-abụghị positive/nke na-abụghị integer na-eji ndabara. Ntọala heap abụghị oke
+RSS n'ozuzu; batch buru oke ibu ka nwere ike ime ka ebe nchekwa child gwụ ma mee ka run daa n'enweghị mmebi.
+Ndagbara 1024 MB na-ahapụ ohere maka batch ndabara nwere ahịrị 500 nke artifact 512 KiB mgbe agbanyere
+body, gụnyere serialization JSON BigQuery nke e kewara n'ìgwè byte. Ọ naghị eme ka
+batch body nwere ahịrị 10000 dị nchebe. Mmebi n'ihi heap V8 gwụrụ na-edekọ ọdịda enwere ike ime ihe maka ya:
+belata batch size ma ọ bụ bulie `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`; cursor na-anọ na batch ikpeazụ
+a kwenyere. Body inline/disk ochie anọghị n'okpuru oke artifact nke oge a.
+Ndị operator ga-ahazi RSS iche, karịsịa n'ime container nwere oke ebe nchekwa.
+
+Child na-eketa naanị `DATA_DIR` edoziri, `NODE_ENV`, `TZ` doro anya (mkpebi local-time nke filename
+ochie), `ELECTRON_RUN_AS_NODE` mgbe ọ dị, yana input outbound ndị a:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (na ụdị lowercase ha),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Global Undici dispatcher na-ekekọrịta mkpebi environment-proxy dị ọcha nke server na iwu ịgafe
+local-host, gụnyere `NO_PROXY`; ọ naghị import `proxyFetch.ts` ma ọ bụ flag DB/feature ya.
+A na-ezo credential proxy n'ime output e bugara n'ihu na error ndị e dekọrọ. Credential destination
+na-aga naanị n'otu ozi IPC start, ọ dịghị mgbe ọ na-aga na argv ma ọ bụ environment; forwarding output/error
+nwere prefix ma sachaa ya. Naanị `ExperimentalWarning` ka agbanyụrụ na argument exec nke child iji zere
+ikwughachi ịdọ aka ná ntị SQLite nke Node na cron run ọ bụla; ụdị ịdọ aka ná ntị ndị ọzọ ka na-apụta.
+
+Modul ebe a na-ebuga ga-abụrịrị ndị a pụrụ ibubata na-enweghị ndabere Next.js/server-only. Mmejuputa BigQuery dị ugbu a emezuola nkwekọrịta ahụ. Ebe nchekwa access-token na-adị naanị n’oge run nke child ahụ, ọ naghị agafe n’etiti run dị iche iche. Node bụ runtime a na-akwado (`package.json` engines), mana ngalaba ntinye Bun dị na README na `Dockerfile.bun` na-egosikwa ụzọ ndakọrịta production nke na-eji `bun:sqlite` (`src/lib/db/core.ts` / adapters). Ya mere, n’okpuru Bun, exports na-ejigide ụzọ in-process gara aga ma na-ewepụta ịdọ aka ná ntị naanị otu ugboro: isolation nke heap/timeout nke child adịghị. Jiri Node maka isolation nke event-loop na OOM; a naghị ele Bun anya dị ka ihe maka dev naanị ebe a.
+
+Mgbe agbanyere `includeBodies`, họrọ cadence nke na-agba kwa nkeji ole na ole, dịka
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`, kama ikwe ka backlog nke payload kwa elekere gbakọta.
+Oke batch na row ka na-amachi run ọ bụla. A na-akwụ ụgwọ mmalite process maka destination ọ bụla n’ime run ọ bụla;
+nke a na-agbanwe obere ụgwọ mmalite maka isolation nke event-loop nke server, ọ bụghị maka ibelata mkpokọta ojiji CPU.
+
+### Payloads (prompts na completions)
+
+Na ndabara, export na-ebu naanị fields nchịkọta nke **list** nke Logs na-egosi. Ịgbanye
+**Export prompts and responses** (`includeBodies`) na-ezigakwa ihe pane **detail**
+nke Logs na-egosi maka call ọ bụla:
+
+| Field                            | Ihe ọ na-edobe                                               |
+| -------------------------------- | ------------------------------------------------------------ |
+| `request_body` / `response_body` | Payloads nke call dịka dashboard si egosipụta ha             |
+| `pipeline_route_decision`        | Target na model nke router họọrọ                             |
+| `pipeline_client_request`        | Request raw kpọmkwem dịka client zigara ya                   |
+| `pipeline_openai_request`        | Mgbe a tụgharịrị ya ka ọ bụrụ internal OpenAI shape          |
+| `pipeline_provider_request`      | Dịka e zigara ya upstream n’ezie, n’ụdị dialect nke provider |
+| `pipeline_provider_response`     | Response raw sitere upstream                                 |
+| `pipeline_client_response`       | Ihe e nyefereghachi caller                                   |
+| `pipeline_error`                 | Nkọwa error n’ogo pipeline maka call dara ada                |
+| `bodies_truncated`               | True mgbe field ọ bụla dị n’elu ruru `maxBodyBytes`          |
+
+Nke a bụ ọdịnaya prompt, ya mere ọ bụ **off by default** ma kpachapụrụ anya bụrụ nhọrọ maka destination ọ bụla.
+Ihe a na-eziga bụ ihe dashboard na-egosi, n’ihi na export na `getCallLogById` na-eji otu usoro
+mkpebi detail: payloads abụrụlarị ndị e mere PII-sanitised na secret-redacted mgbe a na-ede ha,
+ma call e ji API key nwere `noLog` mee anaghị echekwa payload ọ bụla ma ọlị, ya mere ọ dịghị ihe a ga-ebupụ.
+
+A na-agụ payloads n’otu row n’otu row site na artifact dị na filesystem, ya mere hydration na-agba naanị maka destinations
+rịọrọ ya. Artifact na-efu efu ma ọ bụ nke mebiri emebi na-ebupụ nchịkọta ya na payloads null
+kama ime ka batch daa ma hapụ cursor ka ọ ghara ịga n’ihu.
+
+`maxBodyBytes` (ndabara 262144) na-amachi field ọ bụla. A na-eme payloads ndị toro ogologo **truncated rather than
+dropped** — prompt e bepụrụ ka na-aza "ihe a jụrụ" — ma a na-etinye akara
+`bodies_truncated` na row ahụ. A naghị ebupụ deltas ndị a stream n’otu chunk n’otu chunk; response a chịkọtara adịlarị
+na `pipeline_provider_response` na `pipeline_client_response`.
 
 ---
 
 ## 2. Faịlụ
 
-| Akụkụ                               | Ebe                                          |
-| ----------------------------------- | -------------------------------------------- |
-| Nkwekọrịta ebe a na-ebuga           | `src/lib/logExport/types.ts`                 |
-| Ndebanye aha                        | `src/lib/logExport/registry.ts`              |
-| Njikwa ihe nzuzo                    | `src/lib/logExport/secrets.ts`               |
-| Onye na-emegharị (okirikiri cursor) | `src/lib/logExport/runner.ts`                |
-| Ngosipụta API                       | `src/lib/logExport/presenter.ts`             |
-| Ebe mbupu BigQuery                  | `src/lib/logExport/destinations/bigquery.ts` |
-| Nyocha njirimara Google SA          | `src/lib/logExport/googleServiceAccount.ts`  |
-| Isi mmalite ndekọ oku               | `src/lib/usage/callLogExportSource.ts`       |
-| Nchekwa na-adịgide adịgide          | `src/lib/db/logExportDestinations.ts`        |
-| Ọrụ Cron                            | `src/lib/jobs/logExportJob.ts`               |
-| Oyi akwa REST                       | `src/app/api/log-export/`                    |
-| Peeji dashboard                     | `src/app/(dashboard)/dashboard/log-export/`  |
+| Akụkụ                             | Ebe                                          |
+| --------------------------------- | -------------------------------------------- |
+| Nkwekọrịta ebe a na-ebuga         | `src/lib/logExport/types.ts`                 |
+| Ndebanye aha                      | `src/lib/logExport/registry.ts`              |
+| Njikwa ihe nzuzo                  | `src/lib/logExport/secrets.ts`               |
+| Onye na-agba ọrụ (IPC nne na nna) | `src/lib/logExport/runner.ts`                |
+| Usoro ndụ nke process             | `src/lib/logExport/childRunner.ts`           |
+| Ebe mbata nke child               | `src/lib/logExport/exportChild.ts`           |
+| Onye mmepe read-only              | `src/lib/db/logExportReadOnly.ts`            |
+| Query/mapping nkekọrịta           | `src/lib/usage/callLogExportQueries.ts`      |
+| Onye na-achọpụta nkọwa            | `src/lib/usage/callLogDetailResolver.ts`     |
+| Ngosipụta API                     | `src/lib/logExport/presenter.ts`             |
+| Ebe mbupu BigQuery                | `src/lib/logExport/destinations/bigquery.ts` |
+| Nkwenye Google SA                 | `src/lib/logExport/googleServiceAccount.ts`  |
+| Isi iyi ndekọ oku                 | `src/lib/usage/callLogExportSource.ts`       |
+| Nchekwa na-adịgide adịgide        | `src/lib/db/logExportDestinations.ts`        |
+| Ọrụ Cron                          | `src/lib/jobs/logExportJob.ts`               |
+| Oyi akwa REST                     | `src/app/api/log-export/`                    |
+| Ihu dashboard                     | `src/app/(dashboard)/dashboard/log-export/`  |
 
 Schema: `src/lib/db/migrations/170_log_export_destinations.sql`.
 

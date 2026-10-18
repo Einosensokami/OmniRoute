@@ -16,11 +16,12 @@ potok korzysta z rejestru, więc można do niego dodawać kolejne miejsca docelo
 ## 1. Jak to działa
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (zestaw pól karty Dzienniki)
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+serwer (odszyfrowanie + walidacja konfiguracji, uzgodnienie kursora)
+  → uruchomienie IPC → izolowany proces systemowy exportChild
+    → storage.sqlite tylko do odczytu → współdzielone zapytanie/mapowanie rejestru wywołań
+      → asynchroniczne pobieranie artefaktów → prepare()/send() miejsca docelowego
+        → IPC partii → serwer utrwala kursor → potwierdzenie przez IPC
+          → następna partia; IPC done → serwer rejestruje powodzenie
 ```
 
 - **Harmonogram** — jedno zadanie cron `JobRegistry`, `log_export`, domyślnie `0 * * * *` (co godzinę,
@@ -28,70 +29,133 @@ call_logs (SQLite)
   Każde uruchomienie opróżnia kolejno wszystkie **włączone** miejsca docelowe.
 - **Kursor** — niejawne `call_logs.rowid` SQLite, utrwalane osobno dla każdego miejsca docelowego w
   `log_export_destinations.cursor_row_id`. `timestamp` celowo nie jest kursorem: wywołujący
-  mogą podawać własną wartość, więc wolne żądanie może zostać zapisane po szybszym, które rozpoczęło się
-  później, a kursor oparty na znaczniku czasu pominąłby je.
-- **Przetwarzanie wsadowe** — `batch_size` wierszy na żądanie (domyślnie 500), `max_rows_per_run` wierszy na uruchomienie
+  mogą podawać własną wartość, więc wolne żądanie może zostać zapisane po szybszym żądaniu, które
+  rozpoczęło się później, a kursor oparty na znaczniku czasu spowodowałby jego pominięcie.
+- **Przetwarzanie partiami** — `batch_size` wierszy na żądanie (domyślnie 500), `max_rows_per_run` wierszy na uruchomienie
   (domyślnie 10000), dzięki czemu duża zaległość jest opróżniana w ciągu kilku uruchomień zamiast blokować jedno z nich.
-- **Dostarczanie** — kursor przesuwa się dopiero po zakończeniu `send()`. Nieudane wysłanie partii pozostawia
-  kursor w dotychczasowym miejscu, więc te same wiersze są ponawiane przy następnym uruchomieniu. Gwarancją jest
-  co najmniej jednokrotne dostarczenie wraz z deduplikacją po stronie miejsca docelowego, a nie rzeczywiste dokładnie jednokrotne dostarczenie: BigQuery identyfikuje każdy
-  wiersz za pomocą identyfikatora dziennika wywołania, który respektuje w miarę możliwości w ramach własnego okna deduplikacji.
-- **Ochrona przed nakładaniem się uruchomień** — wywołanie cron i `POST .../run` mogą nastąpić jednocześnie. Miejsce docelowe,
-  które jest już opróżniane, zostaje pominięte zamiast ponownie opróżnione (`skipped: true` w wyniku uruchomienia),
+- **Dostarczanie** — kursor przesuwa się dopiero po zakończeniu `send()`. Nieudana partia pozostawia
+  kursor w dotychczasowym miejscu, więc te same wiersze są ponawiane przy następnym uruchomieniu. Gwarancja obejmuje
+  dostarczenie co najmniej raz wraz z deduplikacją po stronie miejsca docelowego, a nie rzeczywiste dokładnie jednokrotne dostarczenie: BigQuery identyfikuje każdy
+  wiersz według identyfikatora rejestru wywołania, co respektuje na zasadzie najwyższej staranności w obrębie własnego okna deduplikacji.
+- **Ochrona przed nakładaniem** — uruchomienie cron i `POST .../run` mogą nastąpić jednocześnie. Miejsce docelowe,
+  które jest już opróżniane, zostaje pominięte zamiast być opróżniane dwukrotnie (`skipped: true` w wyniku uruchomienia),
   dzięki czemu równoległe uruchomienie nie może ponownie wysłać partii ani cofnąć kursora.
-- **Odzyskiwanie po czyszczeniu** — jeśli `cursor_row_id` znajdzie się powyżej `MAX(rowid)` (cała tabela została
-  wyczyszczona, a identyfikatory wierszy zaczęły się od nowa), mechanizm wykonujący zadanie cofa kursor do 0, zamiast trwale przestać wykrywać nowe dane.
+- **Odzyskiwanie po wyczyszczeniu** — jeśli `cursor_row_id` znajdzie się powyżej `MAX(rowid)` (cała tabela została
+  wyczyszczona, a identyfikatory wierszy zaczęły się od nowa), moduł uruchamiający cofa kursor do 0, zamiast trwale utracić widoczność danych.
+
+### Izolowany moduł uruchamiający i limity
+
+Każde uruchomienie miejsca docelowego w Node rozpoczyna osobny, krótkotrwały proces potomny systemu operacyjnego (`child_process`
+z IPC, a nie `worker_threads`). Odczyt treści, parsowanie/serializacja JSON ładunku, funkcja
+`prepare()` miejsca docelowego oraz sieciowe operacje wejścia/wyjścia miejsca docelowego odbywają się w tym procesie, a nie w pętli zdarzeń serwera.
+Przez IPC przechodzą wyłącznie konfiguracja i niewielkie komunikaty o postępie; eksportowane rekordy nigdy nie wracają do
+serwera. Zadanie cron i trasa Uruchom teraz zachowują ten sam publiczny wynik oraz ochronę przed nakładaniem.
+
+Proces potomny otwiera rozpoznany przez serwer plik `DATA_DIR/storage.sqlite` tylko do odczytu za pomocą `node:sqlite`,
+z ustawieniami `busy_timeout=5000` i `query_only=ON`. Nie importuje żadnego singletonu bazy danych i nie wykonuje
+migracji, kopii zapasowych ani aktualizacji SQLite. Obsługa brakujących/uszkodzonych artefaktów (w tym
+operacja UPDATE dla uszkodzonego artefaktu) pozostaje wyłącznie w ścieżce szczegółów panelu. Obie ścieżki współdzielą czysty
+mechanizm rozpoznawania szczegółów; eksport korzysta z asynchronicznych odczytów systemu plików i tej samej kolejności rozpoznawania:
+artefakt → starsze dane osadzone → starsze dane na dysku → brak. Uruchomienie wykonuje migawkę maksymalnego identyfikatora wstawionego wiersza,
+gdy proces potomny otwiera czytnik; późniejsze wstawienia czekają do następnego uruchomienia. Jest to granica
+wstawiania, a nie długotrwała transakcja SQLite: procesy zapisujące WAL oraz punkty kontrolne mogą swobodnie działać podczas
+oczekiwania na sieć. Aktualizacje/usunięcia istniejących wierszy nie są zamrażane przez tę granicę.
+
+Po każdej zaakceptowanej partii proces potomny czeka na potwierdzenie. Serwer najpierw utrwala
+kursor za pomocą `advanceLogExportCursor`, a następnie wysyła `ack`; żadna kolejna partia nie rozpoczyna się wcześniej.
+Błąd wysyłania, awaria lub przekroczenie limitu czasu powodują zarejestrowanie niepowodzenia bez przesunięcia kursora dla tej partii. Wcześniej
+potwierdzone partie pozostają zatwierdzone; ponownie może zostać wysłana najwyżej jedna niepotwierdzona partia.
+Powodzenie jest rejestrowane dopiero po `done` i prawidłowym zakończeniu procesu potomnego. W przypadku niepowodzeń proces potomny
+jest kończony sygnałem SIGTERM, a po 500 ms następuje eskalacja do SIGKILL; moduł uruchamiający czeka na zamknięcie procesu.
+
+| Zmienna środowiskowa                          | Wartość domyślna | Przeznaczenie                                         |
+| --------------------------------------------- | ---------------- | ----------------------------------------------------- |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000           | Limit czasu rzeczywistego dla miejsca docelowego      |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024             | Limit przestrzeni old-space V8 procesu potomnego w MB |
+
+Nieprawidłowe, niedodatnie lub niecałkowite wartości są zastępowane wartościami domyślnymi. Ustawienie sterty nie jest całkowitym
+limitem RSS; bardzo duże partie nadal mogą wyczerpać pamięć procesu potomnego i bezpiecznie zakończyć uruchomienie niepowodzeniem.
+Domyślna wartość 1024 MB pozostawia zapas dla domyślnej partii 500 wierszy z artefaktami o rozmiarze 512 KiB
+i włączonymi treściami, w tym dla serializacji JSON BigQuery dzielonej na fragmenty bajtowe. Nie zapewnia ona bezpieczeństwa
+partii 10000 wierszy z treściami. Wyczerpanie sterty V8 powoduje zarejestrowanie błędu ze wskazaniem rozwiązania: zmniejsz rozmiar partii
+lub zwiększ `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`; kursor pozostaje na ostatniej potwierdzonej partii.
+Historyczne treści osadzone/na dysku nie są objęte współczesnym limitem artefaktów.
+Operatorzy muszą osobno zaplanować wykorzystanie RSS, szczególnie w kontenerach z ograniczoną pamięcią.
+
+Proces potomny dziedziczy wyłącznie rozpoznane `DATA_DIR`, `NODE_ENV`, jawnie ustawione `TZ` (rozpoznawanie starszych nazw plików
+według czasu lokalnego), `ELECTRON_RUN_AS_NODE`, jeśli jest obecne, oraz następujące parametry połączeń wychodzących:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (oraz ich warianty pisane małymi literami),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Globalny dyspozytor Undici współdzieli z serwerem czysty mechanizm rozpoznawania serwera proxy na podstawie środowiska oraz reguły
+pomijania proxy dla hostów lokalnych, w tym `NO_PROXY`; nie importuje `proxyFetch.ts` ani jego flag bazy danych/funkcji.
+Dane uwierzytelniające serwera proxy są usuwane z przekazywanych danych wyjściowych i rejestrowanych błędów. Dane uwierzytelniające miejsca docelowego
+są przesyłane tylko w jednym początkowym komunikacie IPC, nigdy przez argv ani środowisko; przekazywane dane wyjściowe/błędy są
+opatrywane prefiksem i oczyszczane. W argumentach uruchomienia procesu potomnego wyłączone jest tylko `ExperimentalWarning`, aby uniknąć
+powtarzania ostrzeżenia SQLite środowiska Node przy każdym uruchomieniu cron; pozostałe typy ostrzeżeń pozostają widoczne.
+
+Moduły docelowe muszą być możliwe do zaimportowania bez zależności od Next.js ani zależności dostępnych wyłącznie po stronie serwera. Istniejąca implementacja BigQuery już spełnia ten kontrakt. Pamięci podręczne tokenów dostępu istnieją tylko przez czas działania procesu potomnego, a nie między uruchomieniami. Node jest obsługiwanym środowiskiem uruchomieniowym (`package.json` engines), ale sekcja instalacji Bun w README oraz `Dockerfile.bun` wskazują również ścieżkę zgodności produkcyjnej wykorzystującą `bun:sqlite` (`src/lib/db/core.ts` / adaptery). Dlatego w środowisku Bun eksporty zachowują dotychczasową ścieżkę wewnątrzprocesową i emitują jednorazowe ostrzeżenie: izolacja sterty i limitu czasu procesu potomnego jest niedostępna. Użyj Node, aby uzyskać izolację pętli zdarzeń i błędów OOM; Bun nie jest tutaj traktowany jako środowisko wyłącznie deweloperskie.
+
+Gdy włączone jest `includeBodies`, preferuj harmonogram z dokładnością do minuty, na przykład
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`, zamiast gromadzić godzinny zapas danych do wysłania.
+Limity partii i wierszy nadal ograniczają każde uruchomienie. Koszt uruchomienia procesu jest ponoszony osobno dla każdego miejsca docelowego przy każdym uruchomieniu;
+oznacza to niewielki koszt uruchomienia w zamian za izolację pętli zdarzeń serwera, a nie zmniejszenie całkowitego użycia CPU.
 
 ### Ładunki (prompty i uzupełnienia)
 
-Domyślnie eksport obejmuje tylko pola podsumowania wyświetlane na **liście** Dzienników. Włączenie opcji
-**Eksportuj prompty i odpowiedzi** (`includeBodies`) dodatkowo wysyła dane wyświetlane w panelu **szczegółów**
-Dzienników dla każdego wywołania:
+Domyślnie eksport obejmuje tylko pola podsumowania wyświetlane na **liście** dzienników. Włączenie
+opcji **Eksportuj prompty i odpowiedzi** (`includeBodies`) powoduje dodatkowe przesyłanie danych widocznych w panelu **szczegółów**
+dzienników dla każdego wywołania:
 
-| Pole                             | Zawartość                                                                             |
-| -------------------------------- | ------------------------------------------------------------------------------------- |
-| `request_body` / `response_body` | Ładunki wywołania w postaci renderowanej przez panel                                  |
-| `pipeline_route_decision`        | Cel i model wybrane przez router                                                      |
-| `pipeline_client_request`        | Surowe żądanie dokładnie w postaci wysłanej przez klienta                             |
-| `pipeline_openai_request`        | Żądanie po przekształceniu do wewnętrznego formatu OpenAI                             |
-| `pipeline_provider_request`      | Żądanie faktycznie wysłane do usługi nadrzędnej, w dialekcie dostawcy                 |
-| `pipeline_provider_response`     | Surowa odpowiedź usługi nadrzędnej                                                    |
-| `pipeline_client_response`       | Dane zwrócone wywołującemu                                                            |
-| `pipeline_error`                 | Szczegóły błędu na poziomie potoku dla nieudanego wywołania                           |
-| `bodies_truncated`               | Wartość prawdziwa, jeśli którekolwiek z powyższych pól osiągnęło limit `maxBodyBytes` |
+| Pole                             | Zawartość                                                                |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `request_body` / `response_body` | Ładunki wywołania w postaci renderowanej przez pulpit                    |
+| `pipeline_route_decision`        | Cel i model wybrane przez router                                         |
+| `pipeline_client_request`        | Surowe żądanie dokładnie w postaci wysłanej przez klienta                |
+| `pipeline_openai_request`        | Żądanie po przekształceniu do wewnętrznego formatu OpenAI                |
+| `pipeline_provider_request`      | Żądanie faktycznie wysłane do dostawcy, w jego dialekcie                 |
+| `pipeline_provider_response`     | Surowa odpowiedź dostawcy                                                |
+| `pipeline_client_response`       | Dane zwrócone wywołującemu                                               |
+| `pipeline_error`                 | Szczegóły błędu na poziomie potoku dla nieudanego wywołania              |
+| `bodies_truncated`               | Wartość True, gdy którekolwiek z powyższych pól osiągnęło `maxBodyBytes` |
 
-Są to treści promptów, dlatego ta opcja jest **domyślnie wyłączona** i celowo konfigurowana osobno dla każdego miejsca docelowego.
-Wysyłane są dane widoczne w panelu, ponieważ oba mechanizmy odczytują je za pomocą `getCallLogById`: ładunki są
-już oczyszczone z danych osobowych i zredagowane pod kątem sekretów podczas zapisu, a wywołanie wykonane z kluczem API
+Jest to treść promptów, dlatego opcja jest **domyślnie wyłączona** i celowo konfigurowana osobno dla każdego miejsca docelowego.
+Wysyłane są dane widoczne na pulpicie, ponieważ eksport i `getCallLogById` korzystają ze wspólnego mechanizmu
+rozwiązywania szczegółów: ładunki są
+już oczyszczone z danych osobowych i zredagowane pod kątem sekretów podczas zapisu, a wywołanie wykonane przy użyciu klucza API
 `noLog` nie zapisuje żadnego ładunku, więc nie ma czego eksportować.
 
-Ładunki są odczytywane osobno dla każdego wiersza z artefaktu w systemie plików, dlatego uzupełnianie danych jest wykonywane tylko dla miejsc docelowych,
-które tego zażądały. Wiersz, którego artefaktu brakuje lub jest on uszkodzony, zostaje wyeksportowany z podsumowaniem i wartościami null
-ładunków, zamiast powodować niepowodzenie partii i zablokowanie kursora.
+Ładunki są odczytywane dla każdego wiersza z artefaktu w systemie plików, dlatego hydratacja jest wykonywana tylko dla miejsc docelowych,
+które jej zażądały. W przypadku braku lub uszkodzenia artefaktu eksportowane jest jego podsumowanie z ładunkami o wartości null,
+zamiast przerywania partii i blokowania kursora.
 
 `maxBodyBytes` (domyślnie 262144) ogranicza rozmiar każdego pola. Dłuższe ładunki są **obcinane, a nie
-odrzucane** — skrócony prompt nadal odpowiada na pytanie „o co zapytano” — a wiersz jest oznaczany za pomocą
-`bodies_truncated`. Fragmenty różnic przesyłane strumieniowo nie są eksportowane; złożona odpowiedź znajduje się już
+odrzucane** — skrócony prompt nadal odpowiada na pytanie „o co zapytano” — a wiersz zostaje oznaczony polem
+`bodies_truncated`. Delty przesyłane strumieniowo fragment po fragmencie nie są eksportowane; złożona odpowiedź znajduje się już
 w `pipeline_provider_response` i `pipeline_client_response`.
 
 ---
 
 ## 2. Pliki
 
-| Element                              | Lokalizacja                                  |
-| ------------------------------------ | -------------------------------------------- |
-| Kontrakt miejsca docelowego          | `src/lib/logExport/types.ts`                 |
-| Rejestr                              | `src/lib/logExport/registry.ts`              |
-| Obsługa sekretów                     | `src/lib/logExport/secrets.ts`               |
-| Moduł wykonawczy (pętla kursora)     | `src/lib/logExport/runner.ts`                |
-| Projekcja API                        | `src/lib/logExport/presenter.ts`             |
-| Miejsce docelowe BigQuery            | `src/lib/logExport/destinations/bigquery.ts` |
-| Uwierzytelnianie konta usługi Google | `src/lib/logExport/googleServiceAccount.ts`  |
-| Źródło rejestru wywołań              | `src/lib/usage/callLogExportSource.ts`       |
-| Warstwa trwałości                    | `src/lib/db/logExportDestinations.ts`        |
-| Zadanie cron                         | `src/lib/jobs/logExportJob.ts`               |
-| Warstwa REST                         | `src/app/api/log-export/`                    |
-| Strona panelu                        | `src/app/(dashboard)/dashboard/log-export/`  |
+| Element                             | Lokalizacja                                  |
+| ----------------------------------- | -------------------------------------------- |
+| Kontrakt miejsca docelowego         | `src/lib/logExport/types.ts`                 |
+| Rejestr                             | `src/lib/logExport/registry.ts`              |
+| Obsługa sekretów                    | `src/lib/logExport/secrets.ts`               |
+| Moduł uruchamiający (nadrzędny IPC) | `src/lib/logExport/runner.ts`                |
+| Cykl życia procesu                  | `src/lib/logExport/childRunner.ts`           |
+| Punkt wejścia procesu potomnego     | `src/lib/logExport/exportChild.ts`           |
+| Moduł otwierający tylko do odczytu  | `src/lib/db/logExportReadOnly.ts`            |
+| Współdzielone zapytania/mapowanie   | `src/lib/usage/callLogExportQueries.ts`      |
+| Moduł rozpoznawania szczegółów      | `src/lib/usage/callLogDetailResolver.ts`     |
+| Projekcja API                       | `src/lib/logExport/presenter.ts`             |
+| Miejsce docelowe BigQuery           | `src/lib/logExport/destinations/bigquery.ts` |
+| Uwierzytelnianie Google SA          | `src/lib/logExport/googleServiceAccount.ts`  |
+| Źródło dziennika wywołań            | `src/lib/usage/callLogExportSource.ts`       |
+| Warstwa trwałości                   | `src/lib/db/logExportDestinations.ts`        |
+| Zadanie cron                        | `src/lib/jobs/logExportJob.ts`               |
+| Warstwa REST                        | `src/app/api/log-export/`                    |
+| Strona panelu                       | `src/app/(dashboard)/dashboard/log-export/`  |
 
 Schemat: `src/lib/db/migrations/170_log_export_destinations.sql`.
 

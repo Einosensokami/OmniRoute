@@ -16,82 +16,152 @@ konveier kasutab registrit, seega saab sihtkohti juurde lisada.
 ## 1. Kuidas see töötab
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (logide vahekaardi väljade kogum)
-      → sihtkoha client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+server (dekrüptib + valideerib konfiguratsiooni, kooskõlastab kursori)
+  → käivitab IPC → isoleeritud exportChild OS-i protsess
+    → kirjutuskaitstud storage.sqlite → ühine kõnelogi päring/vastendus
+      → asünkroonne artefaktide laadimine → sihtkoha prepare()/send()
+        → partii IPC → server salvestab kursori → kinnituse IPC
+          → järgmine partii; lõpetamise IPC → server salvestab õnnestumise
 ```
 
-- **Ajakava** — üks `JobRegistry` cron-töö, `log_export`, mille vaikeväärtus on `0 * * * *` (kord tunnis,
-  UTC). Registreeritud failis `src/lib/initCloudSync.ts`; muudetav muutujaga `OMNIROUTE_LOG_EXPORT_CRON`.
-  Iga käivitus töötleb järjest lõpuni kõiki **lubatud** sihtkohti.
-- **Kursor** — SQLite'i implitsiitne `call_logs.rowid`, mida säilitatakse iga sihtkoha kohta väljal
-  `log_export_destinations.cursor_row_id`. `timestamp` ei ole teadlikult kursoriks valitud: kutsujad
-  võivad anda sellele oma väärtuse, mistõttu aeglane päring võidakse kirjutada pärast kiiremat päringut, mis algas
-  hiljem, ning ajatemplil põhinev kursor jätaks selle vahele.
-- **Pakktöötlus** — `batch_size` rida päringu kohta (vaikimisi 500), `max_rows_per_run` rida käivituse kohta
-  (vaikimisi 10000), et suur mahajäämus töödeldaks mitme käivituse jooksul ega blokeeriks ühte käivitust.
-- **Edastus** — kursor liigub edasi alles pärast `send()` edukat lõppemist. Nurjunud pakk jätab
-  kursori endisesse asukohta, mistõttu samu ridu proovitakse järgmisel käivitusel uuesti saata. Garantii on
-  vähemalt üks kord edastamine koos sihtkohapoolse duplikaatide eemaldamisega, mitte tegelik täpselt üks kord edastamine: BigQuery määrab iga
-  rea võtmeks kõnelogi ID, mida see oma duplikaatide eemaldamise ajavahemikus võimaluste piires arvestab.
-- **Kattuvuse kaitse** — cron-käivitus ja `POST .../run` võivad toimuda samal ajal. Juba töödeldav
-  sihtkoht jäetakse teistkordse töötlemise asemel vahele (käivitustulemuses `skipped: true`),
-  mistõttu samaaegne käivitus ei saa pakki uuesti saata ega kursorit tagasi liigutada.
-- **Taaste pärast kustutamist** — kui `cursor_row_id` satub väärtusest `MAX(rowid)` suuremaks (kogu tabel
-  kustutati ja rea-ID-d alustasid uuesti algusest), lähtestab käitaja kursori väärtusele 0, selle asemel et jääda püsivalt uusi kirjeid eirama.
+- **Ajastus** — üks `JobRegistry` cron-töö, `log_export`, mille vaikeväärtus on `0 * * * *` (kord tunnis,
+  UTC). Registreeritud failis `src/lib/initCloudSync.ts`; ülekirjutatav muutujaga `OMNIROUTE_LOG_EXPORT_CRON`.
+  Iga käivitus töötleb järjest kõik **lubatud** sihtkohad lõpuni.
+- **Kursor** — SQLite'i implitsiitne `call_logs.rowid`, mis salvestatakse iga sihtkoha kohta väljal
+  `log_export_destinations.cursor_row_id`. `timestamp` ei ole teadlikult kursor: kutsujad
+  võivad anda oma väärtuse, mistõttu aeglane päring võidakse kirjutada pärast kiiremat päringut, mis algas
+  hiljem, ning ajatemplipõhine kursor jätaks selle vahele.
+- **Partiideks jagamine** — `batch_size` rida päringu kohta (vaikimisi 500), `max_rows_per_run` rida käivituse kohta
+  (vaikimisi 10000), et suur mahajäämus töödeldaks mitme käivituse jooksul, mitte ei blokeeriks üht käivitust.
+- **Edastamine** — kursor liigub edasi alles pärast funktsiooni `send()` lahenemist. Nurjunud partii jätab
+  kursori endisesse asukohta, seega proovitakse samu ridu järgmisel käivitusel uuesti. Tagatis on
+  vähemalt üks kord edastamine koos sihtkohapoolse duplikaadieemaldusega, mitte tõeline täpselt üks kord edastamine: BigQuery võtmena kasutatakse igal
+  real kõnelogi ID-d, mida arvestatakse parima võimaluse põhimõttel selle enda duplikaadieemalduse ajavahemiku piires.
+- **Kattuvuse kaitse** — cron-käivitus ja `POST .../run` võivad käivituda samal ajal. Sihtkoht,
+  mida juba töödeldakse, jäetakse teistkordse töötlemise asemel vahele (käivituse tulemuses `skipped: true`),
+  seega ei saa samaaegne käivitus partiid uuesti saata ega kursorit tagasi liigutada.
+- **Taastumine puhastamisest** — kui `cursor_row_id` jõuab väärtusest `MAX(rowid)` kõrgemale (kogu tabel
+  puhastati ja rea-ID-d alustati uuesti), kerib käitaja kursori tagasi 0-le, selle asemel et jääda püsivalt andmeid mitte nägema.
 
-### Lastid (viibad ja vastused)
+### Isoleeritud käitaja ja piirangud
 
-Vaikimisi sisaldab eksport ainult kokkuvõttevälju, mida kuvatakse logide **loendis**. Valiku
-**Ekspordi viibad ja vastused** (`includeBodies`) sisselülitamisel saadetakse lisaks see, mida kuvatakse logide **üksikasjade**
-paanil iga kõne kohta:
+Iga sihtkoha käivitus Node'is käivitab eraldi lühiealise OS-i alamprotsessi (`child_process`
+koos IPC-ga, mitte `worker_threads`). Kehade lugemine, lasti JSON-i sõelumine/serialiseerimine, sihtkoha
+`prepare()` ja sihtkoha võrgu-I/O toimuvad kõik seal, mitte serveri sündmusetsüklis.
+IPC kaudu liiguvad ainult konfiguratsioon ja väikesed edenemissõnumid; eksporditud kirjeid ei saadeta kunagi serverisse tagasi.
+Cron-töö ja kohese käivitamise marsruut säilitavad sama avaliku tulemuse ja kattuvuse kaitse.
 
-| Väli                             | Mida see sisaldab                                             |
-| -------------------------------- | ------------------------------------------------------------- |
-| `request_body` / `response_body` | Kõne lastid sellisel kujul, nagu töölaud neid kuvab           |
-| `pipeline_route_decision`        | Millise sihtmärgi ja mudeli ruuter valis                      |
-| `pipeline_client_request`        | Toorpäring täpselt sellisel kujul, nagu klient selle saatis   |
-| `pipeline_openai_request`        | Pärast teisendamist sisemisse OpenAI vormingusse              |
-| `pipeline_provider_request`      | Tegelikult ülesvoolu saadetud kujul, teenusepakkuja dialektis |
-| `pipeline_provider_response`     | Töötlemata ülesvoolu vastus                                   |
-| `pipeline_client_response`       | Kutsujale tagastatud sisu                                     |
-| `pipeline_error`                 | Konveieri taseme vea üksikasjad nurjunud kõne korral          |
-| `bodies_truncated`               | Tõene, kui mõni ülaltoodud väli saavutas `maxBodyBytes` piiri |
+Alamprotsess avab serveri lahendatud faili `DATA_DIR/storage.sqlite` kirjutuskaitstult, kasutades `node:sqlite`,
+seadetega `busy_timeout=5000` ja `query_only=ON`. See ei impordi ühtegi andmebaasi singletoni ega tee
+migratsioone, varukoopiaid või SQLite'i uuendusi. Puuduvate/rikutud artefaktide arvestus (sealhulgas
+rikutud artefakti UPDATE) jääb ainult töölaua üksikasjavaatesse. Mõlemad teed kasutavad ühist puhast
+üksikasjade lahendajat; eksport kasutab asünkroonseid failisüsteemi lugemisi ning sama artefakt → pärand-
+tekstisisene → pärandketas → puudub lahendusjärjekorda. Käivitus teeb maksimaalsest lisamise rea-ID-st
+hetktõmmise, kui alamprotsess oma lugeja avab; hilisemad lisamised ootavad järgmist käivitust. See on lisamise
+piir, mitte pikaajaline SQLite'i tehing: WAL-i kirjutajad ja kontrollpunktid saavad võrguootuste ajal vabalt
+töötada. See piir ei fikseeri olemasolevate ridade uuendusi/kustutusi.
 
-See on viiba sisu, seega on see **vaikimisi välja lülitatud** ja teadlikult iga sihtkoha jaoks eraldi valitav.
-Saadetakse see, mida töölaud kuvab, sest mõlemad loevad funktsiooni `getCallLogById` kaudu: lastid
-on nende kirjutamise ajaks juba isikuandmetest puhastatud ja saladused on eemaldatud ning võtmega
-`noLog` API tehtud kõne ei salvesta üldse lasti, seega pole midagi eksportida.
+Pärast iga vastuvõetud partiid ootab alamprotsess kinnitust. Server salvestab esmalt
+kursori funktsiooniga `advanceLogExportCursor` ja saadab seejärel `ack`; enne seda ei alustata järgmist partiid.
+Saatmise nurjumine, krahh või ajalõpp salvestab nurjumise ilma selle partii kursorit edasi liigutamata. Varem
+kinnitatud partiid jäävad jõustatuks; uuesti võidakse saata kõige rohkem üks kinnitamata partii.
+Õnnestumine salvestatakse alles pärast teadet `done` ja alamprotsessi korrektset väljumist. Nurjumise korral
+lõpetatakse alamprotsess signaaliga SIGTERM, eskaleerides 500 ms pärast signaalile SIGKILL, ning käitaja ootab protsessi sulgumist.
 
-Lastid loetakse iga rea kohta failisüsteemi artefaktist, mistõttu rikastamine käivitatakse ainult nende sihtkohtade jaoks,
-mis seda taotlesid. Rida, mille artefakt puudub või on rikutud, ekspordib oma kokkuvõtte nullväärtusega
-lastidega, selle asemel et pakk nurjata ja kursor kinni jätta.
+| Keskkonnamuutuja                              | Vaikeväärtus | Otstarve                                   |
+| --------------------------------------------- | ------------ | ------------------------------------------ |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000       | Sihtkohapõhine seinaajakella piirang       |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024         | Alamprotsessi V8 vana ruumi piirang MB-des |
 
-`maxBodyBytes` (vaikimisi 262144) piirab iga välja suurust. Pikemad lastid **kärbitakse, mitte ei
-jäeta välja** — kärbitud viip vastab siiski küsimusele „mida küsiti“ — ja rida märgistatakse väljaga
-`bodies_truncated`. Tükikaupa voogedastatud deltaväärtusi ei ekspordita; koostatud vastus on
+Sobimatud/mittepositiivsed/mittetäisarvulised väärtused asendatakse vaikeväärtustega. Kuhja seadistus ei ole täielik
+RSS-i piirang; väga suured partiid võivad siiski alamprotsessi mälu ammendada ja käivituse turvaliselt nurjata.
+Vaikimisi 1024 MB jätab piisavalt varu vaikepartiile, mis koosneb 500 reast ja 512 KiB artefaktidest ning mille puhul
+on kehad lubatud, sealhulgas BigQuery baitide kaupa tükeldatud JSON-i serialiseerimiseks. See ei muuda
+10000-realist kehadega partiid turvaliseks. V8 kuhja ammendumine salvestab tegutsemist võimaldava tõrke: vähendage partii
+suurust või suurendage `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`; kursor jääb viimase
+kinnitatud partii juurde. Ajaloolised tekstisisesed/kettal olevad kehad ei kuulu kaasaegse artefaktipiirangu alla.
+Operaatorid peavad RSS-i eraldi planeerima, eriti mälupiiranguga konteinerites.
+
+Alamprotsess pärib ainult lahendatud `DATA_DIR`, `NODE_ENV`, eksplitsiitse `TZ` (pärandfailinimede
+kohaliku aja lahendamiseks), olemasolu korral `ELECTRON_RUN_AS_NODE` ning järgmised väljaminevate ühenduste sisendid:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (ja nende väiketähelised vormid),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Globaalne Undici-dispetšer jagab serveri puhast keskkonnapõhist puhverserveri lahendamist ja kohaliku hosti
+möödumisreegleid, sealhulgas `NO_PROXY`; see ei impordi faili `proxyFetch.ts` ega selle andmebaasi-/funktsioonilippe.
+Puhverserveri identimisteave peidetakse edastatavast väljundist ja salvestatud vigadest. Sihtkoha identimisteave
+liigub ainult ühes käivitamise IPC-sõnumis, mitte kunagi argv-s ega keskkonnas; väljundi/vigade edastusele
+lisatakse prefiks ja see puhastatakse tundlikest andmetest. Alamprotsessi käivitusargumentides keelatakse ainult `ExperimentalWarning`, et vältida
+Node'i SQLite'i hoiatuse kordamist igal cron-käivitusel; muud hoiatuste tüübid jäävad nähtavaks.
+
+Sihtkoha moodulid peavad olema imporditavad ilma Next.js-i/serveripoolsete sõltuvusteta. Olemasolev
+BigQuery teostus juba vastab sellele lepingule. Juurdepääsuloa vahemälud kestavad ainult alamprotsessi
+käituse vältel, mitte üle mitme käituse. Node on toetatud käituskeskkond (`package.json`-i engines), kuid README Bun-i
+paigaldusjaotis ja `Dockerfile.bun` reklaamivad samuti tootmiskeskkonnaga ühilduvat teed, mis kasutab
+`bun:sqlite`-i (`src/lib/db/core.ts` / adapterid). Seetõttu säilitavad ekspordid Bun-is varasema
+protsessisisese tee ja väljastavad ühekordse hoiatuse: alamprotsessi mälu- ja ajalõpuisolatsioon pole saadaval. Kasutage
+Node'i sündmusetsükli ja OOM-i isolatsiooniks; Bun-i ei käsitleta siin ainult arenduskeskkonnana.
+
+Kui `includeBodies` on lubatud, eelistage minutipõhist sagedust, näiteks
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`, selle asemel et koguda tunnipõhist kasuliku koormuse järjekorda.
+Paketi- ja reapõhised piirangud piiravad endiselt iga käitust. Protsessi käivitamise kulu tekib iga sihtkoha ja käituse kohta;
+see vahetab väikese käivituskulu serveri sündmusetsükli isolatsiooni vastu, mitte ei vähenda üldist protsessorikasutust.
+
+### Kasulikud koormused (viibad ja vastused)
+
+Vaikimisi sisaldab eksport ainult kokkuvõttevälju, mida näitab logide **loend**. Valiku
+**Ekspordi viibad ja vastused** (`includeBodies`) sisselülitamisel saadetakse lisaks see, mida logide **detailvaade**
+iga kutse kohta näitab:
+
+| Väli                             | Mida see sisaldab                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| `request_body` / `response_body` | Kutse kasulikud koormused nii, nagu juhtpaneel neid kuvab                            |
+| `pipeline_route_decision`        | Millise sihtkoha ja mudeli ruuter valis                                              |
+| `pipeline_client_request`        | Töötlemata päring täpselt sellisena, nagu klient selle saatis                        |
+| `pipeline_openai_request`        | Pärast sisemisse OpenAI vormingusse teisendamist                                     |
+| `pipeline_provider_request`      | Sellisena, nagu see tegelikult ülesvoolu teenusele saadeti, teenusepakkuja dialektis |
+| `pipeline_provider_response`     | Töötlemata ülesvoolu vastus                                                          |
+| `pipeline_client_response`       | See, mis tagastati kutsujale                                                         |
+| `pipeline_error`                 | Konveieritaseme vea üksikasjad nurjunud kutse kohta                                  |
+| `bodies_truncated`               | Tõene, kui mõni ülaltoodud väli saavutas `maxBodyBytes`-i piiri                      |
+
+See on viiba sisu, mistõttu on see **vaikimisi välja lülitatud** ja teadlikult iga sihtkoha eraldi valik.
+Saadetakse see, mida juhtpaneel näitab, sest eksport ja `getCallLogById` kasutavad sama detailide
+lahendamist: kasulikud koormused on
+juba isikuandmetest puhastatud ja saladused on neist kirjutamise ajal eemaldatud ning
+`noLog` API-võtmega tehtud kutse ei salvesta üldse kasulikku koormust, seega pole midagi eksportida.
+
+Kasulikud koormused loetakse iga rea kohta failisüsteemi artefaktist, mistõttu toimub rikastamine ainult nende sihtkohtade jaoks,
+mis seda taotlesid. Puuduva või rikutud artefakti korral eksporditakse kokkuvõte nullväärtusega kasulike koormustega,
+selle asemel et pakett nurjata ja kursorit kinni hoida.
+
+`maxBodyBytes` (vaikimisi 262144) piirab iga välja suurust. Pikemad kasulikud koormused **kärbitakse, mitte
+ei jäeta välja** — kärbitud viip vastab endiselt küsimusele „mida küsiti“ — ning rida märgistatakse väljaga
+`bodies_truncated`. Voogedastatud tükikaupa deltasid ei ekspordita; koostatud vastus on
 juba väljadel `pipeline_provider_response` ja `pipeline_client_response`.
 
 ---
 
 ## 2. Failid
 
-| Osa                      | Asukoht                                      |
-| ------------------------ | -------------------------------------------- |
-| Sihtkoha leping          | `src/lib/logExport/types.ts`                 |
-| Register                 | `src/lib/logExport/registry.ts`              |
-| Saladuste käsitlemine    | `src/lib/logExport/secrets.ts`               |
-| Käitaja (kursoritsükkel) | `src/lib/logExport/runner.ts`                |
-| API-projektsioon         | `src/lib/logExport/presenter.ts`             |
-| BigQuery sihtkoht        | `src/lib/logExport/destinations/bigquery.ts` |
-| Google SA autentimine    | `src/lib/logExport/googleServiceAccount.ts`  |
-| Kõnelogi allikas         | `src/lib/usage/callLogExportSource.ts`       |
-| Püsimälu                 | `src/lib/db/logExportDestinations.ts`        |
-| Croni töö                | `src/lib/jobs/logExportJob.ts`               |
-| REST-kiht                | `src/app/api/log-export/`                    |
-| Töölaua leht             | `src/app/(dashboard)/dashboard/log-export/`  |
+| Osa                           | Asukoht                                      |
+| ----------------------------- | -------------------------------------------- |
+| Sihtkoha leping               | `src/lib/logExport/types.ts`                 |
+| Register                      | `src/lib/logExport/registry.ts`              |
+| Saladuste käsitlemine         | `src/lib/logExport/secrets.ts`               |
+| Käitaja (ülemprotsessi IPC)   | `src/lib/logExport/runner.ts`                |
+| Protsessi elutsükkel          | `src/lib/logExport/childRunner.ts`           |
+| Alamprotsessi sisenemispunkt  | `src/lib/logExport/exportChild.ts`           |
+| Kirjutuskaitstud avaja        | `src/lib/db/logExportReadOnly.ts`            |
+| Jagatud päringud/vastendamine | `src/lib/usage/callLogExportQueries.ts`      |
+| Üksikasjade lahendaja         | `src/lib/usage/callLogDetailResolver.ts`     |
+| API projektsioon              | `src/lib/logExport/presenter.ts`             |
+| BigQuery sihtkoht             | `src/lib/logExport/destinations/bigquery.ts` |
+| Google'i SA autentimine       | `src/lib/logExport/googleServiceAccount.ts`  |
+| Kõnelogi allikas              | `src/lib/usage/callLogExportSource.ts`       |
+| Püsimälu                      | `src/lib/db/logExportDestinations.ts`        |
+| Croni töö                     | `src/lib/jobs/logExportJob.ts`               |
+| REST-kiht                     | `src/app/api/log-export/`                    |
+| Töölaua leht                  | `src/app/(dashboard)/dashboard/log-export/`  |
 
 Skeem: `src/lib/db/migrations/170_log_export_destinations.sql`.
 

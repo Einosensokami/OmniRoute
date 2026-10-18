@@ -13,60 +13,150 @@
 ## 1. 運作方式
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  （「日誌」分頁的欄位集）
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+伺服器（解密 + 驗證設定、協調游標）
+  → 啟動 IPC → 隔離的 exportChild 作業系統程序
+    → 唯讀 storage.sqlite → 共用的通話記錄查詢/對應
+      → 非同步成品載入 → 目的地 prepare()/send()
+        → 批次 IPC → 伺服器持久化游標 → 確認 IPC
+          → 下一批；完成 IPC → 伺服器記錄成功
 ```
 
-- **排程** — 一個 `JobRegistry` cron 工作 `log_export`，預設為 `0 * * * *`（每小時執行一次，UTC）。在 `src/lib/initCloudSync.ts` 中註冊；可使用 `OMNIROUTE_LOG_EXPORT_CRON` 覆寫。每次觸發會依序清空每個**已啟用**目的地的待匯出資料。
-- **游標** — 使用 SQLite 隱含的 `call_logs.rowid`，並依各目的地分別保存於 `log_export_destinations.cursor_row_id`。刻意不使用 `timestamp` 作為游標：呼叫端可能會自行提供該值，因此較慢的請求可能會在較晚開始但較快完成的請求之後寫入，而使用時間戳記游標會略過它。
-- **批次處理** — 每個請求包含 `batch_size` 列（預設為 500），每次執行最多處理 `max_rows_per_run` 列（預設為 10000），讓大量積壓資料分散在數次觸發中清空，而不是阻塞單次執行。
-- **傳遞** — 游標只會在 `send()` 成功完成後前進。批次失敗時，游標會維持原位，因此相同的列會在下次執行時重試。其保證為至少一次傳遞加上目的地端的去重，而非真正的恰好一次傳遞：BigQuery 以呼叫日誌 ID 作為每列的鍵，並在其自身的去重期間內以盡力而為的方式遵循此鍵。
-- **重疊防護** — cron 觸發與 `POST .../run` 可能會同時執行。已在清空待匯出資料的目的地會被略過，而不會重複清空（執行結果中為 `skipped: true`），因此並行執行不會重新傳送批次或將游標往回寫。
-- **清除復原** — 如果 `cursor_row_id` 最終高於 `MAX(rowid)`（整個資料表已清除且 rowid 重新起算），執行器會將其倒回至 0，而不會永久無法察覺新資料。
+- **排程** — 一個名為 `log_export` 的 `JobRegistry` cron 工作，預設為 `0 * * * *`（每小時，
+  UTC）。在 `src/lib/initCloudSync.ts` 中註冊；可使用 `OMNIROUTE_LOG_EXPORT_CRON` 覆寫。
+  每次觸發都會依序清空每個**已啟用**目的地的待匯出資料。
+- **游標** — 使用 SQLite 隱含的 `call_logs.rowid`，並按目的地持久化於
+  `log_export_destinations.cursor_row_id`。刻意不使用 `timestamp` 作為游標：呼叫端
+  可能提供自己的值，因此較慢的請求可能會在較晚開始但較快的請求之後才寫入，
+  而時間戳記游標會略過它。
+- **批次處理** — 每個請求包含 `batch_size` 列（預設 500），每次執行最多處理
+  `max_rows_per_run` 列（預設 10000），使大量積壓資料能分多次觸發逐步清空，而非阻塞單次執行。
+- **傳送** — 僅在 `send()` 完成後才推進游標。批次失敗時，游標會留在原位，
+  因此下次執行時會重試相同資料列。其保證為至少一次傳送加上目的地端去重，
+  而非真正的恰好一次：BigQuery 以通話記錄 ID 作為每列的鍵，並在其自身的去重時段內
+  以盡力而為的方式遵循此鍵。
+- **重疊防護** — cron 觸發與 `POST .../run` 可能同時發生。對於已在清空中的目的地，
+  系統會略過而不會重複清空（執行結果中為 `skipped: true`），
+  因此並行執行不會重新傳送批次，也不會將游標倒退寫入。
+- **清除後復原** — 若 `cursor_row_id` 最終高於 `MAX(rowid)`（整個資料表已被
+  清除且 rowid 重新起算），執行器會將其倒回 0，而不是永久看不到新資料。
+
+### 隔離式執行器與限制
+
+Node 上的每次目的地執行都會啟動獨立且短生命週期的作業系統子程序（使用 `child_process`
+搭配 IPC，而非 `worker_threads`）。本文讀取、承載資料 JSON 的剖析/序列化、目的地
+`prepare()`，以及目的地網路 I/O 都在該處執行，而非伺服器的事件迴圈。
+只有設定與小型進度訊息會透過 IPC 傳遞；匯出的記錄絕不會傳回伺服器。
+cron 工作與「立即執行」路由會維持相同的公開結果與重疊防護。
+
+子程序會使用 `node:sqlite` 以唯讀方式開啟伺服器解析後的 `DATA_DIR/storage.sqlite`，
+並設定 `busy_timeout=5000` 與 `query_only=ON`。它不會匯入任何資料庫單例，也不會執行
+遷移、備份或 SQLite 更新。遺失/損毀成品的簿記處理（包括損毀成品的 UPDATE）僅保留在
+儀表板詳細資料路徑中。兩個路徑共用純函式詳細資料解析器；匯出功能使用非同步檔案系統讀取，
+並採用相同的成品 → 舊版內嵌 → 舊版磁碟 → 無資料解析順序。子程序開啟讀取器時，
+執行作業會擷取最大插入 rowid 的快照；之後插入的資料會等到下一次執行。
+這是插入邊界，而非長時間存續的 SQLite 交易：在網路等待期間，WAL 寫入器與檢查點仍可自由運作。
+現有資料列的更新/刪除不會被此邊界凍結。
+
+每個批次獲接受後，子程序會等待確認。伺服器會先使用 `advanceLogExportCursor`
+持久化游標，再傳送 `ack`；在此之前不會開始下一批次。
+傳送失敗、當機或逾時會記錄為失敗，且不會推進該批次的游標。先前已確認的批次仍會維持已提交狀態；
+最多只有一個未確認的批次可能被重新傳送。只有收到 `done` 且子程序正常結束後才會記錄成功。
+發生失敗時會使用 SIGTERM 終止子程序，500 ms 後再升級為 SIGKILL，且執行器會等待程序關閉。
+
+| 環境變數                                      | 預設值 | 用途                           |
+| --------------------------------------------- | ------ | ------------------------------ |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000 | 每個目的地的實際經過時間限制   |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024   | 子程序 V8 舊生代空間限制（MB） |
+
+無效、非正數或非整數值會使用預設值。堆積設定並非總
+RSS 限制；非常大的批次仍可能耗盡子程序記憶體，並使該次執行安全地失敗。
+1024 MB 的預設值為啟用本文時，預設 500 列批次中每個 512 KiB 成品預留了餘裕，
+其中包括 BigQuery 的位元組分塊 JSON 序列化。這不代表包含本文的
+10000 列批次是安全的。V8 堆積耗盡時會記錄可採取行動的失敗訊息：降低批次
+大小，或提高 `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`；游標會停留在最後一個
+已確認的批次。歷史舊版內嵌/磁碟本文不受現代成品上限保護。
+操作人員必須另外規劃 RSS，尤其是在記憶體受限的容器內。
+
+子程序只會繼承解析後的 `DATA_DIR`、`NODE_ENV`、明確設定的 `TZ`（供舊版檔名的
+本地時間解析使用）、存在時的 `ELECTRON_RUN_AS_NODE`，以及下列對外連線輸入：
+`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY`（及其小寫形式）、
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`、`NODE_EXTRA_CA_CERTS`、`SSL_CERT_FILE`、`SSL_CERT_DIR`。
+全域 Undici 分派器會共用伺服器的純環境代理解析與本機主機略過規則，包括 `NO_PROXY`；
+它不會匯入 `proxyFetch.ts` 或其資料庫/功能旗標。
+轉送的輸出與記錄的錯誤會遮蔽代理認證資訊。目的地認證資訊只會透過一則啟動 IPC 訊息傳送，
+絕不會透過 argv 或環境傳送；輸出/錯誤轉送會加上前綴並經過清理。
+子程序執行引數中只會停用 `ExperimentalWarning`，以免每次 cron 執行時重複顯示 Node 的
+SQLite 警告；其他警告類型仍會顯示。
+
+目的地模組必須可在不依賴 Next.js／僅限伺服器相依項目的情況下匯入。現有的
+BigQuery 實作已符合此約定。存取權杖快取僅在子執行程序的單次執行期間有效，
+不會跨執行保留。Node 是受支援的執行階段（`package.json` engines），但 README 的 Bun
+安裝章節和 `Dockerfile.bun` 也宣告了一條使用
+`bun:sqlite`（`src/lib/db/core.ts`／介面卡）的正式環境相容路徑。因此在 Bun 下，匯出作業會保留先前的
+程序內路徑，並發出一次性警告：無法使用子程序的堆積記憶體／逾時隔離。
+若需要事件迴圈和 OOM 隔離，請使用 Node；此處不會將 Bun 視為僅供開發使用。
+
+啟用 `includeBodies` 時，建議採用分鐘層級的執行頻率，例如
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`，而不要累積每小時的承載資料積壓。
+批次和資料列限制仍會約束每次執行。每個目的地在每次執行時都會產生程序啟動成本；
+這是以少量啟動成本換取伺服器事件迴圈隔離，而不是減少總 CPU 使用量。
 
 ### 承載資料（提示詞與補全內容）
 
-預設情況下，匯出內容只包含「日誌」**清單**所顯示的摘要欄位。啟用**匯出提示詞與回應** (`includeBodies`) 後，還會傳送「日誌」**詳細資料**窗格針對每次呼叫顯示的內容：
+依預設，匯出內容僅包含日誌**清單**所顯示的摘要欄位。開啟
+**匯出提示詞和回應**（`includeBodies`）後，還會傳送日誌**詳細資料**
+窗格中顯示的每次呼叫資訊：
 
-| 欄位                             | 所包含的內容                              |
-| -------------------------------- | ----------------------------------------- |
-| `request_body` / `response_body` | 儀表板所呈現的呼叫承載資料                |
-| `pipeline_route_decision`        | 路由器選擇的目標與模型                    |
-| `pipeline_client_request`        | 用戶端傳送時的原始請求                    |
-| `pipeline_openai_request`        | 轉換為內部 OpenAI 格式後的內容            |
-| `pipeline_provider_request`      | 實際傳送至上游、採用提供者方言的內容      |
-| `pipeline_provider_response`     | 原始上游回應                              |
-| `pipeline_client_response`       | 傳回給呼叫端的內容                        |
-| `pipeline_error`                 | 失敗呼叫的管線層級錯誤詳細資料            |
-| `bodies_truncated`               | 上述任何欄位達到 `maxBodyBytes` 時為 True |
+| 欄位                             | 所包含的內容                                  |
+| -------------------------------- | --------------------------------------------- |
+| `request_body` / `response_body` | 儀表板所呈現的呼叫承載資料                    |
+| `pipeline_route_decision`        | 路由器選擇的目標與模型                        |
+| `pipeline_client_request`        | 用戶端傳送的原始請求，內容完全不變            |
+| `pipeline_openai_request`        | 轉換成內部 OpenAI 格式後的內容                |
+| `pipeline_provider_request`      | 實際傳送至上游的內容，採用提供者的格式        |
+| `pipeline_provider_response`     | 原始上游回應                                  |
+| `pipeline_client_response`       | 傳回給呼叫端的內容                            |
+| `pipeline_error`                 | 呼叫失敗時的管線層級錯誤詳細資料              |
+| `bodies_truncated`               | 上述任何欄位達到 `maxBodyBytes` 限制時為 True |
 
-這些是提示詞內容，因此**預設關閉**，並刻意設計為可依各目的地個別選擇。匯出的內容就是儀表板顯示的內容，因為兩者都透過 `getCallLogById` 讀取：承載資料在寫入時就已完成 PII 匿名化與機密資訊遮蔽，而使用 `noLog` API 金鑰進行的呼叫完全不會儲存承載資料，因此沒有可匯出的內容。
+這些是提示詞內容，因此**預設為關閉**，並刻意設計為可針對每個目的地個別選擇。
+所傳送的內容就是儀表板顯示的內容，因為匯出功能與 `getCallLogById` 共用詳細資料
+解析流程：承載資料在寫入時
+已完成 PII 清理及祕密資訊遮蔽，而使用 `noLog` API 金鑰進行的呼叫完全不會儲存任何承載資料，
+因此沒有可匯出的內容。
 
-系統會針對每列從檔案系統成品中讀取承載資料，因此只有要求取得承載資料的目的地才會執行資料填充。若某列的成品遺失或損毀，系統會匯出其摘要並將承載資料設為 null，而不會使批次失敗並導致游標停滯。
+承載資料會從檔案系統成品逐列讀取，因此僅會為要求這些資料的目的地執行資料補全。
+若成品遺失或損毀，系統會匯出其摘要並將承載資料設為 null，
+而不會讓整個批次失敗並使游標停滯。
 
-`maxBodyBytes`（預設為 262144）會限制每個欄位的大小。較長的承載資料會被**截斷而非捨棄**——即使提示詞遭到裁切，仍能回答「提出了什麼要求」——並將該列標記為 `bodies_truncated`。不會匯出逐區塊串流的差異資料；組合後的回應已位於 `pipeline_provider_response` 和 `pipeline_client_response` 中。
+`maxBodyBytes`（預設為 262144）會限制每個欄位的大小。較長的承載資料會被**截斷，而非
+捨棄**——即使提示詞遭到裁切，仍能回答「提出了什麼問題」——並且該資料列會以
+`bodies_truncated` 標記。不會匯出逐區塊串流的差異資料；組裝完成的回應
+已位於 `pipeline_provider_response` 和 `pipeline_client_response` 中。
 
 ---
 
 ## 2. 檔案
 
-| 元件               | 位置                                         |
-| ------------------ | -------------------------------------------- |
-| 目的地合約         | `src/lib/logExport/types.ts`                 |
-| 登錄檔             | `src/lib/logExport/registry.ts`              |
-| 機密處理           | `src/lib/logExport/secrets.ts`               |
-| 執行器（游標迴圈） | `src/lib/logExport/runner.ts`                |
-| API 投影           | `src/lib/logExport/presenter.ts`             |
-| BigQuery 目的地    | `src/lib/logExport/destinations/bigquery.ts` |
-| Google SA 驗證     | `src/lib/logExport/googleServiceAccount.ts`  |
-| 呼叫記錄來源       | `src/lib/usage/callLogExportSource.ts`       |
-| 持久化             | `src/lib/db/logExportDestinations.ts`        |
-| Cron 工作          | `src/lib/jobs/logExportJob.ts`               |
-| REST 層            | `src/app/api/log-export/`                    |
-| 儀表板頁面         | `src/app/(dashboard)/dashboard/log-export/`  |
+| 元件                 | 位置                                         |
+| -------------------- | -------------------------------------------- |
+| 目的地合約           | `src/lib/logExport/types.ts`                 |
+| 登錄檔               | `src/lib/logExport/registry.ts`              |
+| 密鑰處理             | `src/lib/logExport/secrets.ts`               |
+| 執行器（父程序 IPC） | `src/lib/logExport/runner.ts`                |
+| 程序生命週期         | `src/lib/logExport/childRunner.ts`           |
+| 子程序進入點         | `src/lib/logExport/exportChild.ts`           |
+| 唯讀開啟器           | `src/lib/db/logExportReadOnly.ts`            |
+| 共用查詢／對應       | `src/lib/usage/callLogExportQueries.ts`      |
+| 詳細資料解析器       | `src/lib/usage/callLogDetailResolver.ts`     |
+| API 投影             | `src/lib/logExport/presenter.ts`             |
+| BigQuery 目的地      | `src/lib/logExport/destinations/bigquery.ts` |
+| Google SA 驗證       | `src/lib/logExport/googleServiceAccount.ts`  |
+| 通話記錄來源         | `src/lib/usage/callLogExportSource.ts`       |
+| 持久化               | `src/lib/db/logExportDestinations.ts`        |
+| Cron 工作            | `src/lib/jobs/logExportJob.ts`               |
+| REST 層              | `src/app/api/log-export/`                    |
+| 儀表板頁面           | `src/app/(dashboard)/dashboard/log-export/`  |
 
 結構描述：`src/lib/db/migrations/170_log_export_destinations.sql`。
 

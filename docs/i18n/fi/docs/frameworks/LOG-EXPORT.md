@@ -16,84 +16,157 @@ putki käyttää rekisteriä, joten uusia kohteita voidaan lisätä.
 ## 1. Toimintaperiaate
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (Lokit-välilehden kenttäjoukko)
-      → kohdeasiakas.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+palvelin (pura salaus + validoi määritykset, täsmäytä kohdistin)
+  → käynnistä IPC → eristetty exportChild-käyttöjärjestelmäprosessi
+    → vain luku -tilassa oleva storage.sqlite → jaettu kutsulokien kysely/määritys
+      → asynkroninen artefaktien lataus → kohteen prepare()/send()
+        → erän IPC → palvelin tallentaa kohdistimen → kuittauksen IPC
+          → seuraava erä; valmistumisen IPC → palvelin kirjaa onnistumisen
 ```
 
-- **Ajastus** — yksi `JobRegistry`-cron-tehtävä, `log_export`, jonka oletusarvo on `0 * * * *` (tunneittain,
+- **Ajastus** — yksi `JobRegistry`-cron-työ, `log_export`, jonka oletusarvo on `0 * * * *` (tunneittain,
   UTC). Rekisteröidään tiedostossa `src/lib/initCloudSync.ts`; voidaan ohittaa muuttujalla `OMNIROUTE_LOG_EXPORT_CRON`.
-  Jokaisella suorituskerralla kaikki **käyttöön otetut** kohteet tyhjennetään järjestyksessä.
+  Jokainen ajo tyhjentää kaikki **käytössä olevat** kohteet peräkkäin.
 - **Kohdistin** — SQLiten implisiittinen `call_logs.rowid`, joka tallennetaan kohdekohtaisesti kenttään
   `log_export_destinations.cursor_row_id`. Kenttää `timestamp` ei tarkoituksella käytetä kohdistimena: kutsujat
-  voivat antaa sille oman arvonsa, joten hidas pyyntö voidaan kirjoittaa myöhemmin kuin nopeampi pyyntö, joka alkoi
-  sen jälkeen, ja aikaleimaan perustuva kohdistin ohittaisi sen.
-- **Eräkäsittely** — `batch_size` riviä pyyntöä kohden (oletus 500), `max_rows_per_run` riviä suorituskertaa
-  kohden (oletus 10000), jotta suuri jono purkautuu usean suorituskerran aikana yhden suorituksen estämisen sijaan.
-- **Toimitus** — kohdistin etenee vasta, kun `send()` on suoritettu onnistuneesti. Epäonnistunut erä jättää
-  kohdistimen ennalleen, joten samoja rivejä yritetään uudelleen seuraavalla suorituskerralla. Takuuna on
-  vähintään kerran tapahtuva toimitus sekä kohdepuolen kaksoiskappaleiden poisto, ei todellinen täsmälleen kerran
-  tapahtuva toimitus: BigQuery yksilöi jokaisen rivin kutsulokin tunnuksella ja huomioi sen parhaansa mukaan oman
-  kaksoiskappaleiden poistoikkunansa aikana.
-- **Päällekkäisyyssuojaus** — cron-suoritus ja `POST .../run` voivat käynnistyä samanaikaisesti. Kohde, jonka
-  tyhjennys on jo käynnissä, ohitetaan sen sijaan, että se tyhjennettäisiin kahdesti (`skipped: true`
-  suoritustuloksessa), joten rinnakkainen suoritus ei voi lähettää erää uudelleen tai siirtää kohdistinta taaksepäin.
-- **Tyhjennyksestä palautuminen** — jos `cursor_row_id` päätyy arvon `MAX(rowid)` yläpuolelle (koko taulu on
-  tyhjennetty ja rivitunnukset ovat alkaneet alusta), suorittaja palauttaa kohdistimen arvoon 0 sen sijaan, että
-  se lakkaisi pysyvästi havaitsemasta uusia rivejä.
+  voivat antaa sille oman arvonsa, joten hidas pyyntö voidaan kirjoittaa myöhemmin kuin myöhemmin alkanut
+  nopeampi pyyntö, jolloin aikaleimaan perustuva kohdistin ohittaisi sen.
+- **Eräkäsittely** — `batch_size` riviä pyyntöä kohden (oletus 500), `max_rows_per_run` riviä ajoa kohden
+  (oletus 10000), jotta suuri jono tyhjennetään usean ajon aikana eikä yksi ajo estä toimintaa.
+- **Toimitus** — kohdistin etenee vasta, kun `send()` on valmistunut. Epäonnistunut erä jättää
+  kohdistimen entiseen paikkaansa, joten samat rivit yritetään uudelleen seuraavalla ajolla. Takuu on
+  vähintään kerran tapahtuva toimitus ja kohdepään kaksoiskappaleiden poisto, ei todellinen täsmälleen kerran
+  tapahtuva toimitus: BigQuery käyttää jokaisen rivin avaimena kutsulokin tunnusta, jota se noudattaa
+  parhaan kykynsä mukaan oman deduplikointi-ikkunansa aikana.
+- **Päällekkäisyyden esto** — cron-ajo ja `POST .../run` voivat käynnistyä samanaikaisesti. Jo
+  tyhjennettävänä oleva kohde ohitetaan sen sijaan, että se tyhjennettäisiin kahdesti (`skipped: true`
+  ajon tuloksessa), joten rinnakkainen ajo ei voi lähettää erää uudelleen tai siirtää kohdistinta taaksepäin.
+- **Tyhjennyksestä palautuminen** — jos `cursor_row_id` päätyy arvon `MAX(rowid)` yläpuolelle (koko taulu
+  tyhjennettiin ja rivitunnukset alkoivat uudelleen alusta), suorittaja palauttaa sen arvoon 0 sen sijaan,
+  että se lakkaisi pysyvästi havaitsemasta rivejä.
 
-### Hyötykuormat (kehotteet ja täydennykset)
+### Eristetty suorittaja ja rajoitukset
 
-Oletusarvoisesti vienti sisältää vain yhteenvetokentät, jotka Lokit-**luettelo** näyttää. Asetuksen
-**Vie kehotteet ja vastaukset** (`includeBodies`) käyttöönotto lähettää lisäksi tiedot, jotka Lokit-**tietonäkymä**
-näyttää jokaisesta kutsusta:
+Jokainen kohdeajo käynnistyy Nodessa erillisenä, lyhytikäisenä käyttöjärjestelmän aliprosessina (`child_process`
+IPC-yhteydellä, ei `worker_threads`). Runkojen lukeminen, hyötykuorman JSON-jäsennys/-sarjallistaminen, kohteen
+`prepare()` ja kohteen verkkoliikenne suoritetaan kaikki siellä, eivät palvelimen tapahtumasilmukassa.
+IPC:n kautta siirretään vain määritykset ja pienet edistymisviestit; vietyjä tietueita ei koskaan palauteta
+palvelimelle. Cron-työ ja Suorita nyt -reitti säilyttävät saman julkisen tuloksen ja päällekkäisyyden eston.
 
-| Kenttä                           | Sisältö                                                              |
-| -------------------------------- | -------------------------------------------------------------------- |
-| `request_body` / `response_body` | Kutsun hyötykuormat hallintapaneelin esittämässä muodossa            |
-| `pipeline_route_decision`        | Reitittimen valitsema kohde ja malli                                 |
-| `pipeline_client_request`        | Raakapyyntö täsmälleen asiakkaan lähettämässä muodossa               |
-| `pipeline_openai_request`        | Sisäiseen OpenAI-muotoon muuntamisen jälkeen                         |
-| `pipeline_provider_request`      | Ylävirtaan tosiasiallisesti lähetettynä, palveluntarjoajan muodossa  |
-| `pipeline_provider_response`     | Raaka ylävirran vastaus                                              |
-| `pipeline_client_response`       | Kutsujalle palautettu sisältö                                        |
-| `pipeline_error`                 | Putkitason virheen tiedot epäonnistuneesta kutsusta                  |
-| `bodies_truncated`               | Tosi, kun jokin yllä olevista kentistä saavutti `maxBodyBytes`-rajan |
+Aliprosessi avaa palvelimen ratkaistun tiedoston `DATA_DIR/storage.sqlite` vain luku -tilassa käyttäen moduulia
+`node:sqlite`, asetuksilla `busy_timeout=5000` ja `query_only=ON`. Se ei tuo mitään tietokannan singleton-oliota
+eikä suorita migraatioita, varmuuskopioita tai SQLite-päivityksiä. Puuttuvien tai vioittuneiden artefaktien
+kirjanpito (mukaan lukien vioittuneen artefaktin UPDATE) säilyy vain hallintapaneelin tietonäkymässä. Molemmat
+polut käyttävät yhteistä puhdasta tietojen ratkaisijaa; vienti käyttää asynkronisia tiedostojärjestelmän lukuja
+ja samaa artefakti → vanha sisäinen → vanha levy → ei mitään -ratkaisujärjestystä. Ajo ottaa tilannevedoksen
+suurimmasta lisäyshetken rivitunnuksesta, kun aliprosessi avaa lukijansa; myöhemmät lisäykset odottavat seuraavaa
+ajoa. Tämä on lisäysraja, ei pitkäkestoinen SQLite-transaktio: WAL-kirjoittajat ja tarkistuspisteet voivat jatkaa
+vapaasti verkkoodotusten aikana. Tämä raja ei jäädytä olemassa olevien rivien päivityksiä tai poistoja.
+
+Jokaisen hyväksytyn erän jälkeen aliprosessi odottaa kuittausta. Palvelin tallentaa ensin
+kohdistimen funktiolla `advanceLogExportCursor` ja lähettää sitten viestin `ack`; seuraava erä ei käynnisty ennen sitä.
+Lähetysvirhe, kaatuminen tai aikakatkaisu kirjaa epäonnistumisen etenemättä kyseisen erän yli. Aiemmin
+kuitatut erät pysyvät vahvistettuina; enintään yksi kuittaamaton erä voidaan lähettää uudelleen.
+Onnistuminen kirjataan vasta viestin `done` ja aliprosessin siistin poistumisen jälkeen. Epäonnistumiset
+lopettavat aliprosessin signaalilla SIGTERM ja siirtyvät signaaliin SIGKILL 500 ms:n jälkeen, minkä jälkeen
+suorittaja odottaa prosessin sulkeutumista.
+
+| Ympäristömuuttuja                             | Oletus | Tarkoitus                                   |
+| --------------------------------------------- | ------ | ------------------------------------------- |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000 | Kohdekohtainen kokonaisaikaraja             |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024   | Aliprosessin V8 old-space -raja megatavuina |
+
+Virheelliset, muut kuin positiiviset tai muut kuin kokonaislukuarvot käyttävät oletusarvoja. Keon asetus ei ole
+kokonais-RSS-raja; erittäin suuret erät voivat silti kuluttaa aliprosessin muistin loppuun ja aiheuttaa ajon
+turvallisen epäonnistumisen. Oletusarvo 1024 MB jättää liikkumavaraa oletusarvoiselle 500 rivin erälle, jossa
+on 512 KiB:n artefaktit ja rungot käytössä, mukaan lukien BigQueryn tavupaloihin jaettu JSON-sarjallistaminen.
+Se ei tee 10000 rivin runkoerästä turvallista. V8-keon loppuminen kirjaa toimintakelpoisen virheen: pienennä eräkokoa
+tai kasvata arvoa `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`; kohdistin pysyy viimeisessä kuitatussa erässä.
+Moderni artefaktirajoitus ei kata historiallisia sisäisiä tai levylle tallennettuja runkoja.
+Ylläpitäjien on budjetoitava RSS erikseen, erityisesti muistirajoitetuissa säilöissä.
+
+Aliprosessi perii vain ratkaistun muuttujan `DATA_DIR`, muuttujan `NODE_ENV`, eksplisiittisen muuttujan `TZ` (vanhojen
+tiedostonimien paikallisen ajan ratkaisu), muuttujan `ELECTRON_RUN_AS_NODE`, jos se on asetettu, sekä seuraavat lähtevän
+liikenteen syötteet:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (ja niiden pienikirjaimiset muodot),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Yleinen Undici-välittäjä käyttää samaa palvelimen puhdasta ympäristöpohjaista välityspalvelimen ratkaisua ja
+paikallisten isäntien ohitussääntöjä, mukaan lukien `NO_PROXY`; se ei tuo tiedostoa `proxyFetch.ts` eikä sen
+tietokanta- tai ominaisuuslippuja. Välityspalvelimen tunnistetiedot peitetään välitetystä tulosteesta ja kirjatuista
+virheistä. Kohteen tunnistetiedot kulkevat vain yhdessä IPC-käynnistysviestissä, eivät koskaan argv-parametreissa tai
+ympäristössä; tulosteiden ja virheiden välitykseen lisätään etuliite, ja tiedot puhdistetaan. Aliprosessin
+suoritusargumenteissa poistetaan käytöstä vain `ExperimentalWarning`, jotta Noden SQLite-varoitus ei toistu jokaisella
+cron-ajolla; muut varoitustyypit pysyvät näkyvissä.
+
+Kohdemoduulien on oltava tuotavissa ilman Next.js- tai vain palvelimelle tarkoitettuja riippuvuuksia. Nykyinen
+BigQuery-toteutus täyttää jo tämän sopimuksen. Käyttöoikeustunnusten välimuistit säilyvät vain aliprosessin
+suorituksen ajan, eivät suoritusten välillä. Node on tuettu suoritusympäristö (`package.json`-tiedoston engines-määrityksen mukaisesti), mutta README-tiedoston Bun-
+asennusosio ja `Dockerfile.bun` tarjoavat myös tuotantoyhteensopivan polun, joka käyttää
+`bun:sqlite`-rajapintaa (`src/lib/db/core.ts` / sovittimet). Bun-ympäristössä viennit säilyttävät siksi aiemman
+prosessinsisäisen polun ja antavat kertaluonteisen varoituksen: aliprosessin keon ja aikakatkaisun eristys ei ole käytettävissä. Käytä
+Nodea tapahtumasilmukan ja OOM-tilanteiden eristämiseen; Bunia ei käsitellä tässä vain kehityskäyttöön tarkoitettuna.
+
+Kun `includeBodies` on käytössä, suosi minuuttitason ajoitusväliä, kuten
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"`, sen sijaan että kerryttäisit tunnin verran hyötykuormia jonoon.
+Erä- ja rivirajoitukset rajaavat edelleen jokaista suoritusta. Prosessin käynnistyskustannus syntyy kerran kohdetta ja suoritusta kohden;
+tässä pieni käynnistyskustannus vaihdetaan palvelimen tapahtumasilmukan eristykseen, ei kokonaisprosessorikäytön vähentämiseen.
+
+### Hyötykuormat (kehotteet ja vastaukset)
+
+Oletusarvoisesti vienti sisältää vain yhteenvetokentät, jotka lokien **luettelo** näyttää. Kun
+**Vie kehotteet ja vastaukset** (`includeBodies`) otetaan käyttöön, mukaan lähetetään lisäksi tiedot, jotka lokien **tiedot**-
+ruutu näyttää kustakin kutsusta:
+
+| Kenttä                           | Mitä se sisältää                                                |
+| -------------------------------- | --------------------------------------------------------------- |
+| `request_body` / `response_body` | Kutsun hyötykuormat kojelaudan esittämässä muodossa             |
+| `pipeline_route_decision`        | Reitittimen valitsema kohde ja malli                            |
+| `pipeline_client_request`        | Raakapyyntö täsmälleen asiakkaan lähettämässä muodossa          |
+| `pipeline_openai_request`        | Sisäiseen OpenAI-muotoon muuntamisen jälkeen                    |
+| `pipeline_provider_request`      | Ylävirtaan lähetetty pyyntö palveluntarjoajan muodossa          |
+| `pipeline_provider_response`     | Ylävirran raakavastaus                                          |
+| `pipeline_client_response`       | Kutsujalle palautettu sisältö                                   |
+| `pipeline_error`                 | Putkitason virheen tiedot epäonnistuneesta kutsusta             |
+| `bodies_truncated`               | Tosi, kun jokin yllä oleva kenttä saavutti `maxBodyBytes`-rajan |
 
 Tämä on kehotesisältöä, joten se on **oletusarvoisesti pois käytöstä** ja tarkoituksella kohdekohtainen valinta.
-Vientiin lähetetään se, minkä hallintapaneeli näyttää, koska molemmat lukevat tiedot funktion `getCallLogById`
-kautta: hyötykuormista on jo poistettu henkilötiedot ja salaisuudet niiden kirjoitusvaiheessa, eikä
-`noLog`-API-avaimella tehty kutsu tallenna lainkaan hyötykuormaa, joten vietävää ei ole.
+Lähetettävä sisältö vastaa kojelaudan näyttämää, koska vienti ja `getCallLogById` käyttävät samaa tietojen
+selvitystä: hyötykuormien
+henkilötiedot on jo puhdistettu ja salaisuudet peitetty niitä kirjoitettaessa, eikä `noLog`-API-avaimella tehty
+kutsu tallenna lainkaan hyötykuormaa, joten vietävää ei ole.
 
-Hyötykuormat luetaan rivikohtaisesti tiedostojärjestelmän artefaktista, joten niiden täydentäminen suoritetaan vain
-sitä pyytäneille kohteille. Rivi, jonka artefakti puuttuu tai on vioittunut, viedään yhteenvetona, jonka hyötykuormat
-ovat null-arvoisia, sen sijaan että erä epäonnistuisi ja kohdistin jäisi jumiin.
+Hyötykuormat luetaan tiedostojärjestelmän artefaktista rivi kerrallaan, joten täydentäminen suoritetaan vain sitä
+pyytäneille kohteille. Puuttuvan tai vioittuneen artefaktin yhteenveto viedään niin, että hyötykuormat ovat null-arvoja,
+sen sijaan että erä epäonnistuisi ja kohdistin jäisi jumiin.
 
-`maxBodyBytes` (oletus 262144) rajoittaa kunkin kentän kokoa. Pidemmät hyötykuormat **katkaistaan eikä
-hylätä** — katkaistu kehote vastaa silti kysymykseen ”mitä kysyttiin” — ja rivi merkitään kentällä
-`bodies_truncated`. Suoratoistettuja osakohtaisia deltoja ei viedä; koottu vastaus sisältyy jo kenttiin
-`pipeline_provider_response` ja `pipeline_client_response`.
+`maxBodyBytes` (oletusarvo 262144) rajoittaa kunkin kentän kokoa. Pidemmät hyötykuormat **katkaistaan sen sijaan,
+että ne poistettaisiin** — katkaistu kehote vastaa silti kysymykseen ”mitä kysyttiin” — ja rivi merkitään
+`bodies_truncated`-kentällä. Suoratoistettuja pala palalta saapuvia muutoksia ei viedä; koottu vastaus on
+jo kentissä `pipeline_provider_response` ja `pipeline_client_response`.
 
 ---
 
 ## 2. Tiedostot
 
-| Osa                            | Sijainti                                     |
-| ------------------------------ | -------------------------------------------- |
-| Kohteen sopimus                | `src/lib/logExport/types.ts`                 |
-| Rekisteri                      | `src/lib/logExport/registry.ts`              |
-| Salaisuuksien käsittely        | `src/lib/logExport/secrets.ts`               |
-| Suorittaja (kohdistinsilmukka) | `src/lib/logExport/runner.ts`                |
-| API-projektio                  | `src/lib/logExport/presenter.ts`             |
-| BigQuery-kohde                 | `src/lib/logExport/destinations/bigquery.ts` |
-| Google SA -todennus            | `src/lib/logExport/googleServiceAccount.ts`  |
-| Kutsulokien lähde              | `src/lib/usage/callLogExportSource.ts`       |
-| Pysyväistallennus              | `src/lib/db/logExportDestinations.ts`        |
-| Cron-työ                       | `src/lib/jobs/logExportJob.ts`               |
-| REST-kerros                    | `src/app/api/log-export/`                    |
-| Hallintapaneelisivu            | `src/app/(dashboard)/dashboard/log-export/`  |
+| Osa                              | Sijainti                                     |
+| -------------------------------- | -------------------------------------------- |
+| Kohdesopimus                     | `src/lib/logExport/types.ts`                 |
+| Rekisteri                        | `src/lib/logExport/registry.ts`              |
+| Salaisuuksien käsittely          | `src/lib/logExport/secrets.ts`               |
+| Suorittaja (yläprosessin IPC)    | `src/lib/logExport/runner.ts`                |
+| Prosessin elinkaari              | `src/lib/logExport/childRunner.ts`           |
+| Lapsiprosessin aloituspiste      | `src/lib/logExport/exportChild.ts`           |
+| Vain luku -avaaja                | `src/lib/db/logExportReadOnly.ts`            |
+| Jaettu kysely/vastaavuusmääritys | `src/lib/usage/callLogExportQueries.ts`      |
+| Tietojen ratkaisija              | `src/lib/usage/callLogDetailResolver.ts`     |
+| API-projektio                    | `src/lib/logExport/presenter.ts`             |
+| BigQuery-kohde                   | `src/lib/logExport/destinations/bigquery.ts` |
+| Google-palvelutilin todennus     | `src/lib/logExport/googleServiceAccount.ts`  |
+| Puhelulokilähde                  | `src/lib/usage/callLogExportSource.ts`       |
+| Pysyväistallennus                | `src/lib/db/logExportDestinations.ts`        |
+| Cron-työ                         | `src/lib/jobs/logExportJob.ts`               |
+| REST-kerros                      | `src/app/api/log-export/`                    |
+| Koontinäyttösivu                 | `src/app/(dashboard)/dashboard/log-export/`  |
 
 Skeema: `src/lib/db/migrations/170_log_export_destinations.sql`.
 

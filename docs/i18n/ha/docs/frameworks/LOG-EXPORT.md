@@ -16,82 +16,152 @@ bututun sarrafawar rajista ne, don haka za a iya ƙara ƙarin wuraren manufa.
 ## 1. Yadda yake aiki
 
 ```
-call_logs (SQLite)
-  → callLogExportSource.getCallLogsForExport(cursor, batchSize)
-    → LogExportRecord[]  (tarin filayen shafin Logs)
-      → destination client.send(batch)
-        → advanceLogExportCursor(id, lastRowId, count)
+sabar (warware ɓoyewa + tabbatar da config, daidaita cursor)
+  → fara IPC → keɓantaccen tsarin OS na exportChild
+    → storage.sqlite na karantawa-kawai → tambaya/daidaita call-log da aka raba
+      → cika artifact ta async → destination prepare()/send()
+        → IPC na batch → sabar ta adana cursor → IPC na ack
+          → batch na gaba; IPC na done → sabar ta rubuta nasara
 ```
 
-- **Jadawali** — aikin cron guda ɗaya na `JobRegistry`, `log_export`, wanda tsohon saitinsa shi ne `0 * * * *` (kowace awa,
+- **Jadawali** — aikin cron guda ɗaya na `JobRegistry`, `log_export`, wanda tsohon ƙimarsa ita ce `0 * * * *` (kowace awa,
   UTC). Ana yi masa rajista a `src/lib/initCloudSync.ts`; ana iya sauya shi da `OMNIROUTE_LOG_EXPORT_CRON`.
-  Kowane zagaye yana kwashe bayanan kowace manufa da aka **kunna**, ɗaya bayan ɗaya.
-- **Manunin matsayi** — `call_logs.rowid` na ɓoye na SQLite, wanda ake adanawa ga kowace manufa a
-  `log_export_destinations.cursor_row_id`. Da gangan ba a amfani da `timestamp` a matsayin manunin matsayi: masu kira
-  na iya samar da ƙimarsu da kansu, don haka ana iya rubuta buƙata mai jinkiri bayan wata mai sauri da ta fara
-  daga baya, kuma manunin matsayi na timestamp zai tsallake ta.
-- **Rarrabawa rukuni-rukuni** — layukan `batch_size` a kowace buƙata (tsohon saiti 500), layukan `max_rows_per_run` a kowane aiki
-  (tsohon saiti 10000) domin a kwashe babban tarin bayanan da suka jira a zagaye da dama maimakon ya toshe guda ɗaya.
-- **Isarwa** — manunin matsayi yana matsawa ne kawai bayan `send()` ya kammala. Rukuni da ya gaza yana barin
-  manunin matsayi a inda yake, don haka za a sake gwada waɗannan layuka a aiki na gaba. Tabbacin shi ne
-  isarwa-aƙalla-sau-ɗaya tare da cire maimaituwa a ɓangaren manufa, ba ainihin isarwa-sau-ɗaya-takal ba: BigQuery yana sanya wa kowane
-  layi maɓalli ta amfani da id na rajistan kiran, wanda yake mutuntawa bisa ƙoƙarin da ya fi dacewa a cikin tazarar cire maimaituwarsa.
-- **Kariyar cinkoso** — zagayen cron da `POST .../run` na iya faruwa tare. Ana tsallake manufa
-  da ake kan kwashewa maimakon a kwashe ta sau biyu (`skipped: true` a sakamakon aikin),
-  don haka aikin da ke gudana a lokaci guda ba zai iya sake aika rukuni ko mayar da manunin matsayi baya ba.
-- **Farfadowa bayan gogewa** — idan `cursor_row_id` ya kasance sama da `MAX(rowid)` (an
-  goge dukan teburin kuma rowids suka sake farawa), mai gudanarwar yana mayar da shi zuwa 0 maimakon ya daina ganin bayanai har abada.
+  Kowace tick tana fitar da bayanan kowace destination da aka **kunna**, ɗaya bayan ɗaya.
+- **Cursor** — `call_logs.rowid` na ɓoye na SQLite, wanda ake adanawa ga kowace destination a
+  `log_export_destinations.cursor_row_id`. Da gangan ba a amfani da `timestamp` a matsayin cursor: masu kira
+  na iya bayar da ƙimarsu, don haka ana iya rubuta request mai jinkiri bayan wanda ya fi sauri da ya fara
+  daga baya, kuma cursor na timestamp zai tsallake shi.
+- **Rarraba batch** — layuka `batch_size` a kowane request (tsohuwar ƙima 500), layuka `max_rows_per_run` a kowane run
+  (tsohuwar ƙima 10000), ta yadda za a fitar da tarin bayanai mai yawa a tick da dama maimakon ya toshe guda ɗaya.
+- **Isarwa** — cursor yana ci gaba ne kawai bayan `send()` ya kammala. Batch da ya gaza yana barin
+  cursor a inda yake, don haka za a sake gwada layukan a run na gaba. Garantin shi ne
+  aƙalla-sau-ɗaya tare da cire maimaituwa a ɓangaren destination, ba ainihin sau-ɗaya-takal ba: BigQuery yana sanya wa kowane
+  layi maɓalli ta amfani da id na call-log, wanda yake mutuntawa gwargwadon ƙoƙari a cikin tagar cire maimaituwarsa.
+- **Kariyar haɗuwar lokaci** — tick na cron da `POST .../run` na iya faruwa tare. Ana tsallake destination
+  da ake kan fitar da ita maimakon a fitar da ita sau biyu (`skipped: true` a sakamakon run),
+  don haka run da ke gudana lokaci guda ba zai iya sake aika batch ko mayar da cursor baya ba.
+- **Farfadowa bayan gogewa** — idan `cursor_row_id` ya ƙare sama da `MAX(rowid)` (an
+  share dukkan teburin kuma rowids sun sake farawa), runner zai mayar da shi zuwa 0 maimakon ya daina ganin bayanai har abada.
 
-### Abubuwan da ake aikawa (umarnin shigarwa da amsoshi)
+### Keɓantaccen runner da iyakoki
 
-A tsohon saiti, fitarwar tana ɗauke ne kawai da filayen taƙaitawa da **jerin** Logs yake nunawa. Kunna
-**Fitar da umarnin shigarwa da amsoshi** (`includeBodies`) yana kuma aika abin da sashen **cikakkun bayanai**
-na Logs yake nunawa ga kowane kira:
+Kowane run na destination a Node yana fara wani keɓantaccen tsarin OS na ɗan lokaci (`child_process`
+tare da IPC, ba `worker_threads` ba). Karanta body, parsing/serialization na payload JSON, `prepare()`
+na destination da network I/O na destination duk suna gudana a can, ba a event loop na sabar ba.
+Configuration da ƙananan saƙonnin ci gaba kawai ke wucewa ta IPC; bayanan da aka fitar ba sa komawa
+sabar. Aikin cron da route na Run now suna riƙe da sakamakon jama'a da kariyar haɗuwar lokaci iri ɗaya.
 
-| Fili                             | Abin da yake ƙunshe da shi                                      |
-| -------------------------------- | --------------------------------------------------------------- |
-| `request_body` / `response_body` | Bayanan kiran kamar yadda dashboard yake nuna su                |
-| `pipeline_route_decision`        | Manufa da samfurin da na'urar zaɓar hanya ta zaɓa               |
-| `pipeline_client_request`        | Ainihin buƙatar yadda abokin ciniki ya aiko ta                  |
-| `pipeline_openai_request`        | Bayan fassara zuwa tsarin OpenAI na ciki                        |
-| `pipeline_provider_request`      | Yadda aka aika ta zuwa sama a zahiri, cikin tsarin mai samarwa  |
-| `pipeline_provider_response`     | Ainihin amsar daga sama                                         |
-| `pipeline_client_response`       | Abin da aka mayar wa mai kira                                   |
-| `pipeline_error`                 | Cikakken kuskuren matakin bututun sarrafawa na kiran da ya gaza |
-| `bodies_truncated`               | Gaskiya idan wani fili a sama ya kai `maxBodyBytes`             |
+Child yana buɗe `DATA_DIR/storage.sqlite` da sabar ta warware a yanayin karantawa-kawai ta amfani da `node:sqlite`,
+tare da `busy_timeout=5000` da `query_only=ON`. Ba ya import ɗin DB singleton kuma ba ya yin
+migrations, backups ko sabuntawar SQLite. Kula da artifact da ya ɓace/lalata (ciki har da
+UPDATE na corrupt-artifact) yana nan ne kawai a hanyar bayanan dashboard. Duk hanyoyin biyu suna amfani da pure
+detail resolver guda ɗaya; export yana amfani da karatun filesystem na asynchronous da tsarin warwarewa iri ɗaya na artifact → legacy
+inline → legacy disk → none. Run yana ɗaukar snapshot na mafi girman rowid na shigarwa
+lokacin da child ya buɗe reader ɗinsa; sabbin shigarwa daga baya suna jira har run na gaba. Wannan iyakar
+shigarwa ce, ba dogon transaction na SQLite ba: masu rubutun WAL da checkpoints suna ci gaba da walwala yayin
+jiran network. Wannan iyaka ba ta daskarar da sabuntawa/gogewar layukan da suke akwai ba.
 
-Wannan abun cikin umarnin shigarwa ne, don haka a tsohon saiti yana **kashe**, kuma da gangan zaɓi ne na kowace manufa.
-Abin da ake aikawa shi ne abin da dashboard yake nunawa, saboda dukansu suna karantawa ta `getCallLogById`: an riga an
-tsabtace bayanan PII kuma an ɓoye sirrika lokacin rubuta su, sannan kiran da aka yi da
-maɓallin API na `noLog` ba ya adana wani bayanin da aka aika ko kaɗan, don haka babu abin da za a fitar.
+Bayan kowane batch da aka karɓa, child yana jiran amincewa. Da farko sabar tana adana
+cursor da `advanceLogExportCursor`, sannan ta aika `ack`; ba a fara batch na gaba kafin wannan ba.
+Gazawar aikawa, crash ko timeout suna rubuta gazawa ba tare da ciyar da batch ɗin gaba ba. Batch-batch ɗin da aka
+amince da su a baya suna ci gaba da kasancewa committed; aƙalla batch guda ɗaya da ba a amince da shi ba ne kawai za a iya sake aikawa.
+Ana rubuta nasara ne kawai bayan `done` da fitar child cikin tsabta. Gazawa tana dakatar da child
+da SIGTERM, sannan ta koma SIGKILL bayan 500 ms, kuma runner yana jiran rufewar process.
 
-Ana karanta bayanan da ake aikawa na kowane layi daga fayil ɗin artifact na filesystem, don haka cika bayanai yana gudana ne kawai ga wuraren manufa
-da suka buƙace shi. Layi wanda artifact ɗinsa ya ɓace ko ya lalace yana fitar da taƙaitawarsa tare da
-bayanan da aka aika na null maimakon ya sa rukunin ya gaza ya kuma makale manunin matsayi.
+| Environment variable                          | Tsohuwar ƙima | Manufa                                     |
+| --------------------------------------------- | ------------- | ------------------------------------------ |
+| `OMNIROUTE_LOG_EXPORT_RUN_TIMEOUT_MS`         | 900000        | Iyakar lokaci ga kowace destination        |
+| `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB` | 1024          | Iyakar old-space ta V8 ga child a cikin MB |
 
-`maxBodyBytes` (tsohon saiti 262144) yana iyakance kowane fili. Ana **datse** bayanai masu tsawo maimakon
-watsar da su — umarnin shigarwa da aka datse har yanzu yana amsa "me aka tambaya" — kuma ana yi wa layin alama da
-`bodies_truncated`. Ba a fitar da deltas da aka watsa guntu-guntu; haɗaɗɗiyar amsar ta riga ta kasance
-a `pipeline_provider_response` da `pipeline_client_response`.
+Ƙimomi marasa inganci/marasa kyau/marasa zama cikakkun lambobi suna amfani da tsoffin ƙimomi. Saitin heap ba cikakkiyar
+iyakar RSS ba ce; batch masu girma ƙwarai za su iya cinye memory na child su sa run ya gaza cikin aminci.
+Tsohuwar ƙimar 1024 MB tana barin sarari ga tsohon batch na layuka 500 na artifact masu 512 KiB tare da
+kunna bodies, gami da serialization na JSON da BigQuery ke yi bisa gutsattsarin byte. Ba ta sa
+batch na bodies mai layuka 10000 ya zama mai aminci ba. Ƙarewar heap ta V8 tana rubuta gazawa da za a iya gyarawa: rage girman
+batch ko ƙara `OMNIROUTE_LOG_EXPORT_CHILD_MAX_OLD_SPACE_MB`; cursor yana nan a batch na ƙarshe
+da aka amince da shi. Historical inline/disk bodies ba sa ƙarƙashin iyakar artifact ta zamani.
+Dole ne operators su tsara kasafin RSS daban, musamman a cikin containers masu iyakantaccen memory.
+
+Child yana gado ne kawai daga resolved `DATA_DIR`, `NODE_ENV`, explicit `TZ` (warware legacy filename
+bisa local-time), `ELECTRON_RUN_AS_NODE` idan yana nan, da waɗannan outbound inputs:
+`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` (da siffofinsu na lowercase),
+`OMNIROUTE_LOCAL_PROVIDER_NODE_HOSTS`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `SSL_CERT_DIR`.
+Global Undici dispatcher yana amfani da pure environment-proxy resolution na sabar da ƙa'idojin
+kauce wa local-host, gami da `NO_PROXY`; ba ya import ɗin `proxyFetch.ts` ko DB/feature flags nasa.
+Ana ɓoye proxy credentials daga output da aka tura da errors da aka rubuta. Credentials na destination
+suna tafiya ne kawai a cikin saƙon IPC na farawa guda ɗaya, ba a argv ko environment ba; tura output/error yana
+da prefix kuma an tsabtace shi. `ExperimentalWarning` kawai ake kashewa a child exec arguments domin guje wa
+maimaita gargaɗin SQLite na Node a kowane run na cron; sauran nau'ikan warning suna ci gaba da kasancewa a bayyane.
+
+Dole ne a iya shigo da manhajojin manufa ba tare da dogaro da Next.js/abubuwan da ake amfani da su a uwar garke kaɗai ba. Aiwatarwar
+BigQuery da ake da ita ta riga ta cika wannan ƙa’ida. Ma’ajiyar wucin gadi ta access-token tana aiki ne kawai na tsawon
+gudanarwar child ɗin, ba ta ci gaba daga wata gudanarwa zuwa wata ba. Node ne runtime da ake tallafawa (`package.json` engines), amma sashen
+shigar da Bun na README da `Dockerfile.bun` suna kuma nuna wata hanyar dacewa da yanayin samarwa da ke amfani da
+`bun:sqlite` (`src/lib/db/core.ts` / adapters). Saboda haka, a ƙarƙashin Bun, exports suna ci gaba da amfani da hanyar
+in-process ta baya kuma suna fitar da gargaɗi sau ɗaya: babu killacewar heap/timeout ta child. Yi amfani da
+Node don killace event-loop da OOM; ba a ɗauki Bun a matsayin na dev-only a nan ba.
+
+Lokacin da aka kunna `includeBodies`, fi son jadawalin kowane ƴan mintuna kamar
+`OMNIROUTE_LOG_EXPORT_CRON="*/5 * * * *"` maimakon tara bayanan payload na tsawon awa guda.
+Iyakokin batch da row har yanzu suna iyakance kowace gudanarwa. Ana biyan kuɗin fara process ga kowace manufa a kowace gudanarwa;
+wannan yana musanya ƙaramin kuɗin farawa da killace event-loop na uwar garke, ba rage jimillar amfani da CPU ba.
+
+### Payloads (prompts da completions)
+
+A tsoho, export ɗin yana ɗauke ne kawai da filayen taƙaitawa da jerin **list** na Logs ke nunawa. Kunna
+**Export prompts and responses** (`includeBodies`) yana kuma aika abin da ɓangaren **detail** na Logs
+ke nunawa ga kowace kira:
+
+| Field                            | Abin da yake ɗauke da shi                                          |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `request_body` / `response_body` | Payloads na kiran yadda dashboard ke nuna su                       |
+| `pipeline_route_decision`        | Target da model da router ya zaɓa                                  |
+| `pipeline_client_request`        | Raw request daidai yadda client ya aika da shi                     |
+| `pipeline_openai_request`        | Bayan fassara shi zuwa tsarin OpenAI na ciki                       |
+| `pipeline_provider_request`      | Yadda aka aika da shi upstream a zahiri, cikin tsarin provider     |
+| `pipeline_provider_response`     | Raw response na upstream                                           |
+| `pipeline_client_response`       | Abin da aka mayar wa mai kiran                                     |
+| `pipeline_error`                 | Cikakken bayani na kuskuren matakin pipeline ga kira da ya gaza    |
+| `bodies_truncated`               | True idan wani daga cikin filayen da ke sama ya kai `maxBodyBytes` |
+
+Wannan abun cikin prompt ne, don haka yana **a kashe a tsoho** kuma da gangan zaɓi ne na kowace manufa.
+Abin da ake aika shi ne abin da dashboard ke nunawa, domin export da `getCallLogById` suna amfani da hanyar
+warware cikakkun bayanai iri ɗaya: an riga an
+cire PII daga payloads tare da ɓoye sirrika lokacin da ake rubuta su, kuma kira da aka yi da maɓallin API mai
+`noLog` ba ya adana kowane payload kwata-kwata, don haka babu abin da za a export.
+
+Ana karanta payloads ga kowace row daga artifact na filesystem, don haka hydration yana gudana ne kawai ga manufofin
+da suka buƙace shi. Idan artifact ya ɓace ko ya lalace, za a export da taƙaitawarsa tare da null payloads
+maimakon batch ya gaza ya kuma bar cursor makale.
+
+`maxBodyBytes` (tsoho 262144) yana iyakance kowane field. Ana **datse payloads masu tsawo maimakon
+watsar da su** — prompt da aka yanke har yanzu yana amsa "me aka tambaya" — kuma ana yi wa row alama da
+`bodies_truncated`. Ba a export da deltas da aka watsa chunk-by-chunk; assembled response ya
+riga ya kasance a cikin `pipeline_provider_response` da `pipeline_client_response`.
 
 ---
 
 ## 2. Fayiloli
 
-| Ɓangare                         | Wuri                                         |
-| ------------------------------- | -------------------------------------------- |
-| Kwangilar manufa                | `src/lib/logExport/types.ts`                 |
-| Rajista                         | `src/lib/logExport/registry.ts`              |
-| Sarrafa sirri                   | `src/lib/logExport/secrets.ts`               |
-| Mai gudanarwa (madaukin cursor) | `src/lib/logExport/runner.ts`                |
-| Tsarin fitarwa na API           | `src/lib/logExport/presenter.ts`             |
-| Manufar BigQuery                | `src/lib/logExport/destinations/bigquery.ts` |
-| Tantancewar Google SA           | `src/lib/logExport/googleServiceAccount.ts`  |
-| Tushen rajistan kira            | `src/lib/usage/callLogExportSource.ts`       |
-| Adana bayanai                   | `src/lib/db/logExportDestinations.ts`        |
-| Aikin Cron                      | `src/lib/jobs/logExportJob.ts`               |
-| Matakin REST                    | `src/app/api/log-export/`                    |
-| Shafin dashboard                | `src/app/(dashboard)/dashboard/log-export/`  |
+| Sashi                             | Wuri                                         |
+| --------------------------------- | -------------------------------------------- |
+| Kwangilar manufa                  | `src/lib/logExport/types.ts`                 |
+| Rajista                           | `src/lib/logExport/registry.ts`              |
+| Gudanar da sirrika                | `src/lib/logExport/secrets.ts`               |
+| Mai gudanarwa (IPC na uwar tsari) | `src/lib/logExport/runner.ts`                |
+| Zagayowar rayuwar tsari           | `src/lib/logExport/childRunner.ts`           |
+| Mashigar ƙaramin tsari            | `src/lib/logExport/exportChild.ts`           |
+| Mai buɗewa na karantawa kawai     | `src/lib/db/logExportReadOnly.ts`            |
+| Tambaya/daidaitawa ta bai ɗaya    | `src/lib/usage/callLogExportQueries.ts`      |
+| Mai warware cikakkun bayanai      | `src/lib/usage/callLogDetailResolver.ts`     |
+| Tsarawar API                      | `src/lib/logExport/presenter.ts`             |
+| Manufar BigQuery                  | `src/lib/logExport/destinations/bigquery.ts` |
+| Tantancewar Google SA             | `src/lib/logExport/googleServiceAccount.ts`  |
+| Tushen rajistar kira              | `src/lib/usage/callLogExportSource.ts`       |
+| Adana bayanai                     | `src/lib/db/logExportDestinations.ts`        |
+| Aikin Cron                        | `src/lib/jobs/logExportJob.ts`               |
+| Matakin REST                      | `src/app/api/log-export/`                    |
+| Shafin dashboard                  | `src/app/(dashboard)/dashboard/log-export/`  |
 
 Tsarin bayanai: `src/lib/db/migrations/170_log_export_destinations.sql`.
 
