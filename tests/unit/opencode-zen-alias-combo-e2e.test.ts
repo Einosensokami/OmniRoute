@@ -126,22 +126,21 @@ after(async () => {
 // ─── Tests ──────────────────────────────────────────────────────────────
 
 describe("opencode-zen ↔ opencode alias fix (end-to-end)", () => {
-  it("getCanonicalModelMetadata({provider:'opencode', model:'big-pickle'}) returns full metadata", () => {
+  it("restored Free returns its own big-pickle metadata independently of Zen", () => {
     const md = registry.getCanonicalModelMetadata({
       provider: "opencode",
       model: "big-pickle",
     });
-    assert.ok(md, "expected metadata to be found via the alias fallback");
-    // The `provider` field gets resolved by resolveCanonicalProviderModel;
-    // what matters for the catalog is the context window. The fix ensures
-    // the opencode-zen row is found, so contextWindow is 200k.
+    assert.ok(md, "expected metadata for the restored Free provider");
     assert.equal(md?.model, "big-pickle");
-    assert.equal(md?.limits.contextWindow, 200000, "context window via alias fallback");
-    assert.equal(md?.limits.maxOutputTokens, 128000, "max output via alias fallback");
+    assert.equal(md?.limits.contextWindow, 200000);
+    assert.equal(md?.limits.maxOutputTokens, 128000);
     assert.equal(md?.capabilities.toolCalling, true);
     assert.equal(md?.capabilities.reasoning, true);
     assert.deepEqual(md?.modalities.input, ["text"]);
-    assert.equal(md?.metadata.source.syncedCapability, true);
+    // Free is a separate provider again; it uses its registry metadata, not Zen's
+    // connection-scoped synced capabilities.
+    assert.equal(md?.metadata.source.syncedCapability, false);
   });
 
   it("combo of 4 opencode/* targets computes context_length = min(known) = 200000", () => {

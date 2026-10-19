@@ -31,13 +31,14 @@ test.after(async () => {
   fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 });
 
-test("retired OpenCode Free never resolves synthetic credentials with a forced noauth pin", async () => {
-  assert.equal(Object.hasOwn(NOAUTH_PROVIDERS, "opencode"), false);
+test("restored Free resolves synthetic credentials with a forced noauth pin", async () => {
+  assert.equal(Object.hasOwn(NOAUTH_PROVIDERS, "opencode"), true);
   for (const allowed of [null, [] as string[], ["noauth"]]) {
     const creds = await auth.getProviderCredentials("opencode", null, allowed, "big-pickle", {
       forcedConnectionId: "noauth",
     });
-    assert.equal(creds, null, `allowed=${JSON.stringify(allowed)}: Free must remain retired`);
+    assert.equal(creds?.connectionId, "noauth", `allowed=${JSON.stringify(allowed)}`);
+    assert.equal(creds?.apiKey, null);
   }
 });
 
@@ -54,8 +55,8 @@ test("authenticated Zen retains live-catalog scoping when one model was synced",
     { id: "big-pickle", name: "Big Pickle", source: "imported" },
   ]);
 
-  // The long user alias still resolves to authenticated Zen; retired oc does not.
-  for (const prefix of ["opencode-zen", "opencode"]) {
+  // Restored Free has its own catalog and must not inherit keyed Zen's restrictions.
+  for (const prefix of ["opencode-zen"]) {
     const synced = await getModelInfo(`${prefix}/big-pickle`);
     assert.equal(
       synced.errorType,

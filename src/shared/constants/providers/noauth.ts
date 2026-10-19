@@ -3,6 +3,21 @@
  * Pure data literal; re-exported by the providers.ts barrel. No behavior change.
  */
 export const NOAUTH_PROVIDERS = {
+  opencode: {
+    id: "opencode",
+    alias: "oc",
+    name: "OpenCode Free",
+    icon: "opencode",
+    color: "#18181B",
+    textIcon: "OC",
+    website: "https://opencode.ai",
+    noAuth: true,
+    hasFree: true,
+    serviceKinds: ["llm"],
+    freeNote: "Free models — availability and usage limits are controlled by OpenCode.",
+    authHint: "No API key required for free models. Use OpenCode Zen or Go for paid models.",
+    toolCalling: "native",
+  },
   "devin-cli-agentic": {
     id: "devin-cli-agentic",
     alias: "dva",

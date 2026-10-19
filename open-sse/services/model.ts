@@ -627,13 +627,13 @@ async function resolveModelByProviderInference(modelId: string, extendedContext:
     }
   }
 
-  // OpenCode Zen catalog ids (`big-pickle`, `*-free`) route to opencode-zen
+  // OpenCode free catalog ids (`big-pickle`, `*-free`) route to an active family provider
   // when it is active — prevents prefix inference from misrouting -free names
   // to other providers when the live catalog is temporarily unreachable.
   if (modelId === "big-pickle" || modelId.endsWith("-free")) {
     const candidates = MODEL_TO_PROVIDERS.get(modelId) || [];
     const activeOpencodeCandidate = candidates.find(
-      (p) => p === "opencode-zen" && activeProviders?.has(p)
+      (p) => (p === "opencode" || p === "opencode-zen") && activeProviders?.has(p)
     );
     if (activeOpencodeCandidate) {
       return { provider: activeOpencodeCandidate, model: modelId, extendedContext };

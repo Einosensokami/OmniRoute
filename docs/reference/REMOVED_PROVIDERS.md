@@ -17,6 +17,14 @@ This page is **not** a list of dead or discontinued services. Those are tracked 
 does. The entries below can only come back with written permission from the operator named in
 the request, and that permission must be linked from the entry.
 
+## Fork exception
+
+On 2026-10-19 the operator of this fork explicitly authorized restoring the keyless
+OpenCode Free provider. The upstream removal record below is retained as history; this
+exception applies only to this fork, and does not represent permission from OpenCode.
+The restored registry is `open-sse/config/providers/registry/opencode/index.ts`, with
+provider id `opencode` and routing alias `oc`. Authenticated Zen and Go remain separate.
+
 ## Policy
 
 1. **A takedown request from a service operator is honored, not negotiated.** OmniRoute is

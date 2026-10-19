@@ -54,23 +54,6 @@ export const REMOVED_PROVIDERS: readonly RemovedProvider[] = [
     domains: ["studio-api.suno.ai", "studio-api-prod.suno.com"],
     removalPr: 14468,
   },
-  {
-    // Keyless "OpenCode Free". Its upstream host (opencode.ai/zen) is shared with the
-    // paid `opencode-zen`/`opencode-go` providers, which stay, so no domain is guarded.
-    id: "opencode",
-    alias: "oc",
-    domains: [],
-    removalPr: 16310,
-    sourceNeedles: [
-      'id: "opencode"',
-      'alias: "oc"',
-      '"oc"',
-      "opencode: opencodeProvider",
-      "opencode: {",
-      "opencode: () =>",
-      "registry/opencode/index.ts",
-    ],
-  },
 ];
 
 // Source trees where a reintroduction would land. Scanned for ids, aliases and domains.
@@ -158,26 +141,11 @@ test("the REMOVED_PROVIDERS doc lists every guarded id", () => {
   }
 });
 
-test("the opencode guard leaves the paid OpenCode providers and the client integration alone", () => {
-  // opencode-zen / opencode-go stay registered, with their own executors.
-  assert.ok(REGISTRY["opencode-zen"], "opencode-zen must stay in REGISTRY");
-  assert.ok(REGISTRY["opencode-go"], "opencode-go must stay in REGISTRY");
-  assert.ok(getProviderById("opencode-zen"), "opencode-zen must stay a provider");
-  assert.ok(getProviderById("opencode-go"), "opencode-go must stay a provider");
-  assert.equal(hasSpecializedExecutor("opencode-zen"), true);
-  assert.equal(hasSpecializedExecutor("opencode-go"), true);
-  // The needles never match the kept declarations.
-  const opencode = REMOVED_PROVIDERS.find((r) => r.id === "opencode");
-  assert.ok(opencode?.sourceNeedles);
-  for (const kept of [
-    'id: "opencode-zen"',
-    'alias: "opencode-go"',
-    '"opencode-zen": () =>',
-    'executor: "opencode"',
-    'icon: "opencode"',
-  ]) {
-    for (const needle of opencode.sourceNeedles) {
-      assert.equal(kept.includes(needle), false, `needle ${needle} must not match ${kept}`);
-    }
+test("the fork restores Free alongside authenticated Zen and Go", () => {
+  for (const provider of ["opencode", "opencode-zen", "opencode-go"]) {
+    assert.ok(REGISTRY[provider]);
+    assert.ok(getProviderById(provider));
+    assert.equal(hasSpecializedExecutor(provider), true);
   }
+  assert.equal(getProviderByAlias("oc")?.id, "opencode");
 });

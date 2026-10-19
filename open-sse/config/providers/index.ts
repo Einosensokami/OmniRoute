@@ -201,6 +201,7 @@ import { ant_lingProvider } from "./registry/ant-ling/index.ts";
 import { vercel_ai_gatewayProvider } from "./registry/vercel-ai-gateway/index.ts";
 import { v0_vercelProvider } from "./registry/v0-vercel/index.ts";
 import { opencode_zenProvider } from "./registry/opencode/zen/index.ts";
+import { opencodeProvider } from "./registry/opencode/index.ts";
 import { opencode_goProvider } from "./registry/opencode/go/index.ts";
 import { dahlProvider } from "./registry/dahl/index.ts";
 import { maritalkProvider } from "./registry/maritalk/index.ts";
@@ -491,6 +492,7 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   "vercel-ai-gateway": vercel_ai_gatewayProvider,
   "v0-vercel": v0_vercelProvider,
   "opencode-zen": opencode_zenProvider,
+  opencode: opencodeProvider,
   "opencode-go": opencode_goProvider,
   dahl: dahlProvider,
   maritalk: maritalkProvider,

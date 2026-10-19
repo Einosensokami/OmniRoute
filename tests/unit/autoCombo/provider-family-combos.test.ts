@@ -174,11 +174,13 @@ describe("auto/<family> materialization (#6453)", () => {
     // `cloudflare-playground` joined on the same rule — its registry
     // (open-sse/config/providers/registry/cloudflare-playground/index.ts) advertises
     // zai-org/glm-5.2 and zai-org/glm-4.7-flash, so it genuinely serves the family.
+    // This fork restores OpenCode Free, whose catalog includes glm-5.3-flash-free.
     assert.deepEqual(providerIds, [
       "auggie",
       "cloudflare-playground",
       "devin-cli-agentic",
       "glm",
+      "opencode",
       "zai",
       "zcode",
     ]);

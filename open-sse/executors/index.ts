@@ -74,6 +74,7 @@ const lazyExecutors: Record<string, () => Promise<BaseExecutor>> = {
   freebuff: () => import("./freebuff.ts").then((m) => new m.FreebuffExecutor()),
   fb: () => import("./freebuff.ts").then((m) => new m.FreebuffExecutor()), // Alias
   "opencode-zen": () => import("./opencode.ts").then((m) => new m.OpencodeExecutor("opencode-zen")),
+  opencode: () => import("./opencode.ts").then((m) => new m.OpencodeExecutor("opencode")),
   "opencode-go": () => import("./opencode.ts").then((m) => new m.OpencodeExecutor("opencode-go")),
   vertex: () => import("./vertex.ts").then((m) => new m.VertexExecutor()),
   "vertex-partner": () => import("./vertex.ts").then((m) => new m.VertexExecutor()),

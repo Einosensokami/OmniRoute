@@ -19,8 +19,9 @@ test("removing Free preserves all six authenticated Zen catalog rows", () => {
   assert.ok(actual.every((row) => row.poolKey === "opencode-zen-free"));
 });
 
-test("Free is absent while authenticated Zen and Go model registries remain", () => {
-  assert.equal(Object.hasOwn(NOAUTH_PROVIDERS, "opencode"), false);
+test("fork restores Free while authenticated Zen and Go model registries remain", () => {
+  assert.equal(Object.hasOwn(NOAUTH_PROVIDERS, "opencode"), true);
+  assert.ok(PROVIDER_MODELS.oc.length > 0);
   assert.equal(
     FREE_MODEL_BUDGETS.some((row) => row.provider === "opencode"),
     false
