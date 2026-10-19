@@ -731,8 +731,9 @@ jobs:
     name: Build
     # Dynamic runner: when the release captain flips the USE_VPS_RUNNER repo var to
     # 'true' (scripts/vps/release-runner-up.sh does it after the self-hosted VM is
-    # online), push/dispatch Builds of main and release/** run on the .113 build slot
-    # (label omni-build) with the Turbopack bundler that npm-publish ships.
+    # online), push Builds (main only: release/** pushes stopped running this workflow
+    # in #17092) and workflow_dispatch Builds run on the .113 build slot (label
+    # omni-build) with the Turbopack bundler that npm-publish ships.
     # Pull requests (own-origin and forks) and merge_group always build on the hosted
     # pool with webpack (2026-10-18): the slot is ONE runner and a Turbopack Build holds
     # it 29-58 min, so with every own-origin PR routed there 18 Builds queued for up to
