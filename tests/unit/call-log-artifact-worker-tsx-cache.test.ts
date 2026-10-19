@@ -13,8 +13,12 @@ import path from "node:path";
 const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "omniroute-call-log-worker-tsx-"));
 process.env.DATA_DIR = TEST_DATA_DIR;
 
-const { writeCallArtifactAsync, closeCallLogArtifactWriter, __setCallLogWorkerOverrideForTests } =
-  await import("../../src/lib/usage/callLogArtifactWriter.ts");
+const {
+  writeCallArtifactAsync,
+  closeCallLogArtifactWriter,
+  callLogWorkerOptions,
+  __setCallLogWorkerOverrideForTests,
+} = await import("../../src/lib/usage/callLogArtifactWriter.ts");
 
 const probeWorkerFile = path.join(TEST_DATA_DIR, "env-probe-worker.mjs");
 fs.writeFileSync(
@@ -76,4 +80,15 @@ test("a worker started through tsx skips tsx's disk cache", async () => {
     error: null,
   });
   assert.equal(result?.relPath, "1");
+});
+
+test("a compiled worker keeps the default worker environment", () => {
+  assert.deepEqual(callLogWorkerOptions([]), { execArgv: [] });
+});
+
+test("a tsx worker gets the parent environment plus TSX_DISABLE_CACHE", () => {
+  const options = callLogWorkerOptions(["--import", "tsx/esm"]);
+  assert.deepEqual(options.execArgv, ["--import", "tsx/esm"]);
+  assert.equal(options.env?.TSX_DISABLE_CACHE, "1");
+  assert.equal(options.env?.DATA_DIR, process.env.DATA_DIR);
 });
