@@ -80,7 +80,9 @@ import { adoptState, mergeAdoptedState, refreshTargetHashes } from "./lib/transl
 // warning) in environments where node_modules has not been installed. The
 // formatter is applied to every translated file before its hash is recorded,
 // so a subsequent lint-staged Prettier pass cannot mutate the file content
-// out from under `.i18n-state.json`.
+// out from under `.i18n-state.json`. That only holds with the options the
+// `prettier --write` CLI resolves for the same path (prettier.config.mjs +
+// .editorconfig); Prettier's defaults wrap at 80 columns instead of 100.
 let prettierMod = null;
 async function getPrettier() {
   if (prettierMod !== null) return prettierMod;
@@ -96,7 +98,8 @@ export async function formatMarkdown(content, fileName) {
   const p = await getPrettier();
   if (!p) return content;
   try {
-    return await p.format(content, { parser: "markdown", filepath: fileName });
+    const config = (await p.resolveConfig(fileName, { editorconfig: true })) ?? {};
+    return await p.format(content, { ...config, parser: "markdown", filepath: fileName });
   } catch (err) {
     logWarn(`prettier could not format ${fileName}: ${err.message}`);
     return content;
