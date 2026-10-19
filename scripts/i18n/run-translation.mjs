@@ -92,7 +92,7 @@ async function getPrettier() {
   return prettierMod;
 }
 
-async function formatMarkdown(content, fileName) {
+export async function formatMarkdown(content, fileName) {
   const p = await getPrettier();
   if (!p) return content;
   try {
