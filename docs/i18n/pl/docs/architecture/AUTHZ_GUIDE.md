@@ -23,98 +23,127 @@ Używany przez interfejsy API klientów zgodnych z OpenAI/Anthropic/Gemini oraz 
 Authorization: Bearer <api-key>
 ```
 
-Weryfikowany przez `isValidApiKey()` / `extractApiKey()` w `src/sse/services/auth.ts` i ponownie eksportowany przez `src/shared/utils/apiAuth.ts`. Walidator akceptuje również zmienne środowiskowe `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` jako trwałe klucze przekazywane bezpośrednio (zgłoszenie #1350).
+Weryfikowany przez `isValidApiKey()` / `extractApiKey()` w `src/sse/services/auth.ts` i ponownie eksportowany przez `src/shared/utils/apiAuth.ts`. Walidator akceptuje również zmienne środowiskowe `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` jako trwałe klucze przekazywane bez zmian (zgłoszenie #1350).
 
-### 2. Sesja panelu administracyjnego (ciasteczko auth_token)
+### 2. Sesja panelu (ciasteczko auth_token)
 
-Używana na stronach panelu administracyjnego i do operacji administracyjnych.
+Do stron panelu i operacji administracyjnych.
 
 ```
-Cookie: auth_token=<JWT signed with JWT_SECRET>
+Cookie: auth_token=<JWT podpisany za pomocą JWT_SECRET>
 ```
 
-Ciasteczko jest sesją tylko wtedy, gdy JWT przejdzie weryfikację **i** zawiera `authenticated: true`
+Ciasteczko jest sesją tylko wtedy, gdy token JWT przejdzie weryfikację **i** zawiera `authenticated: true`
 (`src/shared/utils/dashboardSessionToken.ts` → `verifyDashboardSessionToken`). Każdy
-komponent korzystający z ciasteczka (mechanizm ochrony tras panelu (`isDashboardSessionAuthenticated()`), odświeżanie potoku autoryzacji, uzgadnianie połączenia WebSocket, serwer działający na żywo, `/api/settings/require-login`, `/api/auth/status`) korzysta z tego pomocnika.
-Istnieją też inne tokeny JWT podpisane za pomocą `JWT_SECRET` — mechanizm przekazywania Cursor CLI generuje
-dla posiadaczy kluczy tokeny z `iss "omniroute" / aud "cursor-cli"` — które nigdy nie są sesjami
+komponent korzystający z ciasteczka (mechanizm ochrony tras panelu (`isDashboardSessionAuthenticated()`), odświeżanie potoku autoryzacji, uzgadnianie połączenia WebSocket, serwer
+na żywo, `/api/settings/require-login`, `/api/auth/status`) używa tego pomocnika.
+Istnieją inne tokeny JWT podpisane za pomocą `JWT_SECRET` — mechanizm przekazywania Cursor CLI generuje
+dla posiadaczy kluczy tokeny `iss "omniroute" / aud "cursor-cli"` — które nigdy nie są sesjami
 (#13298).
 
-Weryfikacja odbywa się za pomocą `isDashboardSessionAuthenticated()` w `src/shared/utils/apiAuth.ts`. Potok automatycznie odświeża JWT, gdy do końca jego 30-dniowego okresu ważności pozostało mniej niż 7 dni.
+Weryfikowana przez `isDashboardSessionAuthenticated()` w `src/shared/utils/apiAuth.ts`. Potok automatycznie odświeża token JWT, gdy do końca jego 30-dniowego okresu ważności pozostało mniej niż 7 dni.
 
-Sesja może również zakończyć się przed upływem 30 dni, ponieważ każdy mechanizm generujący korzysta z `mintDashboardSessionToken` (czasu wydania `iat` i identyfikatora `jti`), a weryfikator sprawdza dwa ustawienia: `sessionsValidAfter`, ustawiane po zmianie hasła, dzięki czemu każda sesja wydana wcześniej przestaje przechodzić weryfikację (przeglądarka, w której zmieniono hasło, otrzymuje nowe ciasteczko), oraz `revokedDashboardSessions`, do którego `POST /api/auth/logout` dodaje `jti` wylogowanej sesji. Sesje wygenerowane przez starszą wersję nie zawierają żadnego z tych oświadczeń i pozostają ważne do pierwszej zmiany hasła. Jeśli nie można odczytać ustawień, sesja nie jest uznawana za zaufaną.
+Sesja może również zakończyć się przed upływem 30 dni, ponieważ każdy mechanizm generujący używa `mintDashboardSessionToken` (czasu wydania `iat` i identyfikatora `jti`), a weryfikator sprawdza dwa ustawienia: `sessionsValidAfter`, ustawiane przy zmianie hasła, dzięki czemu każda sesja wydana wcześniej przestaje przechodzić weryfikację (przeglądarka, w której zmieniono hasło, otrzymuje nowe ciasteczko), oraz `revokedDashboardSessions`, do którego `POST /api/auth/logout` dodaje `jti` wylogowanej sesji. Sesje wygenerowane przez starszą wersję nie zawierają żadnego z tych pól i pozostają ważne do pierwszej zmiany hasła. Jeśli nie można odczytać ustawień, sesja nie jest uznawana za zaufaną.
 
-Niektóre trasy zarządzania akceptują **dowolny** z tych trybów: ciasteczko LUB `Bearer <key>`, gdy klucz API ma zakres `manage` (lub `admin`). Umożliwia to przepływ pracy „konfigurowalny przez wywołania API”, dodany w wersji v3.8.
+Niektóre trasy zarządzania akceptują **dowolny** z tych trybów: ciasteczko LUB `Bearer <key>`, gdy klucz API ma zakres `manage` (lub `admin`). Umożliwia to przepływ pracy „konfigurowalny za pomocą wywołań API”, dodany w v3.8.
 
-#### Opcjonalna brama logowania OIDC (#6973)
+#### Opcjonalna bramka logowania OIDC (#6973)
 
-Logowanie administratora do panelu obsługuje także **opcjonalny** przepływ OIDC (OpenID Connect)
+Logowanie administratora do panelu obsługuje również **opcjonalny** przepływ OIDC (OpenID Connect)
 obok domyślnego logowania za pomocą hasła — logowanie hasłem nigdy nie jest usuwane, a jedynie
 uzupełniane:
 
-- Funkcja jest wyłączona, chyba że `settings.oidcEnabled === true` **oraz** wszystkie ustawienia `oidcIssuer` /
-  `oidcClientId` / `oidcClientSecret` są skonfigurowane (Ustawienia → Uwierzytelnianie).
-  W przeciwnym razie `GET /api/auth/oidc/login` zwraca `400`.
-- `GET /api/auth/oidc/login` wykrywa `authorization_endpoint` z konfiguracji
-  wystawcy dostępnej pod `/.well-known/openid-configuration` (w razie niepowodzenia używa
-  `<issuer>/authorize`), tworzy URI przekierowania na podstawie przychodzącego żądania
-  (z uwzględnieniem `x-forwarded-proto`) i przekierowuje do IdP z losową wartością `state`
-  zapisaną w ciasteczku `oidc_state` z flagą `httpOnly`.
+- Wyłączone, chyba że `settings.oidcEnabled === true` **oraz** wszystkie ustawienia
+  `oidcIssuer` / `oidcClientId` / `oidcClientSecret` są skonfigurowane
+  (Ustawienia → Uwierzytelnianie). W przeciwnym razie
+  `GET /api/auth/oidc/login` zwraca `400`.
+- `GET /api/auth/oidc/login` wykrywa `authorization_endpoint` na podstawie
+  `/.well-known/openid-configuration` wystawcy (z mechanizmem awaryjnym
+  `<issuer>/authorize`), tworzy URI przekierowania na podstawie przychodzącego
+  żądania (z uwzględnieniem `x-forwarded-proto`) i przekierowuje do IdP z losową
+  wartością `state` zapisaną w pliku cookie `oidc_state` z flagą `httpOnly`.
 - `GET /api/auth/oidc/callback` weryfikuje `state`, wymienia kod autoryzacyjny
-  i weryfikuje podpis tokenu ID za pomocą JWKS wystawcy
-  (`createRemoteJWKSet` z `jose`, buforowane osobno dla każdego URI JWKS), sprawdzając
-  `issuer`/`audience`. Lista dozwolonych wartości `oidcAllowedSubjects` jest wymagana: porównuje
-  oświadczenie `sub` tokenu lub jego oświadczenie `email` — oświadczenie e-mail jest uwzględniane
-  tylko wtedy, gdy `email_verified === true`, więc niezweryfikowany adres e-mail u IdP nigdy nie
-  przejdzie przez bramę — a w przypadku braku wpisów wywołanie zwrotne odrzuca każdą próbę logowania
-  (`not_configured`).
-- Po pomyślnym zakończeniu generowany jest **dokładnie taki sam** 30-dniowy JWT `auth_token`, jaki wystawia
-  logowanie za pomocą hasła (`src/app/api/auth/login/route.ts`), więc pozostała część
-  potoku sesji panelu (automatyczne odświeżanie, flagi ciasteczek) pozostaje niezmieniona —
-  OIDC zastępuje jedynie sposób generowania ciasteczka, a nie przyznawane przez nie uprawnienia.
+  i sprawdza podpis tokenu ID za pomocą JWKS wystawcy
+  (`createRemoteJWKSet` z `jose`, buforowanego osobno dla każdego URI JWKS),
+  przeprowadzając kontrole `issuer`/`audience`. Lista dozwolonych
+  `oidcAllowedSubjects` jest wymagana: dopasowuje deklarację `sub` tokenu lub
+  jego deklarację `email` — deklaracja adresu e-mail jest uwzględniana wyłącznie,
+  gdy `email_verified === true`, dlatego niezweryfikowany adres e-mail u IdP
+  nigdy nie może przejść kontroli — a przy braku wpisów wywołanie zwrotne odrzuca
+  każdą próbę logowania (`not_configured`).
+- Po pomyślnym uwierzytelnieniu generowany jest **dokładnie taki sam** 30-dniowy
+  token JWT `auth_token`, jaki wystawia logowanie hasłem
+  (`src/app/api/auth/login/route.ts`), dzięki czemu pozostała część mechanizmu
+  sesji panelu (automatyczne odświeżanie, flagi plików cookie) pozostaje bez zmian
+  — OIDC zastępuje jedynie sposób generowania pliku cookie, a nie przyznawane
+  przez niego uprawnienia.
 - Każde ustawienie `oidc*` (`oidcEnabled`, `oidcDisablePasswordLogin`,
   `oidcIssuer`, `oidcClientId`, `oidcClientSecret`, `oidcAllowedSubjects`,
-  `oidcRedirectPath`, `oidcScopes`) znajduje się w `SECURITY_IMPACTING_SETTINGS_KEYS`
+  `oidcRedirectPath`, `oidcScopes`) znajduje się w
+  `SECURITY_IMPACTING_SETTINGS_KEYS`
   (`src/shared/constants/securityImpactingSettings.ts`): `PATCH /api/settings`
-  odpowiada kodem `400 PASSWORD_REQUIRED`, chyba że treść zawiera hasło zarządzania
-  jako `currentPassword` (`401 PASSWORD_MISMATCH`, gdy jest ono nieprawidłowe).
-  `oidcDisablePasswordLogin` blokuje _logowanie_ za pomocą hasła (`POST /api/auth/login`),
-  ale zachowuje zapisany skrót hasła, a ponowne uwierzytelnianie nadal porównuje z nim
-  `currentPassword`.
-- `POST /api/settings/import-json` pomija to ponowne uwierzytelnianie, dlatego przed zapisem usuwa każdy klucz z
-  `IMPORT_STRIPPED_SETTINGS_KEYS` (ten sam plik): hasło i
-  `currentPassword`, każdy wpis z `SECURITY_IMPACTING_SETTINGS_KEYS` oraz
-  stan sesji panelu (`sessionsValidAfter`, `revokedDashboardSessions`).
-  Zaimportowanie starszej kopii zapasowej nie może więc przywrócić sesji, która została już zakończona
+  zwraca `400 PASSWORD_REQUIRED`, chyba że treść żądania zawiera hasło
+  zarządzania jako `currentPassword` (`401 PASSWORD_MISMATCH`, gdy jest ono
+  nieprawidłowe). `oidcDisablePasswordLogin` blokuje _logowanie_ hasłem
+  (`POST /api/auth/login`), ale zachowuje zapisany skrót hasła, a ponowne
+  uwierzytelnienie nadal porównuje z nim `currentPassword`.
+- `corsOrigins` i `bruteForceProtection` również znajdują się w
+  `SECURITY_IMPACTING_SETTINGS_KEYS`: osłabienie któregokolwiek z nich zmniejsza
+  ochronę logowania, dlatego wymagają takiego samego ponownego uwierzytelnienia
+  za pomocą `currentPassword` (karta Bezpieczeństwo prosi o jego podanie),
+  a import JSON je pomija.
+- Każdy klucz zasad bezpieczeństwa — wpisy `SECURITY_IMPACTING_SETTINGS_KEYS`,
+  każdy klucz `oidc*` oraz stan sesji panelu — jest dostępny **wyłącznie dla
+  operatora** w `PATCH /api/settings`: klucz API z zakresem `manage` lub token
+  dostępu `oma_` zostaje odrzucony z kodem `403`, nawet jeśli przesyła prawidłowe
+  `currentPassword`, a odmowa jest rejestrowana w dzienniku audytowym jako
+  `settings.update_failed` z `reason: OPERATOR_REQUIRED`
+  (`requireOperatorCredential()` w `src/lib/api/operatorCredential.ts`).
+  Zwykłe ustawienia (motyw, preferencje wyświetlania) nadal mogą być zapisywane
+  przy użyciu klucza z zakresem `manage` lub tokenu dostępu `admin`. Każda
+  modyfikacja samego `/api/settings` (oraz `/api/settings/require-login`) wymaga
+  również zakresu tokenu dostępu `admin` (`ADMIN_MUTATION_EXACT_PATHS` w
+  `src/server/authz/accessScopes.ts`, dokładne dopasowanie ścieżki); `GET`
+  pozostaje objęte zakresem `read`, a pozostałe podtrasy `/api/settings/*`
+  (serwery proxy, ustawienia domyślne kombinacji, aliasy modeli, kompresja,
+  czyszczenie…) zachowują zakres `write` wywnioskowany z metody.
+- `POST /api/settings/import-json` pomija to ponowne uwierzytelnienie, dlatego
+  przed zapisem usuwa każdy klucz z `IMPORT_STRIPPED_SETTINGS_KEYS` (ten sam
+  plik): hasło i `currentPassword`, każdy wpis
+  `SECURITY_IMPACTING_SETTINGS_KEYS` oraz stan sesji panelu
+  (`sessionsValidAfter`, `revokedDashboardSessions`). Zaimportowanie starszej
+  kopii zapasowej nie może więc przywrócić sesji, która została już zakończona
   przez zmianę hasła lub wylogowanie.
 
 ## Klasy tras
 
-Plik `src/server/authz/types.ts` definiuje trzy klasy; każda trasa, której nie można jednoznacznie sklasyfikować, domyślnie trafia do `MANAGEMENT`.
+`src/server/authz/types.ts` definiuje trzy klasy; każda trasa, której nie można jednoznacznie sklasyfikować, domyślnie trafia do `MANAGEMENT`.
 
-| Klasa        | Opis                                                                                                                                                         | Wymagane uwierzytelnienie                                                 |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| `PUBLIC`     | Trasy jawnie uznane za bezpieczne — logowanie, wylogowanie, status, inicjalizacja, kontrola kondycji, inicjalizacja wdrażania.                               | Brak                                                                      |
-| `CLIENT_API` | Punkty końcowe obsługujące modele — `/api/v1/*`, `/api/v1beta/*` oraz aliasy `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*`. | Klucz Bearer, gdy efektywna flaga funkcji `REQUIRE_API_KEY` jest włączona |
-| `MANAGEMENT` | Strony panelu, ustawienia, dostawcy, klucze oraz punkty końcowe administracyjne i diagnostyczne.                                                             | Sesja panelu LUB token Bearer z zakresem `manage`                         |
+| Klasa        | Opis                                                                                                                                                            | Wymagane uwierzytelnienie                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `PUBLIC`     | Jawnie bezpieczne trasy — logowanie, wylogowanie, stan, inicjalizacja, kontrola kondycji, uruchamianie procesu wdrożeniowego.                                   | Brak                                                                         |
+| `CLIENT_API` | Punkty końcowe udostępniające modele — `/api/v1/*`, `/api/v1beta/*` oraz aliasy `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*`. | Klucz Bearer, gdy obowiązująca flaga funkcji `REQUIRE_API_KEY` jest włączona |
+| `MANAGEMENT` | Strony panelu, ustawienia, dostawcy, klucze oraz punkty końcowe administracji i diagnostyki.                                                                    | Sesja panelu LUB Bearer z zakresem `manage`                                  |
 
-Niektóre działania `MANAGEMENT` są przeznaczone **wyłącznie dla operatora**: klucz `manage` nie wystarcza. Eksportowanie przechowywanych
+Niektóre działania `MANAGEMENT` są dostępne **wyłącznie dla operatora**: klucz z zakresem `manage` nie wystarcza. Eksportowanie zapisanych
 danych uwierzytelniających (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), wydawanie tokenu synchronizacji (`POST /api/sync/tokens`) oraz generowanie
-tokenu dostępu CLI `admin` (`POST /api/cli/tokens`) wymagają sesji panelu, lokalnego podmiotu CLI
-albo wyłączonego logowania; klucze API o dowolnym zakresie oraz tokeny dostępu `oma_` otrzymują odpowiedź `403`. Mechanizm sprawdzający
+`GET /api/db-backups/exportAll`), przywracanie kopii zapasowej do aktywnych danych
+(`POST /api/db-backups/import`, w tym z `dryRun=true`, przywracanie według identyfikatora przez `POST /api/db-backups`,
+`POST /api/settings/import-json`), usuwanie punktów przywracania (czyszczenie przez `DELETE /api/db-backups`
+oraz `PATCH /api/db-backups`, ponieważ zapisywana przez tę operację polityka przechowywania steruje automatycznym usuwaniem po
+każdej kopii zapasowej) wymagają sesji panelu, lokalnego podmiotu CLI albo wyłączonego logowania. Wydanie
+tokenu synchronizacji (`POST /api/sync/tokens`) i utworzenie tokenu dostępu CLI z uprawnieniem `admin`
+(`POST /api/cli/tokens`) wymagają sesji panelu albo lokalnego podmiotu CLI w każdym trybie logowania.
+Klucze API niezależnie od zakresu oraz tokeny dostępu `oma_` nie są poświadczeniami operatora: otrzymują odpowiedź `403`
+zawsze, gdy takie poświadczenia są wymagane. Mechanizm sprawdzania
 znajduje się w `src/lib/api/operatorCredential.ts` (`resolveOperatorCredential()` /
-`requireOperatorCredential()`).
-
-A few `MANAGEMENT` actions are **operator-only**: a `manage` key is not enough. Exporting stored
-credentials (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), restoring a backup over the live data
-(`POST /api/db-backups/import` including `dryRun=true`, `POST /api/db-backups` restore by id,
-`POST /api/settings/import-json`), issuing a sync token (`POST /api/sync/tokens`) and minting an
-`admin` CLI access token (`POST /api/cli/tokens`) require a dashboard session, the local CLI
-subject, or login disabled; API keys of any scope and `oma_` access tokens get `403`. The check
-lives in `src/lib/api/operatorCredential.ts` (`resolveOperatorCredential()` /
-`requireOperatorCredential()`).
+`requireOperatorCredential()`). Zmiana ustawień logowania jest również dostępna wyłącznie dla operatora:
+`POST /api/settings/require-login` (ustawienie hasła zarządzania / przełączenie `requireLogin`) akceptuje
+wyłącznie te poświadczenia, gdy hasło już istnieje — okno konfiguracji początkowej (gdy hasło jeszcze nie istnieje)
+pozostaje bez zmian — a sesja panelu musi przesłać `currentPassword`, aby zastąpić hasło
+(`403`, gdy go brakuje lub jest nieprawidłowe; zdarzenie jest rejestrowane jako `settings.update_failed`). Lokalny interfejs CLI oraz
+instancja z wyłączonym logowaniem zachowują ścieżkę odzyskiwania i mogą ustawić hasło bez jego podawania, ponieważ oba
+są powiązane z hostem będącym właścicielem katalogu danych.
 
 ## Potok
 
@@ -230,15 +259,21 @@ Katalog i reguły dopasowania (identyczny ciąg znaków lub przyznany zakres ko�
 
 `read` / `write` / `admin` na tokenach `oma_live_…`, uszeregowane według `scopeSatisfies` (`src/lib/accessTokens/scopes.ts`). Ta ranga dotyczy wyłącznie poświadczeń tokenu dostępu. Zobacz [Uwierzytelnianie zarządzania](../guides/MANAGEMENT-AUTH.md).
 
-## Przełącznik wymagania auth
+## Przełącznik wymaganego uwierzytelniania
 
-`isAuthRequired()` w `src/shared/utils/apiAuth.ts` decyduje, czy dla żądania egzekwowane jest **jakiekolwiek** auth:
+`isAuthRequired()` w `src/shared/utils/apiAuth.ts` określa, czy dla żądania wymuszane jest **jakiekolwiek** uwierzytelnianie:
 
-- `settings.requireLogin === false` → auth jest globalnie wyłączone.
-- Brak skonfigurowanego hasła **oraz** brak zmiennej środowiskowej `INITIAL_PASSWORD` → tryb bootstrap dopuszcza kreator onboardingu i żądania loopback, ale żądania z wystawionej sieci nadal wymagają poświadczeń.
-- Jakikolwiek błąd DB → fail-closed (secure-by-default).
+- `settings.requireLogin === false` → uwierzytelnianie jest globalnie wyłączone, z wyjątkiem zawsze chronionego
+  poziomu (zobacz [Poziomy ochrony tras](../security/ROUTE_GUARD_TIERS.md)) oraz wywołań wydających
+  akceptowane poświadczenia, które wymagają tego samego poświadczenia co przy włączonym logowaniu: wydawania tokenów synchronizacji,
+  generowania tokenów dostępu CLI o dowolnym zakresie oraz tworzenia klucza API z zakresem `manage`/`admin`,
+  przyznawania tego zakresu kluczowi albo ponownego generowania bądź ujawniania takiego klucza
+  (`requireCredentialForManagementScopedKey()` w `src/lib/api/requireManagementAuth.ts`).
+  Klucze przeznaczone wyłącznie do inferencji pozostają dostępne bez uwierzytelniania.
+- Brak skonfigurowanego hasła **i** brak zmiennej środowiskowej `INITIAL_PASSWORD` → tryb inicjalizacji zezwala na działanie kreatora wdrożeniowego i żądania z interfejsu loopback, ale żądania z udostępnionej sieci nadal wymagają poświadczeń.
+- Dowolny błąd bazy danych → dostęp jest domyślnie blokowany (bezpieczeństwo domyślne).
 
-Egzekwowanie klucza client API używa `isRequireApiKeyEnabled()` w `src/shared/utils/featureFlags.ts`, a nie bezpośredniego odczytu `process.env.REQUIRE_API_KEY`. To ma znaczenie dla wdrożonych instancji: przełączenie `REQUIRE_API_KEY` w Dashboard → Feature Flags zapisuje override w DB i natychmiast wpływa na `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*` oraz inne sprawdzenia auth client API współdzielące ten helper. Jeśli magazynu flag nie da się odczytać, auth client API działa fail-closed i wymaga klucza.
+Wymuszanie klucza API klienta korzysta z `isRequireApiKeyEnabled()` w `src/shared/utils/featureFlags.ts`, a nie z bezpośredniego odczytu `process.env.REQUIRE_API_KEY`. Ma to znaczenie dla wdrożonych instancji: przełączenie `REQUIRE_API_KEY` w Dashboard → Feature Flags zapisuje nadpisanie w bazie danych i natychmiast wpływa na `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*` oraz inne mechanizmy kontroli uwierzytelniania interfejsu API klienta korzystające z tego samego helpera. Jeśli nie można odczytać magazynu flag funkcji, uwierzytelnianie interfejsu API klienta domyślnie blokuje dostęp i wymaga klucza.
 
 ## Breaking Change — v3.8.0
 

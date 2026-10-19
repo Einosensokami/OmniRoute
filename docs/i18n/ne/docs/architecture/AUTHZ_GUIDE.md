@@ -13,19 +13,19 @@
 
 > स्रोत: [diagrams/authz-pipeline.mmd](../diagrams/authz-pipeline.mmd)
 
-## प्रमाणीकरणका दुई मोड
+## दुई प्रमाणीकरण मोडहरू
 
 ### 1. API कुञ्जी (Bearer)
 
-OpenAI/Anthropic/Gemini-संगत क्लाइन्ट API हरू र कुञ्जीसँग `manage` स्कोप हुँदा केही व्यवस्थापन रुटहरूका लागि प्रयोग गरिन्छ।
+OpenAI/Anthropic/Gemini-सङ्गत क्लाइन्ट API हरू र कुञ्जीसँग `manage` स्कोप हुँदा केही व्यवस्थापन रुटहरूका लागि प्रयोग गरिन्छ।
 
 ```
 Authorization: Bearer <api-key>
 ```
 
-`src/sse/services/auth.ts` मा रहेको `isValidApiKey()` / `extractApiKey()` द्वारा प्रमाणीकरण गरिन्छ र `src/shared/utils/apiAuth.ts` मार्फत पुनः निर्यात गरिन्छ। प्रमाणीकरणकर्ताले `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` env vars लाई स्थायी पासथ्रु कुञ्जीका रूपमा पनि स्वीकार गर्छ (issue #1350)।
+`src/sse/services/auth.ts` मा रहेको `isValidApiKey()` / `extractApiKey()` द्वारा प्रमाणीकरण गरिन्छ र `src/shared/utils/apiAuth.ts` मार्फत पुनः निर्यात गरिन्छ। प्रमाणीकरणकर्ताले `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` वातावरण चरहरूलाई स्थायी पासथ्रु कुञ्जीका रूपमा पनि स्वीकार गर्छ (इश्यू #1350)।
 
-### 2. ड्यासबोर्ड सत्र (auth_token cookie)
+### 2. ड्यासबोर्ड सत्र (auth_token कुकी)
 
 ड्यासबोर्ड पृष्ठहरू र प्रशासकीय कार्यहरूका लागि।
 
@@ -33,89 +33,108 @@ Authorization: Bearer <api-key>
 Cookie: auth_token=<JWT signed with JWT_SECRET>
 ```
 
-JWT प्रमाणित भएमा **र** त्यसमा `authenticated: true` भएमा मात्र cookie लाई सत्र मानिन्छ
-(`src/shared/utils/dashboardSessionToken.ts` → `verifyDashboardSessionToken`)। cookie को प्रत्येक
+JWT प्रमाणित भएमा **र** त्यसमा `authenticated: true` भएमा मात्र कुकीलाई सत्र मानिन्छ
+(`src/shared/utils/dashboardSessionToken.ts` → `verifyDashboardSessionToken`)। कुकी प्रयोग गर्ने प्रत्येक
 उपभोक्ता (ड्यासबोर्ड रुट गार्ड (`isDashboardSessionAuthenticated()`), authz पाइपलाइन रिफ्रेस, WebSocket ह्यान्डशेक, लाइभ
-सर्भर, `/api/settings/require-login`, `/api/auth/status`) उक्त हेल्परमार्फत जान्छ।
-`JWT_SECRET` द्वारा हस्ताक्षर गरिएका अन्य JWT हरू पनि छन् — Cursor CLI पासथ्रुले कुञ्जी धारकहरूका लागि
-`iss "omniroute" / aud "cursor-cli"` टोकनहरू जारी गर्छ — र तिनलाई कहिल्यै सत्र मानिँदैन
+सर्भर, `/api/settings/require-login`, `/api/auth/status`) उक्त सहायकमार्फत जान्छ।
+`JWT_SECRET` द्वारा हस्ताक्षर गरिएका अन्य JWT हरू पनि छन् — Cursor CLI पासथ्रुले
+कुञ्जी धारकहरूका लागि `iss "omniroute" / aud "cursor-cli"` टोकनहरू जारी गर्छ — र तिनलाई कहिल्यै सत्र मानिँदैन
 (#13298)।
 
-`src/shared/utils/apiAuth.ts` मा रहेको `isDashboardSessionAuthenticated()` द्वारा प्रमाणित गरिन्छ। JWT को 30-दिने जीवनकालमा 7 दिनभन्दा कम बाँकी हुँदा पाइपलाइनले त्यसलाई स्वतः रिफ्रेस गर्छ।
+`src/shared/utils/apiAuth.ts` मा रहेको `isDashboardSessionAuthenticated()` द्वारा प्रमाणित गरिन्छ। JWT को 30-दिने आयुमा 7 दिनभन्दा कम समय बाँकी हुँदा पाइपलाइनले त्यसलाई स्वतः रिफ्रेस गर्छ।
 
-सत्र यसको 30 दिन पूरा हुनुअघि पनि समाप्त हुन सक्छ, किनभने प्रत्येक जारीकर्ताले `mintDashboardSessionToken` (जारी गरिएको समय `iat` र एउटा id `jti`) प्रयोग गर्छ र प्रमाणिकरणकर्ताले दुई सेटिङ जाँच गर्छ: `sessionsValidAfter`, जुन पासवर्ड परिवर्तन गर्दा सेट गरिन्छ ताकि त्यसभन्दा पहिले जारी भएका प्रत्येक सत्रको प्रमाणीकरण रोकिन्छ (पासवर्ड परिवर्तन गर्ने ब्राउजरले नयाँ cookie प्राप्त गर्छ), र `revokedDashboardSessions`, जसमा `POST /api/auth/logout` ले साइन-आउट गरिएको सत्रको `jti` थप्छ। पुरानो रिलिजद्वारा जारी गरिएका सत्रहरूमा यीमध्ये कुनै पनि claim हुँदैन र पहिलो पासवर्ड परिवर्तन नभएसम्म मान्य रहन्छन्। सेटिङहरू पढ्न नसकिएमा सत्रलाई विश्वसनीय मानिँदैन।
+सत्र यसको 30 दिन पूरा हुनुअघि पनि समाप्त हुन सक्छ, किनभने प्रत्येक जारीकर्ताले `mintDashboardSessionToken` (जारी गरिएको समय `iat` र एउटा आईडी `jti`) प्रयोग गर्छ र प्रमाणितकर्ताले दुईवटा सेटिङ जाँच गर्छ: `sessionsValidAfter`, जुन पासवर्ड परिवर्तन गर्दा सेट हुन्छ, जसले गर्दा त्यसअघि जारी गरिएका प्रत्येक सत्रको प्रमाणीकरण रोकिन्छ (पासवर्ड परिवर्तन गरेको ब्राउजरले नयाँ कुकी प्राप्त गर्छ), र `revokedDashboardSessions`, जसमा `POST /api/auth/logout` ले साइन आउट गरिएको सत्रको `jti` थप्छ। पुरानो रिलिजद्वारा जारी गरिएका सत्रहरूमा यीमध्ये कुनै पनि क्लेम हुँदैन र पहिलो पासवर्ड परिवर्तन नभएसम्म मान्य रहन्छन्। सेटिङहरू पढ्न नसकिएमा सत्रलाई विश्वसनीय मानिँदैन।
 
-केही व्यवस्थापन रुटहरूले **कुनै एक** मोड स्वीकार गर्छन्: cookie वा API कुञ्जीसँग `manage` (वा `admin`) स्कोप हुँदा `Bearer <key>`। यसैले v3.8 मा थपिएको "API कलहरूमार्फत कन्फिगर गर्न सकिने" कार्यप्रवाह सम्भव बनाउँछ।
+केही व्यवस्थापन रुटहरूले **दुवैमध्ये कुनै एक** मोड स्वीकार गर्छन्: कुकी वा API कुञ्जीसँग `manage` (वा `admin`) स्कोप हुँदा `Bearer <key>`। यही कुराले v3.8 मा थपिएको "API कलहरूमार्फत कन्फिगर गर्न मिल्ने" कार्यप्रवाह सम्भव बनाउँछ।
 
 #### वैकल्पिक OIDC लगइन गेट (#6973)
 
-ड्यासबोर्ड प्रशासक लगइनले पूर्वनिर्धारित पासवर्ड लगइनसँगै **स्वेच्छिक रूपमा सक्रिय गर्न सकिने** OIDC (OpenID Connect) प्रवाहलाई पनि
-समर्थन गर्छ — पासवर्ड लगइन कहिल्यै हटाइँदैन, केवल
-पूरक बनाइन्छ:
+ड्यासबोर्ड प्रशासक लगइनले पूर्वनिर्धारित पासवर्ड लगइनसँगै **अप्ट-इन** OIDC (OpenID Connect) प्रवाहलाई पनि समर्थन गर्छ — पासवर्ड लगइन कहिल्यै हटाइँदैन, केवल
+त्यसमा थप सुविधा प्रदान गरिन्छ:
 
-- `settings.oidcEnabled === true` **र** `oidcIssuer` /
-  `oidcClientId` / `oidcClientSecret` सबै कन्फिगर गरिएका (सेटिङहरू → प्रमाणीकरण) नभएसम्म निष्क्रिय रहन्छ।
+- `settings.oidcEnabled === true` **भएको** र `oidcIssuer` /
+  `oidcClientId` / `oidcClientSecret` सबै कन्फिगर गरिएका (Settings → Auth) अवस्थामा मात्र सक्षम हुन्छ।
   अन्यथा `GET /api/auth/oidc/login` ले `400` फर्काउँछ।
 - `GET /api/auth/oidc/login` ले जारीकर्ताको
-  `/.well-known/openid-configuration` बाट `authorization_endpoint` पत्ता लगाउँछ (
-  `<issuer>/authorize` लाई फल्ब्याकका रूपमा प्रयोग गर्छ), आगमन अनुरोधबाट रिडाइरेक्ट URI बनाउँछ
-  (`x-forwarded-proto`-सचेत), र `httpOnly` `oidc_state` cookie मा भण्डारण गरिएको अनियमित `state`
-  सहित IdP मा रिडाइरेक्ट गर्छ।
-- `GET /api/auth/oidc/callback` ले `state` प्रमाणित गर्छ, प्राधिकरण
+  `/.well-known/openid-configuration` बाट `authorization_endpoint` पत्ता लगाउँछ (`<issuer>/authorize`
+  मा फलब्याक गर्छ), आगमन अनुरोधबाट रिडाइरेक्ट URI निर्माण गर्छ
+  (`x-forwarded-proto`-सचेत), र `httpOnly` `oidc_state` कुकीमा भण्डारण गरिएको
+  अनियमित `state` सहित IdP मा रिडाइरेक्ट गर्छ।
+- `GET /api/auth/oidc/callback` ले `state` प्रमाणीकरण गर्छ, प्राधिकरण
   कोड साट्छ, र जारीकर्ताको JWKS मार्फत ID टोकनको हस्ताक्षर प्रमाणित गर्छ
-  (`jose` को `createRemoteJWKSet`, प्रत्येक JWKS URI अनुसार क्यास गरिएको), साथै `issuer`/`audience`
-  जाँचहरू गर्छ। `oidcAllowedSubjects` अनुमति-सूची अनिवार्य छ: यसले
-  टोकनको `sub` claim वा यसको `email` claim सँग मिलान गर्छ — email claim लाई
-  `email_verified === true` हुँदा मात्र मान्यता दिइन्छ, त्यसैले IdP मा अप्रमाणित email ले
-  गेट कहिल्यै पार गर्न सक्दैन — र कुनै प्रविष्टि नभए callback ले प्रत्येक लगइन अस्वीकार गर्छ
+  (`jose` को `createRemoteJWKSet`, प्रत्येक JWKS URI का लागि क्यास गरिएको), साथै `issuer`/`audience`
+  जाँचहरू गर्छ। `oidcAllowedSubjects` अनुमति-सूची अनिवार्य छ: यसले टोकनको
+  `sub` क्लेम वा यसको `email` क्लेमसँग मिलान गर्छ — इमेल क्लेमलाई
+  `email_verified === true` हुँदा मात्र मान्यता दिइन्छ, त्यसैले IdP मा अप्रमाणित इमेलले
+  यो प्रवेशद्वार कहिल्यै पार गर्न सक्दैन — र कुनै प्रविष्टि नभएमा कलब्याकले हरेक लगइन अस्वीकार गर्छ
   (`not_configured`)।
-- सफल हुँदा यसले पासवर्ड
-  लगइनले जारी गर्ने (`src/app/api/auth/login/route.ts`) **ठ्याक्कै उही** 30-दिने `auth_token` JWT जारी गर्छ, त्यसैले बाँकी
-  ड्यासबोर्ड सत्र पाइपलाइन (स्वतः रिफ्रेस, cookie फ्ल्यागहरू) अपरिवर्तित रहन्छ —
-  OIDC ले cookie कसरी जारी हुन्छ भन्ने मात्र बदल्छ, यसले प्रदान गर्ने अनुमति होइन।
+- सफल भएपछि यसले पासवर्ड लगइनले जारी गर्ने **ठ्याक्कै उही** 30-दिने `auth_token` JWT
+  जारी गर्छ (`src/app/api/auth/login/route.ts`), त्यसैले बाँकी
+  ड्यासबोर्ड सत्र पाइपलाइन (स्वतः-रिफ्रेस, कुकी फ्ल्यागहरू) अपरिवर्तित रहन्छ —
+  OIDC ले कुकी कसरी जारी हुन्छ भन्ने मात्र प्रतिस्थापन गर्छ, त्यसले प्रदान गर्ने अनुमति होइन।
 - प्रत्येक `oidc*` सेटिङ (`oidcEnabled`, `oidcDisablePasswordLogin`,
   `oidcIssuer`, `oidcClientId`, `oidcClientSecret`, `oidcAllowedSubjects`,
   `oidcRedirectPath`, `oidcScopes`) `SECURITY_IMPACTING_SETTINGS_KEYS`
-  (`src/shared/constants/securityImpactingSettings.ts`) मा छ: अनुरोधको body मा व्यवस्थापन
-  पासवर्ड `currentPassword` का रूपमा नभएसम्म `PATCH /api/settings` ले
-  `400 PASSWORD_REQUIRED` जवाफ दिन्छ (गलत हुँदा `401 PASSWORD_MISMATCH`)।
-  `oidcDisablePasswordLogin` ले पासवर्ड _लगइन_ (`POST /api/auth/login`) अस्वीकार गर्छ
-  तर भण्डारण गरिएको पासवर्ड hash कायम राख्छ, र पुनः प्रमाणीकरणले अझै पनि
-  `currentPassword` लाई त्यससँग जाँच गर्छ।
-- `POST /api/settings/import-json` ले उक्त पुनः प्रमाणीकरण छोड्छ, त्यसैले लेख्नुअघि यसले
-  `IMPORT_STRIPPED_SETTINGS_KEYS` (उही फाइल) मा रहेका प्रत्येक कुञ्जी हटाउँछ: पासवर्ड र
+  (`src/shared/constants/securityImpactingSettings.ts`) मा छ: अनुरोधको बडीमा
+  व्यवस्थापन पासवर्ड `currentPassword` का रूपमा नभएसम्म `PATCH /api/settings`
+  ले `400 PASSWORD_REQUIRED` फर्काउँछ (यो गलत हुँदा `401 PASSWORD_MISMATCH`)।
+  `oidcDisablePasswordLogin` ले पासवर्ड _लगइन_ (`POST /api/auth/login`)
+  अस्वीकार गर्छ, तर भण्डारित पासवर्ड ह्यास राखिरहन्छ, र पुनः-प्रमाणीकरणले अझै पनि
+  त्यससँग `currentPassword` जाँच्छ।
+- `corsOrigins` र `bruteForceProtection` पनि `SECURITY_IMPACTING_SETTINGS_KEYS`
+  मा छन्: यीमध्ये कुनैलाई खुकुलो बनाउँदा लगइन सुरक्षाहरू कमजोर हुन्छन्, त्यसैले तिनलाई पनि उही
+  `currentPassword` पुनः-प्रमाणीकरण आवश्यक हुन्छ (Security ट्याबले यो माग्छ) र JSON आयातले
+  तिनलाई हटाउँछ।
+- प्रत्येक सुरक्षा-नीति कुञ्जी — `SECURITY_IMPACTING_SETTINGS_KEYS` का प्रविष्टिहरू,
+  प्रत्येक `oidc*` कुञ्जी र ड्यासबोर्ड सत्र अवस्था — `PATCH /api/settings` मा
+  **अपरेटरका लागि मात्र** हो: `manage`-स्कोप भएको API कुञ्जी वा `oma_` पहुँच टोकनले
+  सही `currentPassword` पठाउँदा पनि `403` सहित अस्वीकार गरिन्छ, र उक्त
+  अस्वीकारलाई `reason: OPERATOR_REQUIRED` सहित `settings.update_failed` का रूपमा अडिट गरिन्छ
+  (`src/lib/api/operatorCredential.ts` मा `requireOperatorCredential()`)।
+  सामान्य सेटिङहरू (`theme`, प्रदर्शन प्राथमिकताहरू) `manage` कुञ्जी
+  वा `admin` पहुँच टोकनबाट लेख्न मिल्ने नै रहन्छन्। `/api/settings` स्वयंमा (र
+  `/api/settings/require-login` मा पनि) हुने प्रत्येक परिवर्तनलाई `admin` पहुँच-टोकन स्कोप
+  समेत आवश्यक हुन्छ (`src/server/authz/accessScopes.ts` मा `ADMIN_MUTATION_EXACT_PATHS`, ठ्याक्कै-पथ
+  मिलान); `GET` का लागि `read` नै रहन्छ, र अन्य `/api/settings/*` उप-रुटहरूले (प्रोक्सीहरू,
+  कम्बो पूर्वनिर्धारित मानहरू, मोडेल उपनामहरू, कम्प्रेसन, सफाइहरू…) विधिबाट अनुमानित
+  `write` स्कोप कायम राख्छन्।
+- `POST /api/settings/import-json` ले उक्त पुनः-प्रमाणीकरण छोड्छ, त्यसैले लेख्नुअघि यसले
+  `IMPORT_STRIPPED_SETTINGS_KEYS` (उही फाइल) का प्रत्येक कुञ्जी हटाउँछ: पासवर्ड र
   `currentPassword`, प्रत्येक `SECURITY_IMPACTING_SETTINGS_KEYS` प्रविष्टि, र
   ड्यासबोर्ड सत्र अवस्था (`sessionsValidAfter`, `revokedDashboardSessions`)।
-  त्यसकारण पुरानो ब्याकअप आयात गर्दा पासवर्ड
-  परिवर्तन वा साइन-आउटद्वारा पहिले नै समाप्त गरिएको सत्र पुनर्जीवित हुन सक्दैन।
+  त्यसैले पुरानो ब्याकअप आयात गर्दा पासवर्ड परिवर्तन वा साइन-आउटले पहिले नै अन्त्य गरेको
+  सत्र पुनर्जीवित गर्न सकिँदैन।
 
 ## रुट वर्गहरू
 
-`src/server/authz/types.ts` ले तीनवटा वर्ग परिभाषित गर्छ; निश्चित रूपमा वर्गीकरण गर्न नसकिने कुनै पनि रुट पूर्वनिर्धारित रूपमा `MANAGEMENT` मा पर्छ।
+`src/server/authz/types.ts` ले तीनवटा वर्ग परिभाषित गर्छ; निर्धारक रूपमा वर्गीकरण गर्न नसकिने कुनै पनि रुट पूर्वनिर्धारित रूपमा `MANAGEMENT` मा पर्छ।
 
-| वर्ग         | विवरण                                                                                                                                                           | आवश्यक प्रमाणीकरण                                                   |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `PUBLIC`     | स्पष्ट रूपमा सुरक्षित रुटहरू — लगइन, लगआउट, स्थिति, प्रारम्भ, स्वास्थ्य, अनबोर्डिङ बुटस्ट्र्याप।                                                                | कुनै पनि होइन                                                       |
-| `CLIENT_API` | मोडेल उपलब्ध गराउने एन्डपोइन्टहरू — `/api/v1/*`, `/api/v1beta/*`, साथै उपनामहरू `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*`। | प्रभावकारी `REQUIRE_API_KEY` फिचर फ्ल्याग सक्षम हुँदा Bearer कुञ्जी |
-| `MANAGEMENT` | ड्यासबोर्ड पृष्ठहरू, सेटिङहरू, प्रदायकहरू, कुञ्जीहरू, एडमिन तथा निदानसम्बन्धी एन्डपोइन्टहरू।                                                                    | ड्यासबोर्ड सत्र वा `manage` स्कोपसहितको Bearer                      |
+| वर्ग         | विवरण                                                                                                                                                           | आवश्यक प्रमाणीकरण                                                     |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `PUBLIC`     | स्पष्ट रूपमा सुरक्षित रुटहरू — लगइन, लगआउट, स्थिति, प्रारम्भ, स्वास्थ्य, अनबोर्डिङ बुटस्ट्र्याप।                                                                | कुनै पनि होइन                                                         |
+| `CLIENT_API` | मोडेल उपलब्ध गराउने एन्डपोइन्टहरू — `/api/v1/*`, `/api/v1beta/*`, साथै उपनामहरू `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*`। | प्रभावकारी `REQUIRE_API_KEY` सुविधा फ्ल्याग सक्षम हुँदा Bearer कुञ्जी |
+| `MANAGEMENT` | ड्यासबोर्ड पृष्ठहरू, सेटिङहरू, प्रदायकहरू, कुञ्जीहरू, एडमिन तथा निदानसम्बन्धी एन्डपोइन्टहरू।                                                                    | ड्यासबोर्ड सत्र वा `manage` स्कोप भएको Bearer                         |
 
 केही `MANAGEMENT` कार्यहरू **अपरेटरका लागि मात्र** हुन्: `manage` कुञ्जी मात्र पर्याप्त हुँदैन। भण्डारण गरिएका
-क्रेडेन्सियलहरू निर्यात गर्न (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), सिङ्क टोकन जारी गर्न (`POST /api/sync/tokens`) र
-`admin` CLI पहुँच टोकन सिर्जना गर्न (`POST /api/cli/tokens`) ड्यासबोर्ड सत्र, स्थानीय CLI
-विषय, वा असक्षम गरिएको लगइन आवश्यक हुन्छ; जुनसुकै स्कोपका API कुञ्जीहरू र `oma_` पहुँच टोकनहरूले `403` प्राप्त गर्छन्। यो जाँच
+प्रमाणपत्रहरू निर्यात गर्न (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
+`GET /api/db-backups/exportAll`), प्रत्यक्ष डेटामाथि ब्याकअप पुनर्स्थापना गर्न
+(`POST /api/db-backups/import`, जसमा `dryRun=true` पनि समावेश छ, id द्वारा पुनर्स्थापना गर्ने
+`POST /api/db-backups`, `POST /api/settings/import-json`), पुनर्स्थापना बिन्दुहरू नष्ट गर्न
+(`DELETE /api/db-backups` सफाइ, र `PATCH /api/db-backups` किनभने यसले कायम राख्ने अवधिले प्रत्येक
+ब्याकअपपछि हुने स्वचालित छाँटकाँट सञ्चालन गर्छ) ड्यासबोर्ड सत्र, स्थानीय CLI सब्जेक्ट, वा लगइन
+अक्षम गरिएको अवस्था आवश्यक हुन्छ। सिंक टोकन जारी गर्न (`POST /api/sync/tokens`) र `admin` CLI
+पहुँच टोकन सिर्जना गर्न (`POST /api/cli/tokens`) प्रत्येक लगइन मोडमा ड्यासबोर्ड सत्र वा स्थानीय
+CLI सब्जेक्ट आवश्यक हुन्छ। कुनै पनि स्कोपका API कुञ्जीहरू र `oma_` पहुँच टोकनहरू अपरेटर
+प्रमाणपत्र होइनन्: अपरेटर प्रमाणपत्र आवश्यक पर्दा तिनले `403` प्राप्त गर्छन्। यो जाँच
 `src/lib/api/operatorCredential.ts` (`resolveOperatorCredential()` /
-`requireOperatorCredential()`) मा अवस्थित छ।
-
-A few `MANAGEMENT` actions are **operator-only**: a `manage` key is not enough. Exporting stored
-credentials (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), restoring a backup over the live data
-(`POST /api/db-backups/import` including `dryRun=true`, `POST /api/db-backups` restore by id,
-`POST /api/settings/import-json`), issuing a sync token (`POST /api/sync/tokens`) and minting an
-`admin` CLI access token (`POST /api/cli/tokens`) require a dashboard session, the local CLI
-subject, or login disabled; API keys of any scope and `oma_` access tokens get `403`. The check
-lives in `src/lib/api/operatorCredential.ts` (`resolveOperatorCredential()` /
-`requireOperatorCredential()`).
+`requireOperatorCredential()`) मा अवस्थित छ। लगइन सेटिङहरू परिवर्तन गर्ने कार्य पनि अपरेटरका
+लागि मात्र हो: `POST /api/settings/require-login` (व्यवस्थापन पासवर्ड सेट गर्ने / `requireLogin`
+टगल गर्ने) ले पासवर्ड अवस्थित भएपछि ती प्रमाणपत्रहरू मात्र स्वीकार गर्छ — पहिलो पटक सञ्चालन
+गर्दाको बुटस्ट्र्याप अवधि (अझै पासवर्ड नभएको) अपरिवर्तित रहन्छ — र पासवर्ड प्रतिस्थापन गर्न
+ड्यासबोर्ड सत्रले `currentPassword` पठाउनुपर्छ (यो नपठाइएको वा गलत भएमा `403`, जसलाई
+`settings.update_failed` का रूपमा अडिट गरिन्छ)। स्थानीय CLI र लगइन अक्षम गरिएको इन्स्ट्यान्सले
+रिकभरी मार्ग कायम राख्छन् र त्यसविना पनि पासवर्ड सेट गर्न सक्छन्, किनभने दुवै डेटा डाइरेक्टरीको
+स्वामित्व भएको होस्टसँग आबद्ध हुन्छन्।
 
 ## पाइपलाइन
 
@@ -257,13 +276,13 @@ API कुञ्जीहरूले `scopes` एरे बोक्छन् (
 
 ## प्रमाणीकरण आवश्यक टगल
 
-`src/shared/utils/apiAuth.ts` मा रहेको `isAuthRequired()` ले अनुरोधका लागि **कुनै पनि** प्रमाणीकरण लागू हुन्छ कि हुँदैन भन्ने निर्णय गर्छ:
+`src/shared/utils/apiAuth.ts` मा रहेको `isAuthRequired()` ले अनुरोधका लागि **कुनै पनि** प्रमाणीकरण लागू गर्ने कि नगर्ने निर्णय गर्छ:
 
-- `settings.requireLogin === false` → प्रमाणीकरण विश्वव्यापी रूपमा असक्षम हुन्छ।
-- कुनै पासवर्ड कन्फिगर गरिएको छैन **र** कुनै `INITIAL_PASSWORD` env var छैन → बुटस्ट्र्याप मोडले अनबोर्डिङ विजार्ड र लूपब्याक अनुरोधहरूलाई अनुमति दिन्छ, तर एक्स्पोज गरिएका नेटवर्क अनुरोधहरूलाई अझै पनि प्रमाणहरू आवश्यक पर्छन्।
-- कुनै पनि DB त्रुटि → बन्द भएर असफल हुन्छ (पूर्वनिर्धारित रूपमा सुरक्षित)।
+- `settings.requireLogin === false` → सधैँ-सुरक्षित रहने टियर (हेर्नुहोस् [रुट गार्ड टियरहरू](../security/ROUTE_GUARD_TIERS.md)) र यसले स्वीकार गर्ने क्रेडेन्सियल प्रदान गर्ने कलहरू बाहेक, प्रमाणीकरण विश्वव्यापी रूपमा निष्क्रिय हुन्छ। ती कलहरूलाई लगइन सक्रिय हुँदाको जस्तै क्रेडेन्सियल आवश्यक पर्छ: सिंक टोकन जारी गर्ने, कुनै पनि स्कोपमा CLI पहुँच टोकन सिर्जना गर्ने, र `manage`/`admin` स्कोप भएको API कुञ्जी सिर्जना गर्ने, कुञ्जीलाई त्यस्तो स्कोप प्रदान गर्ने, वा त्यस्तो कुञ्जी पुनः उत्पन्न गर्ने वा देखाउने (`src/lib/api/requireManagementAuth.ts` मा रहेको `requireCredentialForManagementScopedKey()`)। अनुमानका लागि मात्र प्रयोग हुने कुञ्जीहरू खुला रहन्छन्।
+- कुनै पासवर्ड कन्फिगर नगरिएको **र** `INITIAL_PASSWORD` env var पनि नभएको अवस्था → बुटस्ट्र्याप मोडले अनबोर्डिङ विजार्ड र लुपब्याक अनुरोधहरूलाई अनुमति दिन्छ, तर बाह्य नेटवर्कमा उपलब्ध अनुरोधहरूलाई अझै पनि क्रेडेन्सियल आवश्यक पर्छ।
+- कुनै पनि DB त्रुटि → बन्द अवस्थामा विफल हुन्छ (पूर्वनिर्धारित रूपमा सुरक्षित)।
 
-क्लाइन्ट API कुञ्जी कार्यान्वयनले प्रत्यक्ष `process.env.REQUIRE_API_KEY` पढाइ होइन, `src/shared/utils/featureFlags.ts` मा रहेको `isRequireApiKeyEnabled()` प्रयोग गर्छ। यो डिप्लोय गरिएका इन्स्ट्यान्सहरूका लागि महत्त्वपूर्ण छ: Dashboard → Feature Flags मा `REQUIRE_API_KEY` टगल गर्दा DB ओभरराइड भण्डारण हुन्छ र त्यसले तुरुन्तै `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*`, र यही सहायक साझा गर्ने अन्य क्लाइन्ट-API प्रमाणीकरण जाँचहरूलाई प्रभाव पार्छ। यदि फिचर फ्ल्याग स्टोर पढ्न सकिँदैन भने, क्लाइन्ट API प्रमाणीकरण बन्द भएर असफल हुन्छ र कुञ्जी आवश्यक पर्छ।
+क्लाइन्ट API कुञ्जी लागू गर्न `process.env.REQUIRE_API_KEY` लाई प्रत्यक्ष पढ्नुको सट्टा `src/shared/utils/featureFlags.ts` मा रहेको `isRequireApiKeyEnabled()` प्रयोग गरिन्छ। डिप्लोय गरिएका इन्स्ट्यान्सहरूका लागि यो महत्त्वपूर्ण छ: Dashboard → Feature Flags मा `REQUIRE_API_KEY` टगल गर्दा DB ओभरराइड भण्डारण हुन्छ र त्यसले `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*`, तथा यही हेल्पर साझा गर्ने अन्य क्लाइन्ट-API प्रमाणीकरण जाँचहरूमा तुरुन्त प्रभाव पार्छ। फिचर फ्ल्याग स्टोर पढ्न नसकिएमा, क्लाइन्ट API प्रमाणीकरण बन्द अवस्थामा विफल हुन्छ र कुञ्जी आवश्यक पर्छ।
 
 ## ब्रेकिङ परिवर्तन — v3.8.0
 

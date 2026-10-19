@@ -17,13 +17,13 @@ Az OmniRoute útvonal-érzékeny engedélyezési folyamattal rendelkezik, amely 
 
 ### 1. API-kulcs (Bearer)
 
-Az OpenAI-/Anthropic-/Gemini-kompatibilis kliens API-khoz, valamint néhány felügyeleti útvonalhoz használatos, amikor a kulcs rendelkezik `manage` hatókörrel.
+Az OpenAI-/Anthropic-/Gemini-kompatibilis kliens API-khoz, valamint néhány felügyeleti útvonalhoz használatos, ha a kulcs rendelkezik `manage` hatókörrel.
 
 ```
 Authorization: Bearer <api-key>
 ```
 
-Az ellenőrzést az `isValidApiKey()` / `extractApiKey()` végzi a `src/sse/services/auth.ts` fájlban, majd ezek a `src/shared/utils/apiAuth.ts` fájlon keresztül újra exportálásra kerülnek. Az ellenőrző az `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` környezeti változókat is elfogadja állandó továbbítási kulcsokként (issue #1350).
+Az ellenőrzést az `isValidApiKey()` / `extractApiKey()` végzi a `src/sse/services/auth.ts` fájlban, és a `src/shared/utils/apiAuth.ts` újraexportálja ezeket. Az ellenőrző az `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` környezeti változókat is elfogadja állandó átengedési kulcsokként (#1350. számú probléma).
 
 ### 2. Irányítópult-munkamenet (auth_token cookie)
 
@@ -33,88 +33,107 @@ Az irányítópult oldalaihoz és az adminisztrátori műveletekhez.
 Cookie: auth_token=<JWT signed with JWT_SECRET>
 ```
 
-Egy cookie csak akkor számít munkamenetnek, ha a JWT ellenőrzése sikeres, **és** tartalmazza az `authenticated: true` értéket
+Egy cookie csak akkor minősül munkamenetnek, ha a JWT ellenőrzése sikeres, **és** tartalmazza az `authenticated: true` értéket
 (`src/shared/utils/dashboardSessionToken.ts` → `verifyDashboardSessionToken`). A cookie minden
 felhasználója (az irányítópult útvonalvédelme (`isDashboardSessionAuthenticated()`), az authz-folyamat frissítése, a WebSocket-kézfogás, az élő
 kiszolgáló, `/api/settings/require-login`, `/api/auth/status`) ezen a segédfüggvényen keresztül működik.
-Léteznek más, `JWT_SECRET` használatával aláírt JWT-k is — a Cursor CLI-továbbítás
-`iss "omniroute" / aud "cursor-cli"` tokeneket állít ki a kulcsok birtokosainak —, ezek azonban soha nem számítanak munkamenetnek
+Léteznek más, `JWT_SECRET` használatával aláírt JWT-k is — a Cursor CLI átengedési funkciója
+`iss "omniroute" / aud "cursor-cli"` tokeneket állít ki a kulcsok birtokosai számára —, ezek azonban soha nem minősülnek munkamenetnek
 (#13298).
 
 Az ellenőrzést az `isDashboardSessionAuthenticated()` végzi a `src/shared/utils/apiAuth.ts` fájlban. A folyamat automatikusan frissíti a JWT-t, ha annak 30 napos élettartamából kevesebb mint 7 nap van hátra.
 
-Egy munkamenet a 30 nap letelte előtt is véget érhet, mivel minden kibocsátó a `mintDashboardSessionToken` függvényen keresztül működik (egy kibocsátási idővel, `iat`, és egy azonosítóval, `jti`), az ellenőrző pedig két beállítást vizsgál: a `sessionsValidAfter` értéket, amelyet jelszóváltáskor állít be a rendszer, így az előtte kiadott összes munkamenet érvényét veszti (a jelszót módosító böngésző új cookie-t kap), valamint a `revokedDashboardSessions` értéket, amelyhez a `POST /api/auth/logout` hozzáadja a kijelentkeztetett munkamenet `jti` azonosítóját. A régebbi kiadások által létrehozott munkamenetek egyik állítást sem tartalmazzák, és az első jelszóváltásig érvényesek maradnak. Ha a beállítások nem olvashatók, a rendszer nem tekinti megbízhatónak a munkamenetet.
+Egy munkamenet a 30 nap letelte előtt is véget érhet, mert minden kibocsátó a `mintDashboardSessionToken` függvényt használja (egy kibocsátási idővel, `iat`, és egy azonosítóval, `jti`), az ellenőrző pedig két beállítást vizsgál: a `sessionsValidAfter` értékét, amelyet jelszóváltoztatáskor állít be a rendszer, így az előtte kibocsátott összes munkamenet ellenőrzése sikertelen lesz (a jelszót módosító böngésző friss cookie-t kap), valamint a `revokedDashboardSessions` értékét, amelyhez a `POST /api/auth/logout` hozzáadja a kijelentkeztetett munkamenet `jti` értékét. A régebbi kiadások által létrehozott munkamenetek egyik állítást sem tartalmazzák, és az első jelszóváltoztatásig érvényesek maradnak. Ha a beállítások nem olvashatók, a munkamenet nem tekinthető megbízhatónak.
 
-Egyes felügyeleti útvonalak **mindkét** módot elfogadják: cookie VAGY `Bearer <key>`, ha az API-kulcs rendelkezik `manage` (vagy `admin`) hatókörrel. Ez teszi lehetővé a v3.8 verzióban bevezetett, „API-hívásokkal konfigurálható” munkafolyamatot.
+Egyes felügyeleti útvonalak **bármelyik** módot elfogadják: cookie VAGY `Bearer <key>`, ha az API-kulcs rendelkezik `manage` (vagy `admin`) hatókörrel. Ez teszi lehetővé a v3.8-ban hozzáadott, „API-hívásokon keresztül konfigurálható” munkafolyamatot.
 
-#### Opcionális OIDC-bejelentkezési kapu (#6973)
+#### Opcionális OIDC-bejelentkezési korlátozás (#6973)
 
-Az irányítópult adminisztrátori bejelentkezése a jelszavas bejelentkezés mellett egy **külön engedélyezhető** OIDC- (OpenID Connect-) folyamatot is támogat — a jelszavas bejelentkezést soha nem távolítja el, csak
-kiegészíti:
+Az irányítópult adminisztrátori bejelentkezése a jelszavas bejelentkezés mellett egy **külön engedélyezhető** OIDC- (OpenID Connect-) folyamatot is támogat — a jelszavas bejelentkezés soha nem kerül eltávolításra, csak
+kiegészül:
 
 - Letiltva marad, kivéve, ha `settings.oidcEnabled === true`, **és** az `oidcIssuer` /
-  `oidcClientId` / `oidcClientSecret` mindegyike konfigurálva van (Beállítások → Hitelesítés).
-  Ellenkező esetben a `GET /api/auth/oidc/login` `400` választ ad.
-- A `GET /api/auth/oidc/login` lekéri az `authorization_endpoint` értékét a
-  kibocsátó `/.well-known/openid-configuration` végpontjáról (sikertelenség esetén az
+  `oidcClientId` / `oidcClientSecret` mindegyike be van állítva (Beállítások → Hitelesítés).
+  Ellenkező esetben a `GET /api/auth/oidc/login` válasza `400`.
+- A `GET /api/auth/oidc/login` felderíti az `authorization_endpoint` értékét a
+  kibocsátó `/.well-known/openid-configuration` végpontjáról (ennek hiányában a
   `<issuer>/authorize` értéket használja), a bejövő kérésből állítja össze az átirányítási URI-t
-  (az `x-forwarded-proto` figyelembevételével), majd egy véletlenszerű `state` értékkel az IdP-hez irányít át,
-  amelyet egy `httpOnly` `oidc_state` cookie-ban tárol.
+  (figyelembe véve az `x-forwarded-proto` fejlécet), majd átirányít az IdP-hez egy véletlenszerű `state`
+  értékkel, amelyet egy `httpOnly` `oidc_state` cookie-ban tárol.
 - A `GET /api/auth/oidc/callback` ellenőrzi a `state` értékét, beváltja az engedélyezési
-  kódot, és a kibocsátó JWKS-én keresztül ellenőrzi az ID-token aláírását
+  kódot, és a kibocsátó JWKS-e alapján ellenőrzi az ID token aláírását
   (a `jose` `createRemoteJWKSet` függvényével, JWKS URI-nként gyorsítótárazva), `issuer`/`audience`
-  ellenőrzésekkel. Az `oidcAllowedSubjects` engedélyezési lista kötelező: a rendszer a
-  token `sub` vagy `email` állításával egyezteti — az email-állítást csak akkor veszi figyelembe,
-  ha `email_verified === true`, ezért az IdP-nél nem ellenőrzött e-mail-cím soha nem
-  juthat át a kapun —, bejegyzések hiányában pedig a visszahívás minden bejelentkezést elutasít
+  ellenőrzésekkel. Az `oidcAllowedSubjects` engedélyezési lista kötelező: a token
+  `sub` állítására vagy `email` állítására illeszkedik — az email-állítást csak akkor veszi figyelembe,
+  ha `email_verified === true`, így az IdP-nél nem ellenőrzött email-cím soha nem
+  juthat át az ellenőrzésen —, és bejegyzések hiányában a visszahívás minden bejelentkezést elutasít
   (`not_configured`).
-- Siker esetén **pontosan ugyanazt** a 30 napos `auth_token` JWT-t állítja ki, mint a jelszavas
-  bejelentkezés (`src/app/api/auth/login/route.ts`), így az irányítópult
-  munkamenet-folyamatának többi része (automatikus frissítés, cookie-jelzők) változatlan marad —
-  az OIDC csak a cookie kiállításának módját cseréli le, az általa biztosított jogosultságokat nem.
+- Siker esetén **pontosan ugyanazt** a 30 napos `auth_token` JWT-t állítja elő, mint a jelszavas
+  bejelentkezés (`src/app/api/auth/login/route.ts`), így az irányítópult munkamenet-folyamatának többi része
+  (automatikus frissítés, cookie-jelzők) változatlan marad — az OIDC csak azt helyettesíti,
+  ahogyan a cookie létrejön, nem pedig azt, hogy milyen jogosultságokat biztosít.
 - Minden `oidc*` beállítás (`oidcEnabled`, `oidcDisablePasswordLogin`,
   `oidcIssuer`, `oidcClientId`, `oidcClientSecret`, `oidcAllowedSubjects`,
   `oidcRedirectPath`, `oidcScopes`) szerepel a `SECURITY_IMPACTING_SETTINGS_KEYS`
   listában (`src/shared/constants/securityImpactingSettings.ts`): a `PATCH /api/settings`
-  `400 PASSWORD_REQUIRED` választ ad, kivéve, ha a törzs `currentPassword` néven tartalmazza a felügyeleti
-  jelszót (hibás jelszó esetén `401 PASSWORD_MISMATCH`).
+  `400 PASSWORD_REQUIRED` választ ad, kivéve, ha a törzs tartalmazza a felügyeleti
+  jelszót `currentPassword` néven (helytelen jelszó esetén `401 PASSWORD_MISMATCH`).
   Az `oidcDisablePasswordLogin` letiltja a jelszavas _bejelentkezést_ (`POST /api/auth/login`),
-  de megőrzi a tárolt jelszókivonatot, és az újbóli hitelesítés továbbra is ezzel
-  ellenőrzi a `currentPassword` értékét.
-- A `POST /api/settings/import-json` kihagyja ezt az újbóli hitelesítést, ezért írás előtt eltávolít minden,
-  az `IMPORT_STRIPPED_SETTINGS_KEYS` listában szereplő kulcsot (ugyanabban a fájlban): a jelszót és
-  a `currentPassword` értéket, a `SECURITY_IMPACTING_SETTINGS_KEYS` minden elemét, valamint az
+  de megtartja a tárolt jelszókivonatot, és az újbóli hitelesítés továbbra is ehhez ellenőrzi
+  a `currentPassword` értékét.
+- A `corsOrigins` és a `bruteForceProtection` szintén szerepel a `SECURITY_IMPACTING_SETTINGS_KEYS`
+  listában: bármelyik lazítása gyengíti a bejelentkezési védelmet, ezért ugyanazt a
+  `currentPassword` alapú újbóli hitelesítést igénylik (a Biztonság lap bekéri ezt), a JSON-importálás
+  pedig elveti őket.
+- Minden biztonsági házirendkulcs — a `SECURITY_IMPACTING_SETTINGS_KEYS` bejegyzései,
+  minden `oidc*` kulcs és az irányítópult munkamenet-állapota — **csak operátorok számára érhető el** a
+  `PATCH /api/settings` végponton: a `manage` hatókörű API-kulcs vagy az `oma_` hozzáférési token
+  `403` válasszal lesz elutasítva még akkor is, ha a helyes `currentPassword` értéket küldi, az
+  elutasítás pedig `settings.update_failed` eseményként, `reason: OPERATOR_REQUIRED` értékkel kerül a naplóba
+  (`requireOperatorCredential()` a `src/lib/api/operatorCredential.ts` fájlban).
+  A szokásos beállítások (téma, megjelenítési beállítások) továbbra is módosíthatók `manage` kulccsal
+  vagy `admin` hozzáférési tokennel. Magának a `/api/settings` végpontnak (és a
+  `/api/settings/require-login` végpontnak) minden módosítása megköveteli az `admin` hozzáférésitoken-hatókört is
+  (`ADMIN_MUTATION_EXACT_PATHS` a `src/server/authz/accessScopes.ts` fájlban, pontos útvonal-
+  egyezéssel); a `GET` továbbra is `read`, a többi `/api/settings/*` alútvonal pedig (proxyk,
+  kombinációs alapértékek, modellálnevek, tömörítés, törlések…) megtartja a metódusból kikövetkeztetett
+  `write` hatókört.
+- A `POST /api/settings/import-json` kihagyja ezt az újbóli hitelesítést, ezért írás előtt elvet minden,
+  az `IMPORT_STRIPPED_SETTINGS_KEYS` listában (ugyanabban a fájlban) szereplő kulcsot: a jelszót és a
+  `currentPassword` értéket, a `SECURITY_IMPACTING_SETTINGS_KEYS` minden bejegyzését, valamint az
   irányítópult munkamenet-állapotát (`sessionsValidAfter`, `revokedDashboardSessions`).
-  Egy régebbi biztonsági mentés importálása ezért nem éleszthet újra olyan munkamenetet, amelyet egy jelszóváltás
-  vagy kijelentkezés már megszüntetett.
+  Egy régebbi biztonsági mentés importálása ezért nem állíthat vissza olyan munkamenetet, amelyet egy jelszó-
+  módosítás vagy kijelentkezés már lezárt.
 
 ## Útvonalosztályok
 
 A `src/server/authz/types.ts` három osztályt definiál; minden olyan útvonal, amely nem sorolható be egyértelműen, alapértelmezetten a `MANAGEMENT` osztályba kerül.
 
-| Osztály      | Leírás                                                                                                                                                         | Szükséges hitelesítés                                                        |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `PUBLIC`     | Kifejezetten biztonságos útvonalak — bejelentkezés, kijelentkezés, állapot, inicializálás, rendszerállapot-ellenőrzés, bevezetési rendszerindítás.             | Nincs                                                                        |
-| `CLIENT_API` | Modellkiszolgáló végpontok — `/api/v1/*`, `/api/v1beta/*`, valamint az `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*` aliasok. | Bearer-kulcs, ha az effektív `REQUIRE_API_KEY` funkciójelző engedélyezve van |
-| `MANAGEMENT` | Irányítópultoldalak, beállítások, szolgáltatók, kulcsok, adminisztrációs és diagnosztikai végpontok.                                                           | Irányítópult-munkamenet VAGY `manage` hatókörű Bearer                        |
+| Osztály      | Leírás                                                                                                                                                        | Szükséges hitelesítés                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `PUBLIC`     | Kifejezetten biztonságos útvonalak — bejelentkezés, kijelentkezés, állapot, inicializálás, állapotellenőrzés, bevezetési rendszerindítás.                     | Nincs                                                                        |
+| `CLIENT_API` | Modellkiszolgáló végpontok — `/api/v1/*`, `/api/v1beta/*`, valamint a `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*` aliasok. | Bearer-kulcs, ha az effektív `REQUIRE_API_KEY` funkciójelző engedélyezve van |
+| `MANAGEMENT` | Irányítópultoldalak, beállítások, szolgáltatók, kulcsok, adminisztrációs és diagnosztikai végpontok.                                                          | Irányítópult-munkamenet VAGY `manage` hatókörű Bearer                        |
 
-Néhány `MANAGEMENT` művelet **kizárólag operátorok számára érhető el**: egy `manage` kulcs nem elegendő. A tárolt
+Néhány `MANAGEMENT` műveletet **csak operátor végezhet el**: egy `manage` kulcs önmagában nem elegendő. A tárolt
 hitelesítő adatok exportálásához (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), szinkronizálási token kiadásához (`POST /api/sync/tokens`) és egy
-`admin` CLI-hozzáférési token létrehozásához (`POST /api/cli/tokens`) irányítópult-munkamenet, helyi CLI-
-alany vagy letiltott bejelentkezés szükséges; a bármilyen hatókörű API-kulcsok és az `oma_` hozzáférési tokenek `403` választ kapnak. Az ellenőrzés
+`GET /api/db-backups/exportAll`), egy biztonsági mentés élő adatok fölé történő visszaállításához
+(`POST /api/db-backups/import`, beleértve a `dryRun=true` esetet is, `POST /api/db-backups` azonosító alapján történő visszaállítás,
+`POST /api/settings/import-json`), valamint a visszaállítási pontok megsemmisítéséhez (`DELETE /api/db-backups` tisztítás,
+továbbá `PATCH /api/db-backups`, mivel az általa eltárolt megőrzési beállítás vezérli az egyes
+biztonsági mentések utáni automatikus ritkítást) irányítópult-munkamenet, helyi CLI-alany vagy letiltott bejelentkezés szükséges. Egy
+szinkronizálási token kiadásához (`POST /api/sync/tokens`) és egy `admin` CLI-hozzáférési token
+létrehozásához (`POST /api/cli/tokens`) minden bejelentkezési módban irányítópult-munkamenet vagy helyi CLI-alany szükséges.
+A tetszőleges hatókörű API-kulcsok és az `oma_` hozzáférési tokenek nem operátori hitelesítő adatok: `403`
+választ kapnak minden olyan esetben, amikor ilyen hitelesítés szükséges. Az ellenőrzés
 a `src/lib/api/operatorCredential.ts` fájlban található (`resolveOperatorCredential()` /
-`requireOperatorCredential()`).
-
-A few `MANAGEMENT` actions are **operator-only**: a `manage` key is not enough. Exporting stored
-credentials (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), restoring a backup over the live data
-(`POST /api/db-backups/import` including `dryRun=true`, `POST /api/db-backups` restore by id,
-`POST /api/settings/import-json`), issuing a sync token (`POST /api/sync/tokens`) and minting an
-`admin` CLI access token (`POST /api/cli/tokens`) require a dashboard session, the local CLI
-subject, or login disabled; API keys of any scope and `oma_` access tokens get `403`. The check
-lives in `src/lib/api/operatorCredential.ts` (`resolveOperatorCredential()` /
-`requireOperatorCredential()`).
+`requireOperatorCredential()`). A bejelentkezési beállítások módosítása szintén kizárólag operátori művelet:
+a `POST /api/settings/require-login` (a kezelési jelszó beállítása / a `requireLogin` átváltása)
+egy már létező jelszó esetén csak ezeket a hitelesítő adatokat fogadja el — az első futtatáskor rendelkezésre álló rendszerindítási időablak
+(amikor még nincs jelszó) változatlan marad —, és a jelszó lecseréléséhez az irányítópult-munkamenetnek el kell küldenie a
+`currentPassword` értékét (`403`, ha hiányzik vagy helytelen, az auditnaplóban `settings.update_failed` eseményként rögzítve). A helyi CLI és a
+letiltott bejelentkezésű példány megőrzi a helyreállítási lehetőséget, és enélkül is beállíthat jelszót, mivel mindkettő
+az adatkönyvtárat birtokló gazdagéphez van kötve.
 
 ## Feldolgozási folyamat
 
@@ -270,15 +289,21 @@ Ez kikapcsolva marad, hacsak az `OMNIROUTE_MCP_ENFORCE_SCOPES=true` nincs beáll
 hozzáférési token hitelesítő adatokra vonatkozik. Lásd:
 [Kezelési hitelesítés](../guides/MANAGEMENT-AUTH.md).
 
-## Hitelesítési követelmény kapcsolója
+## Hitelesítés megkövetelésének kapcsolója
 
-A `src/shared/utils/apiAuth.ts` fájlban található `isAuthRequired()` dönti el, hogy egy kéréshez szükséges-e **bármilyen** hitelesítés:
+A `src/shared/utils/apiAuth.ts` fájlban található `isAuthRequired()` dönti el, hogy egy kérésnél érvényesítve van-e **bármilyen** hitelesítés:
 
-- `settings.requireLogin === false` → a hitelesítés globálisan le van tiltva.
-- Nincs beállítva jelszó, **és** nincs `INITIAL_PASSWORD` környezeti változó → a rendszerindítási mód engedélyezi a bevezető varázslót és a loopback kéréseket, de a hálózaton elérhető kérésekhez továbbra is szükségesek hitelesítő adatok.
-- Bármilyen adatbázishiba → zárt módon hiúsul meg (alapértelmezetten biztonságos).
+- `settings.requireLogin === false` → a hitelesítés globálisan le van tiltva, kivéve a mindig védett
+  szintet (lásd: [Útvonalvédelmi szintek](../security/ROUTE_GUARD_TIERS.md)), valamint azokat a hívásokat, amelyek az általa elfogadott
+  hitelesítő adatokat adják ki; ezekhez ugyanaz a hitelesítő adat szükséges, mint bekapcsolt bejelentkezés esetén: szinkronizálási tokenek kibocsátása,
+  tetszőleges hatókörű CLI-hozzáférési tokenek létrehozása, továbbá `manage`/`admin` hatókörű API-kulcs létrehozása,
+  ennek a hatókörnek a kulcshoz rendelése, illetve egy ilyen kulcs újragenerálása vagy felfedése
+  (`requireCredentialForManagementScopedKey()` a `src/lib/api/requireManagementAuth.ts` fájlban).
+  A kizárólag következtetéshez használható kulcsok továbbra is hitelesítés nélkül használhatók.
+- Nincs beállított jelszó, **és** nincs `INITIAL_PASSWORD` környezeti változó → a rendszerindítási mód engedélyezi a kezdeti beállítási varázslót és a visszacsatolási címről érkező kéréseket, de a hálózaton elérhetővé tett kérésekhez továbbra is szükség van hitelesítő adatokra.
+- Bármilyen adatbázishiba → a rendszer zárt állapotba kerül (alapértelmezetten biztonságos).
 
-A kliensoldali API-kulcsok kikényszerítése a `src/shared/utils/featureFlags.ts` fájlban található `isRequireApiKeyEnabled()` függvényt használja, nem pedig a `process.env.REQUIRE_API_KEY` közvetlen kiolvasását. Ez fontos a telepített példányoknál: a `REQUIRE_API_KEY` átkapcsolása a Vezérlőpult → Funkciójelzők felületen adatbázis-felülírást tárol, és azonnal hatással van a `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*` és más, ezt a segédfüggvényt használó kliens-API hitelesítési ellenőrzésekre. Ha a funkciójelzők tárhelye nem olvasható, a kliens-API hitelesítése zárt módon hiúsul meg, és kulcsot követel meg.
+A kliens API-kulcsának megkövetelése a `src/shared/utils/featureFlags.ts` fájlban található `isRequireApiKeyEnabled()` függvényt használja, nem pedig a `process.env.REQUIRE_API_KEY` közvetlen kiolvasását. Ez fontos a telepített példányoknál: a `REQUIRE_API_KEY` átkapcsolása a Dashboard → Feature Flags felületen adatbázis-felülírást tárol, és azonnal hatással van a `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*` útvonalakra, valamint az ezt a segédfüggvényt használó egyéb kliens-API-hitelesítési ellenőrzésekre. Ha a funkciójelzők tárhelye nem olvasható, a kliens-API hitelesítése zárt állapotba kerül, és kulcsot követel meg.
 
 ## Inkompatibilis változás — v3.8.0
 

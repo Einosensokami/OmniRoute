@@ -17,105 +17,134 @@ OmniRoute har bir API soʻrovini boshqaradigan marshrutni biluvchi avtorizatsiya
 
 ### 1. API kaliti (Bearer)
 
-OpenAI/Anthropic/Gemini bilan mos mijoz APIʼlari va kalit `manage` doirasiga ega boʻlganda ayrim boshqaruv yoʻnalishlari uchun ishlatiladi.
+OpenAI/Anthropic/Gemini bilan mos mijoz API’lari va kalit `manage` vakolatiga ega bo‘lganda ayrim boshqaruv yo‘nalishlari uchun ishlatiladi.
 
 ```
 Authorization: Bearer <api-key>
 ```
 
-`src/sse/services/auth.ts` ichidagi `isValidApiKey()` / `extractApiKey()` tomonidan tekshiriladi va `src/shared/utils/apiAuth.ts` orqali qayta eksport qilinadi. Tekshiruvchi, shuningdek, `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` muhit oʻzgaruvchilarini doimiy tranzit kalitlar sifatida qabul qiladi (muammo #1350).
+`src/sse/services/auth.ts` ichidagi `isValidApiKey()` / `extractApiKey()` orqali tekshiriladi va `src/shared/utils/apiAuth.ts` orqali qayta eksport qilinadi. Tekshiruvchi, shuningdek, `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` muhit o‘zgaruvchilarini doimiy to‘g‘ridan-to‘g‘ri uzatiladigan kalitlar sifatida qabul qiladi (muammo #1350).
 
 ### 2. Boshqaruv paneli sessiyasi (auth_token cookie fayli)
 
 Boshqaruv paneli sahifalari va administrator amallari uchun.
 
 ```
-Cookie: auth_token=<JWT_SECRET bilan imzolangan JWT>
+Cookie: auth_token=<JWT signed with JWT_SECRET>
 ```
 
-Cookie fayli faqat JWT tekshiruvdan oʻtsa **va** `authenticated: true` qiymatiga ega boʻlsa sessiya hisoblanadi
-(`src/shared/utils/dashboardSessionToken.ts` → `verifyDashboardSessionToken`). Cookie faylining har bir
-isteʼmolchisi (boshqaruv paneli yoʻnalishi himoyasi (`isDashboardSessionAuthenticated()`), avtorizatsiya konveyerini yangilash, WebSocket ulanishini oʻrnatish, jonli
-server, `/api/settings/require-login`, `/api/auth/status`) shu yordamchi orqali ishlaydi.
-`JWT_SECRET` bilan imzolangan boshqa JWTʼlar ham mavjud — Cursor CLI tranzit mexanizmi kalit egalariga
-`iss "omniroute" / aud "cursor-cli"` tokenlarini yaratadi — va ular hech qachon sessiya hisoblanmaydi
+Cookie faqat JWT tekshiruvdan muvaffaqiyatli o‘tsa **va** `authenticated: true` qiymatini o‘z ichiga olsa sessiya hisoblanadi
+(`src/shared/utils/dashboardSessionToken.ts` → `verifyDashboardSessionToken`). Cookie’dan
+foydalanuvchi har bir komponent (boshqaruv paneli yo‘nalishi himoyachisi (`isDashboardSessionAuthenticated()`), avtorizatsiya konveyerining yangilanishi, WebSocket ulanishini boshlash, jonli
+server, `/api/settings/require-login`, `/api/auth/status`) ushbu yordamchi orqali ishlaydi.
+`JWT_SECRET` bilan imzolangan boshqa JWT’lar ham mavjud — Cursor CLI orqali to‘g‘ridan-to‘g‘ri uzatish
+kalit egalariga `iss "omniroute" / aud "cursor-cli"` tokenlarini yaratadi — va ular hech qachon sessiya hisoblanmaydi
 (#13298).
 
-`src/shared/utils/apiAuth.ts` ichidagi `isDashboardSessionAuthenticated()` tomonidan tekshiriladi. JWTʼning 30 kunlik amal qilish muddatidan 7 kundan kam vaqt qolganida konveyer uni avtomatik ravishda yangilaydi.
+`src/shared/utils/apiAuth.ts` ichidagi `isDashboardSessionAuthenticated()` orqali tekshiriladi. JWT’ning 30 kunlik amal qilish muddatidan 7 kundan kam vaqt qolganida konveyer uni avtomatik ravishda yangilaydi.
 
-Sessiya 30 kunlik muddati tugashidan oldin ham yakunlanishi mumkin, chunki har bir token yaratuvchi `mintDashboardSessionToken` orqali ishlaydi (yaratilish vaqti `iat` va identifikator `jti`) hamda tekshiruvchi ikkita sozlamani tekshiradi: parol oʻzgartirilganda oʻrnatiladigan `sessionsValidAfter`, buning natijasida undan oldin berilgan barcha sessiyalar tekshiruvdan oʻtmaydi (parolni oʻzgartirgan brauzer yangi cookie faylini oladi), va `POST /api/auth/logout` tizimdan chiqarilgan sessiyaning `jti` qiymatini qoʻshadigan `revokedDashboardSessions`. Eski reliz tomonidan yaratilgan sessiyalarda bu daʼvolarning hech biri boʻlmaydi va ular birinchi parol oʻzgarishigacha amal qiladi. Agar sozlamalarni oʻqib boʻlmasa, sessiyaga ishonilmaydi.
+Sessiya 30 kunlik muddati tugashidan oldin ham yakunlanishi mumkin, chunki har bir yaratuvchi `mintDashboardSessionToken` orqali ishlaydi (chiqarilgan vaqt `iat` va identifikator `jti`) hamda tekshiruvchi ikkita sozlamani tekshiradi: parol o‘zgartirilganda o‘rnatiladigan `sessionsValidAfter`, shu sababli undan oldin yaratilgan barcha sessiyalar tekshiruvdan o‘tmaydi (parolni o‘zgartirgan brauzer yangi cookie oladi), va `revokedDashboardSessions`, unga `POST /api/auth/logout` tizimdan chiqarilgan sessiyaning `jti` qiymatini qo‘shadi. Eskiroq reliz tomonidan yaratilgan sessiyalar bu da’volarning hech birini o‘z ichiga olmaydi va birinchi parol o‘zgarishigacha amal qiladi. Agar sozlamalarni o‘qib bo‘lmasa, sessiya ishonchli deb hisoblanmaydi.
 
-Ayrim boshqaruv yoʻnalishlari **ikkala** rejimni ham qabul qiladi: cookie fayli YOKI API kaliti `manage` (yoki `admin`) doirasiga ega boʻlganda `Bearer <key>`. Aynan shu v3.8 versiyasida qoʻshilgan «API chaqiruvlari orqali sozlash mumkin» ish jarayonini taʼminlaydi.
+Ba’zi boshqaruv yo‘nalishlari **ikkala** rejimdan birini qabul qiladi: cookie YOKI API kaliti `manage` (yoki `admin`) vakolatiga ega bo‘lsa, `Bearer <key>`. Bu v3.8 versiyasida qo‘shilgan «API chaqiruvlari orqali sozlash» ish jarayonini ta’minlaydi.
 
-#### Ixtiyoriy OIDC kirish darvozasi (#6973)
+#### Ixtiyoriy OIDC kirish cheklovi (#6973)
 
-Boshqaruv panelidagi administrator kirishi standart parol orqali kirish bilan birga **ixtiyoriy ravishda yoqiladigan** OIDC (OpenID Connect) oqimini ham
-qoʻllab-quvvatlaydi — parol orqali kirish hech qachon olib tashlanmaydi, faqat
-toʻldiriladi:
+Boshqaruv panelidagi administrator kirishi standart parol orqali kirish bilan bir qatorda **ixtiyoriy ravishda yoqiladigan** OIDC (OpenID Connect) jarayonini ham qo‘llab-quvvatlaydi — parol orqali kirish hech qachon olib tashlanmaydi, faqat
+to‘ldiriladi:
 
-- `settings.oidcEnabled === true` boʻlmasa **va** `oidcIssuer` /
-  `oidcClientId` / `oidcClientSecret` qiymatlarining barchasi sozlanmagan boʻlsa, oʻchirilgan boʻladi (Settings → Auth).
+- `settings.oidcEnabled === true` bo‘lmasa **va** `oidcIssuer` /
+  `oidcClientId` / `oidcClientSecret` qiymatlarining barchasi sozlanmagan bo‘lsa (Sozlamalar → Autentifikatsiya), o‘chirib qo‘yiladi.
   Aks holda `GET /api/auth/oidc/login` `400` qaytaradi.
-- `GET /api/auth/oidc/login` emitentning
-  `/.well-known/openid-configuration` manzilidan `authorization_endpoint` qiymatini aniqlaydi (`<issuer>/authorize`
-  manziliga zaxira oʻtish mavjud), kiruvchi soʻrov asosida qayta yoʻnaltirish URIʼsini tuzadi
-  (`x-forwarded-proto` hisobga olinadi) va `httpOnly` turidagi `oidc_state` cookie faylida saqlangan tasodifiy `state`
-  bilan IdPʼga qayta yoʻnaltiradi.
-- `GET /api/auth/oidc/callback` `state` qiymatini tekshiradi, avtorizatsiya
-  kodini almashtiradi va ID token imzosini emitentning JWKSʼi orqali
-  (`jose` paketining `createRemoteJWKSet` funksiyasi, har bir JWKS URI uchun keshlanadi), `issuer`/`audience`
-  tekshiruvlari bilan tasdiqlaydi. `oidcAllowedSubjects` ruxsat roʻyxati majburiy: u
-  tokenning `sub` daʼvosiga yoki `email` daʼvosiga mos keladi — email daʼvosi faqat
-  `email_verified === true` boʻlganda hisobga olinadi, shuning uchun IdPʼdagi tasdiqlanmagan email hech qachon
-  kirish darvozasidan oʻta olmaydi — va roʻyxatda hech qanday yozuv boʻlmasa, qayta chaqiruv barcha kirish urinishlarini rad etadi
+- `GET /api/auth/oidc/login` emitentning `/.well-known/openid-configuration`
+  manzilidan `authorization_endpoint`ni aniqlaydi (topilmasa,
+  `<issuer>/authorize`dan foydalanadi), kiruvchi so‘rov asosida qayta yo‘naltirish URI manzilini
+  (`x-forwarded-proto`ni hisobga olgan holda) tuzadi va `httpOnly` turidagi
+  `oidc_state` cookie faylida saqlangan tasodifiy `state` bilan IdP’ga qayta yo‘naltiradi.
+- `GET /api/auth/oidc/callback` `state`ni tekshiradi, avtorizatsiya
+  kodini almashtiradi va emitentning JWKS’i orqali ID token imzosini
+  (`jose`ning `createRemoteJWKSet` funksiyasi, har bir JWKS URI uchun keshlanadi)
+  `issuer`/`audience` tekshiruvlari bilan tasdiqlaydi. `oidcAllowedSubjects`
+  ruxsat etilganlar ro‘yxati majburiy: u tokenning `sub` da’vosi yoki uning
+  `email` da’vosiga moslikni tekshiradi — email da’vosi faqat
+  `email_verified === true` bo‘lganda hisobga olinadi, shuning uchun IdP’da
+  tasdiqlanmagan email hech qachon tekshiruvdan o‘ta olmaydi — va ro‘yxatda hech qanday
+  yozuv bo‘lmasa, callback har qanday kirishni rad etadi
   (`not_configured`).
-- Muvaffaqiyatli yakunlanganda u parol orqali kirish beradigan **aynan oʻsha** 30 kunlik `auth_token` JWTʼni yaratadi
-  (`src/app/api/auth/login/route.ts`), shu sababli boshqaruv paneli sessiyasi
-  konveyerining qolgan qismi (avtomatik yangilash, cookie fayli bayroqlari) oʻzgarmaydi —
-  OIDC faqat cookie fayli qanday yaratilishini almashtiradi, u taqdim etadigan huquqlarni emas.
+- Muvaffaqiyatli bo‘lsa, u parol orqali kirish yaratadigan **aynan o‘sha**
+  30 kunlik `auth_token` JWT’ni yaratadi (`src/app/api/auth/login/route.ts`),
+  shu sababli boshqaruv paneli sessiya konveyerining qolgan qismi
+  (avtomatik yangilash, cookie bayroqlari) o‘zgarmaydi — OIDC faqat cookie qanday
+  yaratilishini almashtiradi, u beradigan huquqlarni emas.
 - Har bir `oidc*` sozlamasi (`oidcEnabled`, `oidcDisablePasswordLogin`,
   `oidcIssuer`, `oidcClientId`, `oidcClientSecret`, `oidcAllowedSubjects`,
   `oidcRedirectPath`, `oidcScopes`) `SECURITY_IMPACTING_SETTINGS_KEYS`
-  (`src/shared/constants/securityImpactingSettings.ts`) ichida joylashgan: soʻrov tanasida boshqaruv
-  paroli `currentPassword` sifatida berilmasa, `PATCH /api/settings`
-  `400 PASSWORD_REQUIRED` javobini qaytaradi (notoʻgʻri boʻlsa, `401 PASSWORD_MISMATCH`).
-  `oidcDisablePasswordLogin` parol orqali _kirishni_ (`POST /api/auth/login`) rad etadi,
-  ammo saqlangan parol xeshini qoldiradi va qayta autentifikatsiya hali ham
-  `currentPassword` qiymatini unga nisbatan tekshiradi.
-- `POST /api/settings/import-json` bu qayta autentifikatsiyani oʻtkazib yuboradi, shuning uchun yozishdan oldin
-  `IMPORT_STRIPPED_SETTINGS_KEYS` ichidagi har bir kalitni (oʻsha fayl) olib tashlaydi: parol va
-  `currentPassword`, har bir `SECURITY_IMPACTING_SETTINGS_KEYS` yozuvi hamda
-  boshqaruv paneli sessiyasi holati (`sessionsValidAfter`, `revokedDashboardSessions`).
-  Shu sababli eski zaxira nusxasini import qilish parol
-  oʻzgarishi yoki tizimdan chiqish allaqachon yakunlagan sessiyani qayta tiklay olmaydi.
+  (`src/shared/constants/securityImpactingSettings.ts`) tarkibiga kiradi:
+  so‘rov tanasida boshqaruv paroli `currentPassword` sifatida berilmasa,
+  `PATCH /api/settings` `400 PASSWORD_REQUIRED` javobini qaytaradi
+  (parol noto‘g‘ri bo‘lsa, `401 PASSWORD_MISMATCH`). `oidcDisablePasswordLogin`
+  parol bilan _kirish_ni (`POST /api/auth/login`) rad etadi, ammo saqlangan
+  parol xeshini saqlab qoladi va qayta autentifikatsiya hamon
+  `currentPassword`ni unga nisbatan tekshiradi.
+- `corsOrigins` va `bruteForceProtection` ham `SECURITY_IMPACTING_SETTINGS_KEYS`
+  tarkibiga kiradi: ulardan birini yumshatish kirish himoyasini zaiflashtiradi,
+  shu sababli ular ham `currentPassword` bilan xuddi shunday qayta autentifikatsiyani
+  talab qiladi (Xavfsizlik ichki oynasi uni so‘raydi), JSON importi esa ularni
+  chiqarib tashlaydi.
+- Har bir xavfsizlik siyosati kaliti — `SECURITY_IMPACTING_SETTINGS_KEYS`
+  yozuvlari, har bir `oidc*` kaliti va boshqaruv paneli sessiyasi holati —
+  `PATCH /api/settings`da **faqat operator uchun**: `manage` doirasidagi API
+  kaliti yoki `oma_` kirish tokeni, hatto to‘g‘ri `currentPassword`ni yuborsa ham,
+  `403` bilan rad etiladi va rad etish `reason: OPERATOR_REQUIRED` bilan
+  `settings.update_failed` sifatida audit jurnaliga yoziladi
+  (`src/lib/api/operatorCredential.ts` ichidagi `requireOperatorCredential()`).
+  Oddiy sozlamalarni (mavzu, ko‘rsatish afzalliklari) `manage` kaliti yoki
+  `admin` kirish tokeni bilan o‘zgartirish mumkin. `/api/settings`ning o‘zidagi
+  (va `/api/settings/require-login`dagi) har bir o‘zgartirish ham `admin`
+  kirish-tokeni doirasini talab qiladi (`src/server/authz/accessScopes.ts`
+  ichidagi `ADMIN_MUTATION_EXACT_PATHS`, aniq yo‘l mosligi); `GET` uchun
+  `read` saqlanib qoladi, boshqa `/api/settings/*` quyi yo‘nalishlari (proksilar,
+  kombinatsiya standartlari, model taxalluslari, siqish, tozalashlar…)
+  esa metoddan aniqlanadigan `write` doirasini saqlab qoladi.
+- `POST /api/settings/import-json` ushbu qayta autentifikatsiyani chetlab o‘tadi,
+  shuning uchun yozishdan oldin `IMPORT_STRIPPED_SETTINGS_KEYS` (xuddi shu fayl)
+  tarkibidagi har bir kalitni chiqarib tashlaydi: parol va `currentPassword`,
+  har bir `SECURITY_IMPACTING_SETTINGS_KEYS` yozuvi hamda boshqaruv paneli
+  sessiyasi holati (`sessionsValidAfter`, `revokedDashboardSessions`).
+  Shu sababli eski zaxira nusxasini import qilish parol o‘zgartirilishi yoki
+  tizimdan chiqish natijasida yakunlangan sessiyani qayta tiklay olmaydi.
 
-## Marshrut klasslari
+## Marshrut sinflari
 
-`src/server/authz/types.ts` uchta klassni belgilaydi; deterministik tarzda tasniflab bo‘lmaydigan har qanday marshrut `MANAGEMENT` klassiga tushadi.
+`src/server/authz/types.ts` uchta sinfni belgilaydi; deterministik tarzda tasniflab bo‘lmaydigan har qanday marshrut standart ravishda `MANAGEMENT` sinfiga kiritiladi.
 
-| Klass        | Tavsif                                                                                                                                                                         | Autentifikatsiya talabi                                                               |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `PUBLIC`     | Xavfsizligi aniq belgilangan marshrutlar — tizimga kirish, chiqish, holat, ishga tushirish, tizim salomatligi, dastlabki sozlash.                                              | Talab qilinmaydi                                                                      |
-| `CLIENT_API` | Modelga xizmat ko‘rsatish endpointlari — `/api/v1/*`, `/api/v1beta/*`, shuningdek `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*` taxalluslari. | Amaldagi `REQUIRE_API_KEY` funksiya bayrog‘i yoqilganida Bearer kaliti talab qilinadi |
-| `MANAGEMENT` | Boshqaruv paneli sahifalari, sozlamalar, provayderlar, kalitlar, administrator va diagnostika endpointlari.                                                                    | Boshqaruv paneli sessiyasi YOKI `manage` doirasiga ega Bearer                         |
+| Sinf         | Tavsif                                                                                                                                                                         | Autentifikatsiya talabi                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `PUBLIC`     | Xavfsizligi aniq belgilangan marshrutlar — tizimga kirish, chiqish, holat, boshlang‘ich sozlash, tizim salomatligi va onboarding boshlang‘ich yuklanishi.                      | Talab qilinmaydi                                                       |
+| `CLIENT_API` | Modelga xizmat ko‘rsatish endpointlari — `/api/v1/*`, `/api/v1beta/*`, shuningdek `/v1/*`, `/v1beta/*`, `/chat/completions`, `/responses`, `/models`, `/codex/*` taxalluslari. | Amaldagi `REQUIRE_API_KEY` xususiyat bayrog‘i yoqilganda Bearer kaliti |
+| `MANAGEMENT` | Boshqaruv paneli sahifalari, sozlamalar, provayderlar, kalitlar, administrator va diagnostika endpointlari.                                                                    | Boshqaruv paneli sessiyasi YOKI `manage` doirasiga ega Bearer          |
 
 Ayrim `MANAGEMENT` amallari **faqat operatorlar uchun**: `manage` kalitining o‘zi yetarli emas. Saqlangan
 hisob ma’lumotlarini eksport qilish (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), sinxronlash tokenini chiqarish (`POST /api/sync/tokens`) va
-`admin` CLI kirish tokenini yaratish (`POST /api/cli/tokens`) uchun boshqaruv paneli sessiyasi, lokal CLI
-subyekti yoki kirish o‘chirib qo‘yilgan bo‘lishi talab etiladi; istalgan doiradagi API kalitlari va `oma_`
-kirish tokenlari `403` javobini oladi. Tekshiruv `src/lib/api/operatorCredential.ts` faylida
-(`resolveOperatorCredential()` / `requireOperatorCredential()`) joylashgan.
-
-A few `MANAGEMENT` actions are **operator-only**: a `manage` key is not enough. Exporting stored
-credentials (`GET /api/settings/export-json`, `GET /api/db-backups/export`,
-`GET /api/db-backups/exportAll`), restoring a backup over the live data
-(`POST /api/db-backups/import` including `dryRun=true`, `POST /api/db-backups` restore by id,
-`POST /api/settings/import-json`), issuing a sync token (`POST /api/sync/tokens`) and minting an
-`admin` CLI access token (`POST /api/cli/tokens`) require a dashboard session, the local CLI
-subject, or login disabled; API keys of any scope and `oma_` access tokens get `403`. The check
-lives in `src/lib/api/operatorCredential.ts` (`resolveOperatorCredential()` /
-`requireOperatorCredential()`).
+`GET /api/db-backups/exportAll`), jonli ma’lumotlar ustiga zaxira nusxani tiklash
+(`POST /api/db-backups/import`, jumladan `dryRun=true`, identifikator bo‘yicha
+`POST /api/db-backups` orqali tiklash, `POST /api/settings/import-json`), tiklash nuqtalarini yo‘q qilish
+(`DELETE /api/db-backups` orqali tozalash va `PATCH /api/db-backups`, chunki u saqlaydigan muddat
+siyosati har bir zaxiralashdan keyingi avtomatik tozalashni boshqaradi) uchun boshqaruv paneli
+sessiyasi, mahalliy CLI subyekti yoki o‘chirib qo‘yilgan login talab qilinadi. Sinxronlash tokenini
+chiqarish (`POST /api/sync/tokens`) va `admin` CLI kirish tokenini yaratish
+(`POST /api/cli/tokens`) har qanday login rejimida boshqaruv paneli sessiyasini yoki mahalliy CLI
+subyektini talab qiladi. Istalgan doiradagi API kalitlari va `oma_` kirish tokenlari operator hisob
+ma’lumotlari hisoblanmaydi: operator hisob ma’lumoti talab qilinganda ular `403` javobini oladi.
+Tekshiruv `src/lib/api/operatorCredential.ts` faylida joylashgan
+(`resolveOperatorCredential()` / `requireOperatorCredential()`). Login sozlamalarini o‘zgartirish
+ham faqat operatorlar uchun: `POST /api/settings/require-login` (boshqaruv parolini o‘rnatish /
+`requireLogin` qiymatini almashtirish) parol mavjud bo‘lgach faqat shu hisob ma’lumotlarini qabul
+qiladi — birinchi ishga tushirishdagi boshlang‘ich sozlash oynasi (hali parol yo‘q bo‘lganda)
+o‘zgarishsiz qoladi — va boshqaruv paneli sessiyasi parolni almashtirish uchun `currentPassword`
+qiymatini yuborishi shart (u mavjud bo‘lmasa yoki noto‘g‘ri bo‘lsa `403`, audit jurnalida
+`settings.update_failed` sifatida qayd etiladi). Mahalliy CLI va login o‘chirib qo‘yilgan instansiya
+tiklash yo‘lini saqlab qoladi hamda bu qiymatsiz parol o‘rnatishi mumkin, chunki ularning ikkalasi
+ham ma’lumotlar katalogiga egalik qiluvchi xostga bog‘langan.
 
 ## Konveyer
 
@@ -253,15 +282,17 @@ Katalog va mos kelish qoidalari (bir xil satr yoki `*` bilan tugaydigan berilgan
 
 `oma_live_…` tokenlarida `read` / `write` / `admin`, `scopeSatisfies` (`src/lib/accessTokens/scopes.ts`) bo'yicha tartiblangan. Bu daraja faqat kirish tokeni hisob ma'lumotlariga tegishli. Qarang [Boshqaruv autentifikatsiyasi](../guides/MANAGEMENT-AUTH.md).
 
-## Autentifikatsiya talabi almashtirgichi
+## Autentifikatsiya talabini almashtirish
 
-`src/shared/utils/apiAuth.ts` ichidagi `isAuthRequired()` soʻrov uchun **har qanday** autentifikatsiya majburiy yoki majburiy emasligini belgilaydi:
+`src/shared/utils/apiAuth.ts` ichidagi `isAuthRequired()` so‘rov uchun **har qanday** autentifikatsiya talab qilinishini belgilaydi:
 
-- `settings.requireLogin === false` → autentifikatsiya global miqyosda oʻchiriladi.
-- Parol sozlanmagan **va** `INITIAL_PASSWORD` muhit oʻzgaruvchisi mavjud emas → boshlangʻich sozlash rejimi dastlabki sozlash ustasi va loopback soʻrovlariga ruxsat beradi, ammo tarmoqqa ochiq soʻrovlar uchun baribir hisob maʼlumotlari talab qilinadi.
-- Har qanday DB xatosi → yopiq holatda rad etiladi (standart holatda xavfsiz).
+- `settings.requireLogin === false` → doimo himoyalangan daraja (qarang: [Marshrut himoyasi darajalari](../security/ROUTE_GUARD_TIERS.md)) va tizim qabul qiladigan hisob ma’lumotini taqdim etuvchi chaqiruvlardan tashqari autentifikatsiya global miqyosda o‘chiriladi. Bunday chaqiruvlar tizimga kirish yoqilgan holatdagi kabi bir xil hisob ma’lumotini talab qiladi: sinxronlash tokenlarini chiqarish, istalgan qamrovdagi CLI kirish tokenlarini yaratish, `manage`/`admin` qamroviga ega API kalitini yaratish, kalitga shu qamrovni berish yoki bunday kalitni qayta yaratish yoxud ko‘rsatish
+  (`src/lib/api/requireManagementAuth.ts` ichidagi `requireCredentialForManagementScopedKey()`).
+  Faqat inferensiya uchun mo‘ljallangan kalitlar ochiq qoladi.
+- Hech qanday parol sozlanmagan **va** `INITIAL_PASSWORD` muhit o‘zgaruvchisi mavjud emas → boshlang‘ich sozlash rejimi tanishtiruv ustasi va loopback so‘rovlariga ruxsat beradi, ammo tarmoqqa ochiq so‘rovlar baribir hisob ma’lumotlarini talab qiladi.
+- Har qanday DB xatosi → kirishni yopadi (sukut bo‘yicha xavfsiz).
 
-Mijoz API kalitini majburiy tekshirish `process.env.REQUIRE_API_KEY` qiymatini bevosita oʻqishdan emas, `src/shared/utils/featureFlags.ts` ichidagi `isRequireApiKeyEnabled()` funksiyasidan foydalanadi. Bu joylashtirilgan instansiyalar uchun muhim: Dashboard → Feature Flags boʻlimida `REQUIRE_API_KEY` qiymatini almashtirish DB bekor qilish qiymatini saqlaydi va `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*` hamda ushbu yordamchi funksiyadan foydalanadigan boshqa mijoz API autentifikatsiya tekshiruvlariga darhol taʼsir qiladi. Agar xususiyat bayroqlari omborini oʻqib boʻlmasa, mijoz API autentifikatsiyasi yopiq holatda rad etiladi va kalit talab qiladi.
+Mijoz API kalitini talab qilish bevosita `process.env.REQUIRE_API_KEY` qiymatini o‘qish orqali emas, balki `src/shared/utils/featureFlags.ts` ichidagi `isRequireApiKeyEnabled()` orqali amalga oshiriladi. Bu joylashtirilgan instansiyalar uchun muhim: Dashboard → Feature Flags bo‘limida `REQUIRE_API_KEY` qiymatini almashtirish DB’da ustuvor qiymatni saqlaydi va `/v1/*`, `/v1beta/*`, `/models`, `/responses`, `/chat/completions`, `/codex/*` hamda shu yordamchi funksiyadan foydalanadigan boshqa mijoz API autentifikatsiya tekshiruvlariga darhol ta’sir qiladi. Agar xususiyat bayroqlari omborini o‘qib bo‘lmasa, mijoz API autentifikatsiyasi kirishni yopadi va kalitni talab qiladi.
 
 ## Moslikni buzuvchi oʻzgarish — v3.8.0
 
